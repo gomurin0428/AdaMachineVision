@@ -1,0 +1,42 @@
+# The open images of the real-image tests (tools/fetch_real_images.sh).
+# Each line: file name, SHA-256 of the file, URL pinned to a commit.
+#
+# opencv/opencv samples/data (commit 55ff746...): BSD-3-Clause / Apache-2.0
+# as part of OpenCV (Debian ships them as free; only the lena images are
+# excluded there, and none is used here).
+# scikit-image coins.png (commit 4c83882...): "Greek coins from Pompeii",
+# Brooklyn Museum collection, no known copyright restrictions.
+#
+# The images are downloaded at test time and never committed.
+left01.jpg 9621899098adffa1440c8264606bb7be535ccfd9ad126ae8e0bd9b0c5a5b8676 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left01.jpg
+left02.jpg 052e700bbcc865c112958ec2ea105cb1bce4deca50ac8d6efae13adca9df7a2c https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left02.jpg
+left03.jpg c85b9426c3d8fcf161e1e727356105091009c3fd0b1b1a65bc2da91fea2724d2 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left03.jpg
+left04.jpg b490599dccfbfe5eb56d33363415b02227a9548ab8c9b8e7b05d3580e97266d9 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left04.jpg
+left05.jpg 40bab8934fa76f82ec614a7fd0e6ebb4d9f74391d5e8b0c6f2f0ed6080c6c4de https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left05.jpg
+left06.jpg 1cb164db61b3bd52f58a7e9340bb27c5e0278895bc80b6f292fba5cf9bccc4a1 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left06.jpg
+left07.jpg d2211fe9f971646b6ff88ed93a4f0d3f443741eb2894095cba15caade7c8c6e4 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left07.jpg
+left08.jpg f7a0737894812a28243af5b409c5689f4fadfe7610958b8ca5fc79aec2f2cd1b https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left08.jpg
+left09.jpg 753939bc62d093c001d9118e989bef2b887f1b2f9ac03603df915a8b85aa81d3 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left09.jpg
+left11.jpg e736ace3d515c94c547009c3c10d818c81506ed7059cb31123749b9cc3f94ee8 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left11.jpg
+left12.jpg 04bdd78b3b507fe0551aa7062a3ffd94846a147ee2bea7fb38082c720bdbe231 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left12.jpg
+left13.jpg 2637fb6dd5e557f4fadb06b353a453eb0b9223f4671f6f572f815302bc4a70b3 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left13.jpg
+left14.jpg d4c032971dd7b859f9d6aed5090c9888bd8039b82e0604bee5bfe05444fce834 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left14.jpg
+chessboard.png 7f5ce40e4fa457ad05d84b247f62ef1a3fc4f5fdb09f15a6c8c5a558784c59e7 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/chessboard.png
+box.png 1094629c1e2ebbc8a9ae2c9c63e18c1dff0f5f1481146e02f3b11a3d30feb20a https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/box.png
+box_in_scene.png 8b0225ff76244a42bd1400c0904f8b7afea7d97b7d8115495e42e98ad347bd51 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/box_in_scene.png
+smarties.png ad3f751c053fdcf432687c1bc0e56a61a9119d2bb2ae29365f8aa6534fc77417 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/smarties.png
+gauge-1.jpg e247a7e8bc6a335843da432408a076f7aac48c3573f97d030d07db4e95a56016 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/gauge-1.jpg
+coins.png f8d773fc9cfa6f4d8e5942dc34d0a0788fcaed2a4fefbbed0aef5398d7ef4cba https://raw.githubusercontent.com/scikit-image/scikit-image/4c838820f472edc60d27ee911907e41daf2e884d/src/_skimage2/data/coins.png
+right01.jpg 94a160342fade4d0c4d2e94b8cb6c1e144a6e7682389d2991257e3a28625cb2d https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right01.jpg
+right02.jpg f7819b2fcc45fdeff0cefd666a1f8bd2a5828c4d34367d7b6b6691f442bf1c42 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right02.jpg
+right03.jpg 43a3cea1907be641268ea18478362ab6c459424a9d8b7265eb5fb2264fcfb894 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right03.jpg
+right04.jpg d5874ff3d948dbb673beb035dd70aef5e517119ff626ecdfd612fdd6a1eec32e https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right04.jpg
+right05.jpg 9382a24af5a21a9e3ec477bd4f74011e4bb10b0cdbc7e0de3ae60b75e95d650b https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right05.jpg
+right06.jpg 874b60edc8a53da477c6ee393184a1aafdc83ceaedcb4d0535f7c482d1c80e76 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right06.jpg
+right07.jpg 446093eead30c8cb1e51c8d01d322907760a3a57876596a81af6bf0795e9be67 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right07.jpg
+right08.jpg 5f1be870c8709fd5fc4dd578103b320018aabb4e18b8e8edaba9afbdd4d0b8f4 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right08.jpg
+right09.jpg de28e9f146f4b7de78b0e39be6682997a7428f8ec5ef4efc753415d4ff8d9d76 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right09.jpg
+right11.jpg 2695e8f8e94eaef0bcfe56818090dada6dc76f53e30b77b97bea3a91080949db https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right11.jpg
+right12.jpg 07489b6a334fae390954bbbddedf03a0556163e5e364820838e881ebd3f33e0d https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right12.jpg
+right13.jpg a576cc5e69668d65dd926366d103c4c77377e0cd71403e4e0fc278e335ed953c https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right13.jpg
+right14.jpg e98bbe907610e9499d704bd0fe68d4adc158b19346cbc32f4cfe8a0014b1bd62 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/right14.jpg

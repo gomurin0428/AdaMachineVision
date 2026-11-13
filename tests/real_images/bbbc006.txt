@@ -1,0 +1,102 @@
+# BBBC006 images for the real-image tests (tools/fetch_real_images.sh).
+# Each line: file name, SHA-256 of the zip local file entry, URL with
+# "#zip=START-END" (that entry's byte range in the archive), and the maxval
+# of the PGM it is written as.
+#
+# BBBC006v1, "Human U2OS cells (out of focus)", from the Broad Bioimage
+# Benchmark Collection (Ljosa et al., Nature Methods 2012), dedicated to
+# the public domain under CC0 1.0 (https://bbbc.broadinstitute.org/BBBC006).
+# Each field of view was imaged at 34 focal planes 2 um apart (one zip
+# archive per plane, z_00 .. z_33); the collection gives z = 16 as the
+# optimal focal plane found by autofocus and z = 11 .. 23 as the in-focus
+# ground truth.
+#
+# Used here: the Hoechst channel (w1) of five fields, chosen before looking
+# at them as every 150th of the sorted w1 field names (a01_s1, d04_s1,
+# g07_s1, j10_s1, m13_s1), at the even planes z = 0, 2, .. 32. The images
+# are 696 x 520, 16-bit, from a 12-bit camera (0 .. 4095), so maxval 4095.
+bbbc006_a01_s1_z00.pgm 371efca257abfda7ed354e0073bb09cc5615243d86bd8ffc6c99a95540d2674c https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_00.zip#zip=172083751-172384381 4095
+bbbc006_d04_s1_z00.pgm 2a218ca4f0a057a81b4f11e71c5ef89e702e744abdd181d27ec061acfa9d02c9 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_00.zip#zip=502459196-502896243 4095
+bbbc006_g07_s1_z00.pgm a88821d6b2d39f2cc902443be9d88c5ea4ece508c427efee395f8821f7c57fc7 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_00.zip#zip=372494042-372985951 4095
+bbbc006_j10_s1_z00.pgm 2a300fd4c8b08905a504144187ff92f35d57144503e6a2059bef6b332cc8e4b2 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_00.zip#zip=94561479-95044039 4095
+bbbc006_m13_s1_z00.pgm a427df66a6e3a96b55c46a0fc01fe9eef90a0ea0c80a146144f203be17084016 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_00.zip#zip=822420397-822961447 4095
+bbbc006_a01_s1_z02.pgm a0fe7eea2b87642f091f05e0f79c1459f459f33b0a923915cbd73d86c8f5ceb6 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_02.zip#zip=98462151-98760317 4095
+bbbc006_d04_s1_z02.pgm 4be80f0a35ee01511846a2aa916e6776dc4f577b913a27e5f0e80895c522dc58 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_02.zip#zip=435413853-435850353 4095
+bbbc006_g07_s1_z02.pgm 89c140713ac34fd9d076189e25787813af2d0f119cd389eb6ac0aac8738bfb95 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_02.zip#zip=3752564-4247221 4095
+bbbc006_j10_s1_z02.pgm c5a1ca5fe35fef0632a1f3c138ada1faf855b67045738fa702119fd3f5772361 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_02.zip#zip=833533931-834017353 4095
+bbbc006_m13_s1_z02.pgm 55a8e641c4a5731d650181abad3b1e6a2e53658fe68a19916ae9343f9db4b5b5 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_02.zip#zip=324629379-325177079 4095
+bbbc006_a01_s1_z04.pgm 9321f0fe03e70d187b5b388c0c2235000623d1b4a1bb9fe8b7fca7c48580eb88 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_04.zip#zip=151646922-151942972 4095
+bbbc006_d04_s1_z04.pgm f2d5d7ed044fe8b9a3f97a322502c61d6837380cd4c9a14884b8238e4f824ae5 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_04.zip#zip=68264988-68699833 4095
+bbbc006_g07_s1_z04.pgm 7ccbf21b4d59f5c6874d6816f78d983964839a4399dd2e5d5261a4cf8e4b6d81 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_04.zip#zip=499652586-500149538 4095
+bbbc006_j10_s1_z04.pgm 949d3841378372c29f7a1719b5406c631e9dc570d74bb847236ff7967245a712 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_04.zip#zip=205286880-205770082 4095
+bbbc006_m13_s1_z04.pgm 7ab78bb9a58acd54b272573b6479b750d5d0e7b38a27aa2ba28a249a6b5a5d8c https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_04.zip#zip=89175823-89729135 4095
+bbbc006_a01_s1_z06.pgm 92c58e9f152a6af658dbdd31894aeee71dfe69198beb5793de99148a1063568a https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_06.zip#zip=25397754-25690724 4095
+bbbc006_d04_s1_z06.pgm 6365b8a97ffd20cf486aea1a7d05def29fbd71fbedfed64e80c50fdefb87fe2f https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_06.zip#zip=294714037-295146655 4095
+bbbc006_g07_s1_z06.pgm 46c470c7eb107e5859dfe41e41bf471d543555bb9dc24f46fc78fc60083a0134 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_06.zip#zip=364739674-365236212 4095
+bbbc006_j10_s1_z06.pgm a88687a5ca5f7166bc0776641bd884eac139a4900d4560adeefc15d7d8cff234 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_06.zip#zip=669905365-670386684 4095
+bbbc006_m13_s1_z06.pgm c3e1e45e28cb3acfd57a05e09f6d95dfee026eb3cf2b64c53961d5bb5d91661d https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_06.zip#zip=229168585-229725479 4095
+bbbc006_a01_s1_z08.pgm 83ae37f1a9a0c0362e460359567a2c215ef830e48671b8d9b753ce4f1d32d67b https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_08.zip#zip=482399815-482689918 4095
+bbbc006_d04_s1_z08.pgm 75e6f57abd4519d7339aded90a05f84026786c62061ba9020c16d2924d9d2ed7 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_08.zip#zip=478628281-479056686 4095
+bbbc006_g07_s1_z08.pgm f0ae720c15f45094ace02f9b8139ddedaa836adb9854ece66adc33417a34bbcf https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_08.zip#zip=284122293-284615796 4095
+bbbc006_j10_s1_z08.pgm 11943daa9b32557eda09f6c3d0e4c9864ccb94fc421a93e0c54301cea131ab3a https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_08.zip#zip=453187837-453665232 4095
+bbbc006_m13_s1_z08.pgm d01d90f5bfc4111ca867dd27cf668968841e5b78aef219f98e220d0b2df22d8a https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_08.zip#zip=295478854-296036329 4095
+bbbc006_a01_s1_z10.pgm 9a3bc20e1d5c212a25c01709a1f9ffcc8368cc336726c9d9f018801a3f366e22 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_10.zip#zip=259097689-259385013 4095
+bbbc006_d04_s1_z10.pgm fa1320971a72ab90470cf91af9769d896f295062ee756d97f3cff0afde955f15 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_10.zip#zip=808267274-808690120 4095
+bbbc006_g07_s1_z10.pgm 2587a518f541ff4c6e3fb120f58677c47ca55e3028342736062505eeed579eb9 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_10.zip#zip=519078980-519567389 4095
+bbbc006_j10_s1_z10.pgm 2cfcd8b1dbd6f6e7133399ae68343f74eda3bc0ab80fb0a9a42fae9bba7a0c4d https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_10.zip#zip=593460743-593931664 4095
+bbbc006_m13_s1_z10.pgm 6bf17aebe87f02174bdec14c59496d4ff61ed55950d953730d1d19029da43ce0 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_10.zip#zip=376938114-377493745 4095
+bbbc006_a01_s1_z12.pgm e7cc4cd35164c4e6d3b30c684df8f8dc5f7fa1e6aed8ab8f32cdfb3f12d682a7 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_12.zip#zip=209478487-209762853 4095
+bbbc006_d04_s1_z12.pgm 56716ca473bad997853322bd199636265f2f0c5576db329ff05d7cf0092368f2 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_12.zip#zip=3940390-4355869 4095
+bbbc006_g07_s1_z12.pgm d52fb38c274bfc31084137af21b2499886fd618551471dd43c4cd098cf623abb https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_12.zip#zip=457325601-457805382 4095
+bbbc006_j10_s1_z12.pgm b05d1ccad35599699786ad267fc938728624b4eb0db6075da820f102ae72c377 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_12.zip#zip=782708731-783170315 4095
+bbbc006_m13_s1_z12.pgm c5ba525bff5768db3c556bae02cdc2642edbc777a06567d552dc95129f5ea50e https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_12.zip#zip=110737648-111288531 4095
+bbbc006_a01_s1_z14.pgm 67938db812dd1d68951a22cd265ba9061dad3afce62d541b119400121efe07cf https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_14.zip#zip=351061127-351342795 4095
+bbbc006_d04_s1_z14.pgm a7ad93cd34ddaa30cdd7886a07cb55beb1483f801edade06cefc81c48ad52158 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_14.zip#zip=13044852-13452409 4095
+bbbc006_g07_s1_z14.pgm 304085794154111de3d18e1e655e1ac0d4bfd527c9dbb7f6df53d151a2fa304b https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_14.zip#zip=327470510-327939635 4095
+bbbc006_j10_s1_z14.pgm 90114b66a8b15a064a5e84bd7d0d921cb788883e01dae02f86b58a8a5c7f4fb4 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_14.zip#zip=750404219-750855499 4095
+bbbc006_m13_s1_z14.pgm f5ffa712ec6afe522d3e9979670a2934f60638391072f2c86d7268125bccbb30 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_14.zip#zip=579427916-579968939 4095
+bbbc006_a01_s1_z16.pgm 30f860581896f3e4cb5cdddf9cc3d1de6979a209aca39045855a320478f45ac9 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_16.zip#zip=583430788-583709299 4095
+bbbc006_d04_s1_z16.pgm c19e3b09695c142338996d77628454df0c44fc841ea2b2081d0fa56eaa5bb00d https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_16.zip#zip=421963641-422360987 4095
+bbbc006_g07_s1_z16.pgm 1b22f9d3ddfd324efabc3f58957292b17829c23b25859034c21748c14b43a796 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_16.zip#zip=63705473-64161774 4095
+bbbc006_j10_s1_z16.pgm 1b67c19f068fbe42f5a5cd43c6cddc0769125a80ade4be8c461ec563a21b8182 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_16.zip#zip=143231813-143670026 4095
+bbbc006_m13_s1_z16.pgm 95de67bdf9df8770c72d08cc3aaa7f6e4968cfe28ec92c88e322ec8fb586d7f1 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_16.zip#zip=446524561-447051743 4095
+bbbc006_a01_s1_z18.pgm 57dbfed82ec554a96871c0aedee4f2d413f7344dfebaec06840a96f9487328cb https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_18.zip#zip=669405256-669681107 4095
+bbbc006_d04_s1_z18.pgm 1ce8efc2d8a0e40c49e9a289f777cffa3e6fbe5f72fdab2a0015d10e1721c1d6 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_18.zip#zip=154317557-154704616 4095
+bbbc006_g07_s1_z18.pgm 24e18a347457a9aa4da3cec485173e4decc66c3f6dc7ad18b8fd3d2a73c2adaf https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_18.zip#zip=756252855-756696446 4095
+bbbc006_j10_s1_z18.pgm 1acd52da4e196a3eedfc0b7aa89d6d2cdc73ab65ef53eafd1af44f2073989378 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_18.zip#zip=758849860-759275254 4095
+bbbc006_m13_s1_z18.pgm a239555d41baa66cca6c3330b8613cfb5dbc3b7b9e4d2b277fb245fa2024143c https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_18.zip#zip=625690185-626202045 4095
+bbbc006_a01_s1_z20.pgm 1a9deed56e080a63cd174ce4f43ca609f9fff0c84cdb5b98a15584e367c0d856 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_20.zip#zip=289451666-289725096 4095
+bbbc006_d04_s1_z20.pgm 8cec19f0d064a9a00a62a382f6b14dbd3c016f3765fd1f4ba01449d2f58211ab https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_20.zip#zip=821838186-822219679 4095
+bbbc006_g07_s1_z20.pgm 021cf16f032bce9d0b0b42bd231d6a25ccb27694e6365d745d9683ef5bebcd18 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_20.zip#zip=386781033-387219646 4095
+bbbc006_j10_s1_z20.pgm 7a76f74c1f4cb1beacc7cb4aed1639540b629e0eb618d4a14efcc76ae93e6a00 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_20.zip#zip=757219344-757634839 4095
+bbbc006_m13_s1_z20.pgm 64c2b66d12500ba2b21b939cf430f5222ef41463a4ccbdadf46783293ba16497 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_20.zip#zip=65063668-65568224 4095
+bbbc006_a01_s1_z22.pgm b6cf3eadbf4b9416c0d7bb2731af8bb0a3c9a06c1fe2bca2aa88a8407b3805f4 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_22.zip#zip=292715940-292987498 4095
+bbbc006_d04_s1_z22.pgm 407b5dcc167a2b692da7255710e3f6422af1ddc36a3c94640c57036dc31a998c https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_22.zip#zip=596840504-597224893 4095
+bbbc006_g07_s1_z22.pgm 0cb81d0352529f1d53c2f47febc7505e91c44d30e0d9b6ce85e90981f4d75fb5 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_22.zip#zip=607937920-608382410 4095
+bbbc006_j10_s1_z22.pgm 7375f4fb7e51709c72904c72a7ca37fbc3f3dd185464d6e60c34ee34d8ea2337 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_22.zip#zip=487151776-487569701 4095
+bbbc006_m13_s1_z22.pgm 0cf0bafcf923bddc7c7e369cffc4122a70bf788c5841a50e2a163ded95add7b8 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_22.zip#zip=301976634-302489256 4095
+bbbc006_a01_s1_z24.pgm 28b8a25211f5e5ada934da21cc0b8b220144ea448834195726d1c806b8b5366e https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_24.zip#zip=640206117-640477264 4095
+bbbc006_d04_s1_z24.pgm 8e146917a1d1ccac26f165c34fa720a02a2488ea22cdb476f6a739f26031c2aa https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_24.zip#zip=612344532-612736496 4095
+bbbc006_g07_s1_z24.pgm 0de1d10e1395c2dfc8394b1e338cb99110794781334285a3b3177a51d9eda981 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_24.zip#zip=373923958-374378964 4095
+bbbc006_j10_s1_z24.pgm fcd226f2eaf5eb9dde8dfdf2493066a345aac0c7f3becb360fe5b49ad3eba07e https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_24.zip#zip=572735373-573161549 4095
+bbbc006_m13_s1_z24.pgm 2bbc934d4bb7f9a942df1ba9319ad0d06f0769e8f88522c24204b2d1614ca5eb https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_24.zip#zip=364036110-364559988 4095
+bbbc006_a01_s1_z26.pgm ada26fc60c6a21e98c1787b24f6d79ac32a79127dea7b191242c04f1a3b0ac63 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_26.zip#zip=708384978-708657403 4095
+bbbc006_d04_s1_z26.pgm 3d2e03955ec050a7b9566edd59420eea8df75ec7329357dc577ab8ad20e250f2 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_26.zip#zip=749768560-750168890 4095
+bbbc006_g07_s1_z26.pgm 00addd3dfb88fce7a97da55d966672bb791b71f6ae9461597ed44464c9137391 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_26.zip#zip=227658296-228123127 4095
+bbbc006_j10_s1_z26.pgm b00bc81e239d086e9c163c54213258fcdaa928182946f81c47f73bb700b1b11a https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_26.zip#zip=590781984-591218131 4095
+bbbc006_m13_s1_z26.pgm a6b275d9455666955a9bf7df4013a10d48f045e63a7df362d7d0eeb4d978fc8c https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_26.zip#zip=618026490-618562488 4095
+bbbc006_a01_s1_z28.pgm 5480525e2c46cc10c18ebdee54812776b5347318a2aad839d5d5da46a90d4828 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_28.zip#zip=390174555-390448730 4095
+bbbc006_d04_s1_z28.pgm 4f2c6df9df3727e3a9b1a75940495d471790d6a55295e4a997526144ab533bf8 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_28.zip#zip=176207018-176615410 4095
+bbbc006_g07_s1_z28.pgm 0fc4855948c744dfe535d8d6d33405ef791d0a650290dd7a9e33e8fdf93b3e4c https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_28.zip#zip=710284830-710760526 4095
+bbbc006_j10_s1_z28.pgm 329b317d3a31b9ae360bc3a998e0c037ca2bc94995b86d79a4eb7097762819c3 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_28.zip#zip=553072673-553519911 4095
+bbbc006_m13_s1_z28.pgm a2a23eb0bcdefef557e8af68278985b7902a3d035a0f55018903b060256d34eb https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_28.zip#zip=488196451-488740923 4095
+bbbc006_a01_s1_z30.pgm e3ba43e846ac23e8e526f4cf5066d733121164f40613ce6050030b879622fb0b https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_30.zip#zip=106976592-107252902 4095
+bbbc006_d04_s1_z30.pgm 4fb440c81311a619368c1b7cf0d2d521380146ecfa893cbc2e043734b5fc3818 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_30.zip#zip=637657254-638072509 4095
+bbbc006_g07_s1_z30.pgm 1df7d4bd3f85192da091e911c442d2c19d3783b84731c4f7c97136e472996699 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_30.zip#zip=109998861-110482389 4095
+bbbc006_j10_s1_z30.pgm 88d6d45660079620eb88d834e3085bfeaf0a131f80fa5756e6837538fef8bb87 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_30.zip#zip=286244353-286701123 4095
+bbbc006_m13_s1_z30.pgm 58baaa0075dfe0bdb4e8f28329a52f77be1b887a1b7f177989a343847cf4fef2 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_30.zip#zip=197203540-197753267 4095
+bbbc006_a01_s1_z32.pgm 7c747cebe4894c14200be4ef1292ebb8bbfe42c7aa141118eaa15b6f07a67302 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_32.zip#zip=684269718-684547967 4095
+bbbc006_d04_s1_z32.pgm afd920c2e3da469cabcacdb9f2b7c760c4fd948da1df0762e30fbb8880d6287b https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_32.zip#zip=629647957-630068290 4095
+bbbc006_g07_s1_z32.pgm 9bbfe635167fa26eacbd8a27208e8651383a591fb0dfd2fa67a4b82a4f7c1684 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_32.zip#zip=577926870-578415121 4095
+bbbc006_j10_s1_z32.pgm b061e4cd77ab3ed9506ee489b9433592c2ab87781e932b81bf24cec8bc1ea99f https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_32.zip#zip=820065543-820530328 4095
+bbbc006_m13_s1_z32.pgm e1e4620c67b06ecfd55fe58d32a6e1fa2eb2e198348773f27c98a3aadb7f3c20 https://data.broadinstitute.org/bbbc/BBBC006/BBBC006_v1_images_z_32.zip#zip=841272976-841824717 4095

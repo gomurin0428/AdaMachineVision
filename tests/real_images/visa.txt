@@ -1,0 +1,35 @@
+# VisA images for the real-image tests (tools/fetch_real_images.sh).
+# Each line: file name, SHA-256 of the file, URL; "#bytes=START-END" after
+# the URL fetches that byte range of the archive (one member of the tar).
+#
+# VisA, the Visual Anomaly dataset (Zou et al., ECCV 2022), Amazon,
+# released under CC BY 4.0 (https://github.com/amazon-science/spot-diff).
+# Category pcb1 (an HC-SR04 ultrasonic sensor board), normal images.
+visa_pcb1_0000.jpg cdd134e70b2ebfb048b9d50e13b68af24e16f9130d083f4f6cfbd63a74f884af https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1192423424-1192683936
+visa_pcb1_0150.jpg 4a070ff17e6ca3da22951316fb286ab596a9bb30493b420566fa889fd55b854b https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1107141120-1107418980
+visa_pcb1_0450.jpg 00f82acb3fc66abd20763cdf23e020aa2f05b222654c051cd887b552a1f0eed5 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=955024384-955283611
+visa_pcb1_0600.jpg cbb7a4900dd758a20b8e1395d22f7fa4b13d3518cd48f14b5fe7965de504f855 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1116307968-1116568579
+visa_pcb1_0750.jpg ffb21293b638858deaf3227bf7f4177f32bed5afac0a624925277a9899b1ccdf https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1160311808-1160577565
+visa_pcb1_0050.jpg a8cdfea523dc997cb1e513c5c539eed26e34f4792863b033a52dfdf6ed255119 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=969644544-969910443
+visa_pcb1_0200.jpg 8be51104f7b46962a0118a61d1dd500875b78d99d5a612bb569f4034fad6243b https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1084523520-1084802686
+visa_pcb1_0350.jpg c30666607541e1ee8c5fbfe9fb3cc42396bc26436ba90e469456fb629777ce92 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1175575040-1175854165
+visa_pcb1_0500.jpg f267f1d2a4f677d2610204ac1152015832b0da824d07b56d5e31682bcbe8cefe https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=975007232-975262852
+visa_pcb1_0900.jpg 11fc84543bf2fcdbc98cc0a54a989ad948ca184d868256f145748ab0c6ce65fa https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=959086592-959345519
+visa_pcb1_0100.jpg 3d182e9f2ade8e954c16ec4e3e7ecc70404e6f990fa4646869aa96b6b8a5d948 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=942840320-943095199
+visa_pcb1_0250.jpg 30c4be023c16b15b297ba1314c72491033ecb113f316489e0f2d053a3e2b90b0 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1036069376-1036323930
+visa_pcb1_0400.jpg 60b89dd5aedf69723968ea0c2ce5b8562cf272269a5db3b1be2d1674491b86e7 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1147394560-1147671118
+visa_pcb1_0550.jpg 6cee1e9d7a0c5bcae8080ec992b5a00ffe28f550e097319b804af1a7369d530a https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1090521088-1090796011
+visa_pcb1_0700.jpg b9feb4017818dd82929a241bd99a6404015715617a701db88184905646a63b3a https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=1043292672-1043560212
+# Category candle (four tea lights in a tray), normal images.
+visa_candle_0000.jpg 223a16caac5a91232f7c52552dea5c7c7f096ef882e626c5908b4539a43dc131 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=123630080-123744042
+visa_candle_0050.jpg 55b935f5bf196bf6ccb35fda7373759468b9d8ca5a173dcd0339fa08b88d98c4 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=27181056-27293330
+visa_candle_0150.jpg 8d9edfa9275a69be98f8bb89c91aa7b1fda11161533e33d0211d701f3e2ff464 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=86702592-86833272
+visa_candle_0200.jpg dde5f8586c99fe41272954637e8f2fc6600f7fed9d7e22363277ef1c824fe7b7 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=76804608-76920374
+visa_candle_0300.jpg 547ef3042b247665a88656447260f523c99e2ebaf027fe2a05cad5df4f7bcdb1 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=45129216-45251916
+visa_candle_0350.jpg c25bef18eea9d1d143c16bb78c7196118aa6b3a41f9e43c734626cf11c0dfb6a https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=116325888-116445281
+visa_candle_0450.jpg 0661f332453e086e02815c14de7e33674f82f626c7d6a928975b8d031846c0e7 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=20863488-20983697
+visa_candle_0500.jpg c8a6ad6653d6ba8b15fc188cdece8377e4387e58e75e417f732ba8211a761ea3 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=29552128-29676042
+visa_candle_0600.jpg c71f5dee6ac7eaa34f394564aa1a6e37424b3e68a2c654e9441e56ee121eff2c https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=90713600-90833381
+visa_candle_0650.jpg 317465cdc3642c3ba52b8183b1e2a2cf5245324f74f05f69a163c36d166db32a https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=48207360-48317804
+visa_candle_0750.jpg f71b4824718ab661486c29ec7334f0d0eec4d789c0b61221a4bc0989b3378ecf https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=109688320-109805274
+visa_candle_0800.jpg 2d9e67f49092b819fdb1098bffb4d1fab4fb96f584fae7b762b4dac3b8efadf5 https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar#bytes=119756800-119873470

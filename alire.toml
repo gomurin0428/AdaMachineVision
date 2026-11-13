@@ -1,0 +1,26 @@
+name = "amv"
+description = "Machine vision library in Ada with a VisionPro-style interface and an independent implementation"
+version = "0.1.0"
+long-description = """
+AdaMachineVision (AMV) is a machine vision library written in Ada. Its public
+interface follows the object model and naming of the Cognex VisionPro .NET API
+(images with coordinate space trees, shapes, tools with RunParams / Run /
+Results / RunStatus), mapped to Ada naming conventions, so that VisionPro
+applications can be ported with a mostly mechanical translation.
+
+Everything behind that interface is an independent implementation. No Cognex
+code, binaries, headers or documentation text are used. AMV is not affiliated
+with or endorsed by Cognex Corporation.
+"""
+authors = ["Go Komura"]
+maintainers = ["Go Komura <contact@comcomponent.com>"]
+maintainers-logins = ["gomurin0428"]
+licenses = "PolyForm-Noncommercial-1.0.0 OR custom-commercial"
+tags = ["vision", "image", "imageprocessing", "machinevision", "blob", "caliper"]
+project-files = ["amv.gpr"]
+
+[[depends-on]]
+gnat = ">=14"
+
+[configuration]
+disabled = true

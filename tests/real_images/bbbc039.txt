@@ -1,0 +1,98 @@
+# BBBC039 images for the real-image tests (tools/fetch_real_images.sh).
+# Each line: file name, SHA-256 of the zip local file entry (with its data
+# descriptor), URL with "#zip=START-END" (that entry's byte range in the
+# archive), and how the member is written: a maxval for a 16-bit TIFF
+# (written as a 16-bit PGM with that maxval, tools/zip_tiff_to_pgm.py), or
+# "labels" for a mask PNG (written as a 16-bit label image,
+# tools/zip_png_labels.py).
+#
+# BBBC039v1, "Nuclei of U2OS cells in a chemical screen", from the Broad
+# Bioimage Benchmark Collection (Ljosa et al., Nature Methods 2012),
+# dedicated to the public domain under CC0 1.0
+# (https://bbbc.broadinstitute.org/BBBC039): 200 fields of view of the
+# Hoechst channel, 696 x 520, 16-bit (12-bit camera, so maxval 4095), with
+# hand-drawn masks of every nucleus. Tuning: the first 10 images of the
+# dataset's training list (metadata/training.txt); evaluation: the first
+# 10 of its test list (metadata/test.txt). Each image is followed by its
+# mask; the comment after each line names the archive member.
+#
+bbbc039_tune_01.pgm c6faaf61076db132c8d2dfafa4d0522485d6d1d6064dc7fba960ad91fd13cf8d https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=390607-755165 4095
+#   bbbc039_tune_01.pgm: images/IXMtest_A06_s6_w1B9577918-4973-4A87-BA73-A168AA755527
+bbbc039_tune_01_labels.pgm 4dd2b802d47a07d2981ac8256e03ab4fc28cfab6f43bea3e2a1f6a56fb9cc006 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=13442-23202 labels
+#   bbbc039_tune_01_labels.pgm: masks/IXMtest_A06_s6_w1B9577918-4973-4A87-BA73-A168AA755527
+bbbc039_tune_02.pgm 91412878066252fc37f6f826f7442dc37b3705ad79f4ef599610ba033c56b075 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=1474849-1873260 4095
+#   bbbc039_tune_02.pgm: images/IXMtest_A15_s5_w1825174D4-ED30-490C-9635-6196417D6C9D
+bbbc039_tune_02_labels.pgm f0c9f6a000d5ade6613175f9ba25cc76f8876412543437d22984f6e5d478e04c https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=46332-61641 labels
+#   bbbc039_tune_02_labels.pgm: masks/IXMtest_A15_s5_w1825174D4-ED30-490C-9635-6196417D6C9D
+bbbc039_tune_03.pgm bc073a0b5609d381394196ae2dbf7c51cd42bc4b4a8d4b98550d20d858c0523d https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=2256653-2639406 4095
+#   bbbc039_tune_03.pgm: images/IXMtest_A16_s3_w1032BE329-E21B-4E1B-B4B8-58700685EE0C
+bbbc039_tune_03_labels.pgm 643bdf1b32154a800f80b5f415926de85756ecd5fce1668aa321184874b758c2 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=74476-88345 labels
+#   bbbc039_tune_03_labels.pgm: masks/IXMtest_A16_s3_w1032BE329-E21B-4E1B-B4B8-58700685EE0C
+bbbc039_tune_04.pgm cd799c684455d64899abc14da11af30b69babc24ba4959de9ecd6da5b4fb6ad7 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=2639689-3035267 4095
+#   bbbc039_tune_04.pgm: images/IXMtest_A18_s1_w1BFDF1C94-9C1F-4F5F-BBC1-05196333B1BF
+bbbc039_tune_04_labels.pgm a795681babb1f8eb44c01d12fb895e4323f024d14423e5dc6458cb84dd3fb8bc https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=88627-100738 labels
+#   bbbc039_tune_04_labels.pgm: masks/IXMtest_A18_s1_w1BFDF1C94-9C1F-4F5F-BBC1-05196333B1BF
+bbbc039_tune_05.pgm d8de56d6126476d2eaad686d427aba6ca825cce0033c2b2bb91db91fa7d4bc3e https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=3035550-3429882 4095
+#   bbbc039_tune_05.pgm: images/IXMtest_A20_s4_w153DE191F-B112-471B-AC0A-FAD27990714B
+bbbc039_tune_05_labels.pgm 9eed69157fb4e57e581055b6d491586276c23577a221a4f38923bc90e1db49c4 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=101020-115830 labels
+#   bbbc039_tune_05_labels.pgm: masks/IXMtest_A20_s4_w153DE191F-B112-471B-AC0A-FAD27990714B
+bbbc039_tune_06.pgm fd18c470fe1472647d91a3833f59c03278d6896a35506e8a57ec2cf8b30765a0 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=3430165-3799507 4095
+#   bbbc039_tune_06.pgm: images/IXMtest_A21_s1_w1D8BF2790-C628-4109-94AF-DF6D8A3480B6
+bbbc039_tune_06_labels.pgm 5049840e8e7966c7c7d3ad1e914a36fcfbb9040c1f7dfe1c4104b4cc4a9a6051 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=116112-125617 labels
+#   bbbc039_tune_06_labels.pgm: masks/IXMtest_A21_s1_w1D8BF2790-C628-4109-94AF-DF6D8A3480B6
+bbbc039_tune_07.pgm af956923253c5ee2b3b35f14cb408c03830b054a13ab7ce23d5f40af9cb82108 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=4179749-4525264 4095
+#   bbbc039_tune_07.pgm: images/IXMtest_A24_s9_w152CD6793-DA45-4975-869A-CBD49D645E37
+bbbc039_tune_07_labels.pgm 67909fdae603d1583e270e1f60827e42c6f1362e7fb9968deb9f916a78e4280a https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=136880-144775 labels
+#   bbbc039_tune_07_labels.pgm: masks/IXMtest_A24_s9_w152CD6793-DA45-4975-869A-CBD49D645E37
+bbbc039_tune_08.pgm 6a79b3ab5e72abe04eb80bc27efd067c3db2019e7b5ee9211a45158b19b2c6e1 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=6473419-6859295 4095
+#   bbbc039_tune_08.pgm: images/IXMtest_B12_s9_w1ABE4C6B8-6110-4D7D-B782-94C43FDC2E1F
+bbbc039_tune_08_labels.pgm 2a260639e32c7ffdd4b9e77484bafb20f3aa070e31eb414771ebac0e8da83542 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=208228-221000 labels
+#   bbbc039_tune_08_labels.pgm: masks/IXMtest_B12_s9_w1ABE4C6B8-6110-4D7D-B782-94C43FDC2E1F
+bbbc039_tune_09.pgm 798f2392cf632f93d9f2157a5dd6a7a0c3bd5a6c14ae892d59926c9993f5fac7 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=7640225-8002571 4095
+#   bbbc039_tune_09.pgm: images/IXMtest_B20_s2_w159B9FE71-035A-4DED-B0CA-C76916C968BC
+bbbc039_tune_09_labels.pgm 1867e72a36d32218d8ca29de4181fba4b909a588aefbc3be0161c5f6091c7c2a https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=245918-257057 labels
+#   bbbc039_tune_09_labels.pgm: masks/IXMtest_B20_s2_w159B9FE71-035A-4DED-B0CA-C76916C968BC
+bbbc039_tune_10.pgm 55ca24de8a6394637875573a1659602ebba6a1362979aa19bc8987c52d2c94c6 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=8002854-8422899 4095
+#   bbbc039_tune_10.pgm: images/IXMtest_B21_s3_w141E785B1-44FE-4ED0-9CCE-6FF076EFE9FE
+bbbc039_tune_10_labels.pgm 2025b006634119536efe915f488167fe175fb41472d792ccf22990c6340017a0 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=257339-276358 labels
+#   bbbc039_tune_10_labels.pgm: masks/IXMtest_B21_s3_w141E785B1-44FE-4ED0-9CCE-6FF076EFE9FE
+bbbc039_eval_01.pgm f3a8f74410ece3d545e7d8109265a613e540d67fef75ba2c3a6d982e7a603171 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=755448-1175622 4095
+#   bbbc039_eval_01.pgm: images/IXMtest_A09_s1_w1CE70AD49-290D-4312-82E6-CDC717F32637
+bbbc039_eval_01_labels.pgm 0f2ffc2612c0dc327298b118ac8413ce90d224d47001cb136dff584ca5495bf4 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=23484-40938 labels
+#   bbbc039_eval_01_labels.pgm: masks/IXMtest_A09_s1_w1CE70AD49-290D-4312-82E6-CDC717F32637
+bbbc039_eval_02.pgm 55ef35971b44db76dcd7a11bada1c06a4d4ec293a74e98ea27ed985d93ee6fd0 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=1175905-1474566 4095
+#   bbbc039_eval_02.pgm: images/IXMtest_A12_s7_w1EAEEA614-51ED-43B3-A4FF-088730911E4C
+bbbc039_eval_02_labels.pgm 10f3000dc4a19e815a28218a739c6c2ba1d57269bc948efc2349203bf18a4d73 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=41220-46050 labels
+#   bbbc039_eval_02_labels.pgm: masks/IXMtest_A12_s7_w1EAEEA614-51ED-43B3-A4FF-088730911E4C
+bbbc039_eval_03.pgm 1ca9fb26bc6e0aa3aa6d0a2d2268825035129012764c86ccb70e4f3e01675510 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=1873543-2256370 4095
+#   bbbc039_eval_03.pgm: images/IXMtest_A16_s2_w15AF20A10-82AE-48FA-AC50-7AE8AC3AA544
+bbbc039_eval_03_labels.pgm 4d98532ef392460947a31d47705c58a6a4c389ab3d53f96c5337774644168159 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=61923-74194 labels
+#   bbbc039_eval_03_labels.pgm: masks/IXMtest_A16_s2_w15AF20A10-82AE-48FA-AC50-7AE8AC3AA544
+bbbc039_eval_04.pgm bd70fa9c59fd0a7b22ff9c7c7aff9de8f8fb58e2c94f4bf0967313a6a141ff73 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=3799790-4179466 4095
+#   bbbc039_eval_04.pgm: images/IXMtest_A22_s8_w1E2AFE190-831D-4D9C-961E-3AA2ECB3599D
+bbbc039_eval_04_labels.pgm b6a2fcb00a2e61899c330b106dd6988b98ce53564f688317cbb741f97d93f65f https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=125899-136598 labels
+#   bbbc039_eval_04_labels.pgm: masks/IXMtest_A22_s8_w1E2AFE190-831D-4D9C-961E-3AA2ECB3599D
+bbbc039_eval_05.pgm 1df01e039d79ceabc8889af50cc85d704d1202cca1ff056f97ba6f0bd7329487 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=4525547-4885992 4095
+#   bbbc039_eval_05.pgm: images/IXMtest_B02_s9_w124B5080D-EBE1-47D2-B147-C0F342039EDF
+bbbc039_eval_05_labels.pgm e5fb2ff9a4971f46f68ca7d4c60d0d7455f3053776f9be89f1aef4acbb8b2198 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=145057-153990 labels
+#   bbbc039_eval_05_labels.pgm: masks/IXMtest_B02_s9_w124B5080D-EBE1-47D2-B147-C0F342039EDF
+bbbc039_eval_06.pgm d8e62dce4c1d7ee2b2447cfda9956323a72c9cf3222e5ebfaeb78a9bffd195aa https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=4886275-5288079 4095
+#   bbbc039_eval_06.pgm: images/IXMtest_B04_s2_w17C6C7F8D-98F7-422B-92CD-EA61EE813325
+bbbc039_eval_06_labels.pgm 75012bf3842fa32eb2ec26997d956582b42f0a86d8be50c2887d4ea8fe160787 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=154272-168279 labels
+#   bbbc039_eval_06_labels.pgm: masks/IXMtest_B04_s2_w17C6C7F8D-98F7-422B-92CD-EA61EE813325
+bbbc039_eval_07.pgm 98cca2be9925c92e5e3413c78af61a350505f40674a5e4bbe276264ef9ecd3f6 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=5673860-6076062 4095
+#   bbbc039_eval_07.pgm: images/IXMtest_B05_s5_w10296BEF4-0F48-4EC8-BC24-6C604871398B
+bbbc039_eval_07_labels.pgm 5f7b7b64dc4fb3cd76ef5670f3e8ebcaf5990d613c6ab47b4322c870d2154735 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=180457-193818 labels
+#   bbbc039_eval_07_labels.pgm: masks/IXMtest_B05_s5_w10296BEF4-0F48-4EC8-BC24-6C604871398B
+bbbc039_eval_08.pgm c3d10ce6167c1d017210c2c07b0f4889529f0ec2a59f162dd3ae35fb5a1d9b71 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=11332183-11727020 4095
+#   bbbc039_eval_08.pgm: images/IXMtest_C07_s5_w12C9F2926-A017-4962-8660-72C9C20C86E4
+bbbc039_eval_08_labels.pgm 421fea0c02f435f5db43a454dbe89a1cf77934f977f314c1eefd70ef94213476 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=366006-383041 labels
+#   bbbc039_eval_08_labels.pgm: masks/IXMtest_C07_s5_w12C9F2926-A017-4962-8660-72C9C20C86E4
+bbbc039_eval_09.pgm 45b94c5c901f856564be5b39a5e14b3b2cce1b1f88e40f387660cddbef567691 https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=12153419-12570270 4095
+#   bbbc039_eval_09.pgm: images/IXMtest_C14_s8_w1612E3D43-FA7E-4FFB-BE53-F34A3A0CAFCD
+bbbc039_eval_09_labels.pgm f91cc3018ac5d4c7b1301d16ef3740f9b94884e1ef164da2b2a7cd43f090f141 https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=401328-416454 labels
+#   bbbc039_eval_09_labels.pgm: masks/IXMtest_C14_s8_w1612E3D43-FA7E-4FFB-BE53-F34A3A0CAFCD
+bbbc039_eval_10.pgm e531b63b0fc3e6e58c37254d600712fc2bcc8ee61ab1aa2023b3446580c5356d https://data.broadinstitute.org/bbbc/BBBC039/images.zip#zip=13812991-14187225 4095
+#   bbbc039_eval_10.pgm: images/IXMtest_C23_s2_w10533E965-3DC3-4556-9C26-EA8DD4F8DE61
+bbbc039_eval_10_labels.pgm c2a7e7665cee91bbc0f8cd3ccca820b30e0a68cca0873dd40b95ac275c93d87e https://data.broadinstitute.org/bbbc/BBBC039/masks.zip#zip=463692-476988 labels
+#   bbbc039_eval_10_labels.pgm: masks/IXMtest_C23_s2_w10533E965-3DC3-4556-9C26-EA8DD4F8DE61

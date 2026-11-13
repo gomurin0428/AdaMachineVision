@@ -1,0 +1,9 @@
+/build/
+/alire/
+/config/
+/obj/
+*.ali
+*.o
+*.exe
+/tests/output/
+__pycache__/
