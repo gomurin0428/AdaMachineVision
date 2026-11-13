@@ -274,6 +274,27 @@ procedure Test_Kernels is
       Check (abs (AMV.Misc.Hypot (3.0E-300, 4.0E-300) / 5.0E-300 - 1.0)
                <= 1.0E-15,
              "Hypot (3E-300, 4E-300)");
+      declare
+         --  Around 2**(-500), where the direct formula ends: a component
+         --  below it is negligible only next to one that is 2**100 times
+         --  larger. The triangles are exact in binary.
+         U : constant Real := 2.0 ** (-503);
+      begin
+         Check (AMV.Misc.Hypot (6.0 * U, 8.0 * U) = 10.0 * U,
+                "Hypot (0.75 * 2**(-500), 2**(-500))");
+         Check (AMV.Misc.Hypot (8.0 * U, 6.0 * U) = 10.0 * U,
+                "Hypot (2**(-500), 0.75 * 2**(-500))");
+         Check (AMV.Misc.Hypot (5.0 * U, 12.0 * U) = 13.0 * U,
+                "Hypot (0.625 * 2**(-500), 1.5 * 2**(-500))");
+         Check (abs (AMV.Misc.Hypot (8.0 * U, 8.0 * U) / (8.0 * U)
+                     - 1.4142135623730951) <= 1.0E-15,
+                "Hypot (2**(-500), 2**(-500))");
+         Check (abs (AMV.Misc.Hypot (2.0 ** (-401), 8.0 * U) / 2.0 ** (-401)
+                     - 1.0) <= 1.0E-15,
+                "Hypot (2**(-401), 2**(-500))");
+         Check (AMV.Misc.Hypot (2.0 ** (-400), 8.0 * U) = 2.0 ** (-400),
+                "Hypot (2**(-400), 2**(-500)): the smaller is negligible");
+      end;
       begin
          R := AMV.Misc.Hypot (Real'Last, Real'Last);
          Fail ("Hypot (Real'Last, Real'Last): no exception, got"

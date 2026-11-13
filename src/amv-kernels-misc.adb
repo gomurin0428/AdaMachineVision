@@ -128,8 +128,11 @@ package body AMV.Kernels.Misc with SPARK_Mode is
       Result : out Long_Float;
       Status : out Ks_Status)
    is
-      Limit : constant := 2.0 ** 500;
-      Scale : constant := 2.0 ** 600;
+      Limit    : constant := 2.0 ** 500;
+      Scale    : constant := 2.0 ** 600;
+      Dominant : constant := 2.0 ** (-400);
+      --  A Big from here on is 2**100 times any Small that the direct
+      --  formula leaves out (those are at most 1 / Limit).
    begin
       Result := 0.0;
       if not Is_Finite (X) then
@@ -169,13 +172,15 @@ package body AMV.Kernels.Misc with SPARK_Mode is
                end if;
                Result := Root * Scale;
             end;
-         elsif Big >= 1.0 / Limit then
+         elsif Big >= Dominant then
             --  Small <= 2**(-500) <= 2**(-100) * Big: its square is below
             --  2**(-200) times Big's, so the length is Big to within
             --  rounding (Sqrt (Big * Big) gives back Big exactly).
             Result := Big;
          else
-            --  Both tiny: scale up, take the root, scale back down.
+            --  Small is tiny and Big is not 2**100 times larger, so Small
+            --  counts: scale up (Big to less than 2**200), take the root,
+            --  scale back down.
             declare
                SB   : constant Long_Float := Big * Scale;
                SS   : constant Long_Float := Small * Scale;

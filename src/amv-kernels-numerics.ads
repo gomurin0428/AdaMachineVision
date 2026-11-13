@@ -106,7 +106,9 @@ private package AMV.Kernels.Numerics with SPARK_Mode, Pure is
    --  Sqrt (X**2 + Y**2) without intermediate overflow or underflow:
    --  the direct formula when both magnitudes lie between 2**(-500) and
    --  2**500, otherwise the same after scaling by 2**600 or 2**(-600)
-   --  (exact). The same algorithm as ks_misc_hypot.
+   --  (exact). A magnitude of at most 2**(-500) next to one of 2**(-400)
+   --  or more is left out: it is below the rounding of the result. The
+   --  same algorithm as ks_misc_hypot.
 
    function Reduce_Two_Pi (X : Long_Float) return Long_Float
    with Post => Reduce_Two_Pi'Result > -Pi

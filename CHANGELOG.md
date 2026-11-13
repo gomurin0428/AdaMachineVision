@@ -21,6 +21,16 @@ section 9.1.
 * `Ks_Histogram_Tool` has a new component, `Region_Mode`, so its stream
   format changes.
 
+### Fixed
+
+* `ks_misc_hypot` (`AMV.Misc.Hypot`) and the length used inside the
+  kernels dropped the smaller component when the larger was between
+  2**(-500) and 2**(-400) and the smaller at most 2**(-500): the length
+  of (2**(-500), 2**(-500)) came out as 2**(-500), 29 % short. The smaller
+  component is now left out only next to one that is 2**100 times larger.
+  The proved contracts (no run-time error, the result in [0, 2 max]) are
+  unchanged; they never stated the accuracy, which the tests check.
+
 ### Added
 
 * Blob: `Create_Blob_Image` (CogBlobResults.CreateBlobImage, with

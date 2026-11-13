@@ -195,6 +195,24 @@ procedure Test_Dimensioning is
       PP.End_X := -5.0;
       PP.Run;
       Check_Near (PP.Angle, Pi, 0.0, "the negative x axis gives +Pi");
+      declare
+         --  Components around 2**(-500), where the direct formula of the
+         --  length ends: neither may be dropped (an exact triangle).
+         U : constant Real := 2.0 ** (-503);
+      begin
+         PP.Start_X := 0.0;
+         PP.Start_Y := 0.0;
+         PP.End_X := 8.0 * U;
+         PP.End_Y := 6.0 * U;
+         PP.Run;
+         Check (Accepted (PP) and then PP.Distance = 10.0 * U,
+                "a 3-4-5 distance of tiny components");
+         PP.End_X := 5.0 * U;
+         PP.End_Y := -12.0 * U;
+         PP.Run;
+         Check (Accepted (PP) and then PP.Distance = 13.0 * U,
+                "a 5-12-13 distance of tiny components");
+      end;
 
       AP.Start_X := 1.0;
       AP.Start_Y := 1.0;
