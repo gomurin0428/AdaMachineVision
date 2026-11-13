@@ -427,6 +427,11 @@ int main(void)
     check(status.failure == KS_FAILURE_NONE
           && fabs(result / 5e300 - 1.0) <= 1e-15, "hypot(3e300, 4e300)");
 
+    /* Around 2**(-500) neither component may be dropped (exact in binary). */
+    ks_misc_hypot(ldexp(6.0, -503), ldexp(8.0, -503), &result, &status);
+    check(status.failure == KS_FAILURE_NONE && result == ldexp(10.0, -503),
+          "hypot(0.75 * 2**(-500), 2**(-500))");
+
     ks_misc_hypot(1.7e308, 1.7e308, &result, &status);
     check(status.failure == KS_FAILURE_BAD_PARAMETER,
           "hypot beyond DBL_MAX fails");

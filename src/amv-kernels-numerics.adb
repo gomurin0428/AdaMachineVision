@@ -94,9 +94,12 @@ package body AMV.Kernels.Numerics with SPARK_Mode is
 
    function Root_Sum_Of_Squares (Big, Small : Long_Float) return Long_Float
    is
-      Limit  : constant := 2.0 ** 500;
-      Scale  : constant := 2.0 ** 600;
-      Result : Long_Float;
+      Limit    : constant := 2.0 ** 500;
+      Scale    : constant := 2.0 ** 600;
+      Dominant : constant := 2.0 ** (-400);
+      --  A Big from here on is 2**100 times any Small that the direct
+      --  formula leaves out (those are at most 1 / Limit).
+      Result   : Long_Float;
    begin
       if Small = 0.0 then
          return Big;
@@ -118,13 +121,15 @@ package body AMV.Kernels.Numerics with SPARK_Mode is
             end if;
             return Result * Scale;
          end;
-      elsif Big >= 1.0 / Limit then
+      elsif Big >= Dominant then
          --  Small <= 2**(-500) <= 2**(-100) * Big: its square is below
          --  2**(-200) times Big's, so the length is Big to within
          --  rounding (Sqrt (Big * Big) gives back Big exactly).
          return Big;
       else
-         --  Both tiny: scale up, take the root, scale back down.
+         --  Small is tiny and Big is not 2**100 times larger, so Small
+         --  counts: scale up (Big to less than 2**200), take the root,
+         --  scale back down.
          declare
             SB : constant Long_Float := Big * Scale;
             SS : constant Long_Float := Small * Scale;
