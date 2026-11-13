@@ -1,0 +1,14 @@
+--  Builds tools/shell_check/amv_shell_check (see its header and
+--  docs/DESIGN.md section 9); run by make check.
+
+project Shell_Check is
+   for Source_Dirs use ("shell_check");
+   for Object_Dir use "../build/tools-obj";
+   for Exec_Dir use "../build/tools";
+   for Main use ("amv_shell_check.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatwa", "-gnatVa", "-gnata", "-O1");
+   end Compiler;
+end Shell_Check;

@@ -1,0 +1,15 @@
+with "amv.gpr";
+
+project AMV_Examples is
+   for Source_Dirs use ("examples");
+   for Object_Dir use "build/example-obj";
+   for Exec_Dir use "build/bin";
+   for Main use
+     ("quick_look.adb", "blob_inspection.adb", "align_and_measure.adb");
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-gnatwa", "-O2");
+   end Compiler;
+end AMV_Examples;

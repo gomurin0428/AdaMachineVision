@@ -1,0 +1,264 @@
+# Vision tools: implementation plan
+
+> 引き継ぎメモ: ツール群(未実装)の仕様案です。並列エージェント向けに書いた指示文を、そのまま Markdown にしました。
+> 元のワークフロースクリプトは `docs/handoff/workflows/amv-tools-wf.js` です。スクリプトには、ここにある共通ルールと 9 つのタスクに加えて、最後の統合タスク(TASK INTEGRATE TOOLS)があります。統合タスクでは、新しいテストを `tests/test_suite.adb` に追加し、`amv.gpr` と `amv_tests.gpr` を `-gnatwe` でビルドし、パッケージ間の不整合を直します。各タスクは `tests/test_suite.adb` を触らない決まりなので、手で進める場合は最後にスクリプトのその指示に従ってください。
+> `SUBDIR=...` は、並列ビルドで使う `--subdirs` の名前です。
+> **2026-11-08 追記:** ツールは SPARK のカーネルとして書きます。次の「Tools as SPARK kernels」節が拘束力を持ち、下の共通ルールやタスクの記述と食い違うときはそちらが優先します(`SUBDIR` と `--subdirs` は不要になりました。各エージェントは自分の git worktree で作業します)。
+
+## Tools as SPARK kernels (binding; added 2026-11-08)
+
+The common rules and tasks below were written before the SPARK kernels
+(docs/DESIGN.md section 9). Where they differ from this section, this
+section wins.
+
+1. **Where the logic lives.** Every tool's logic lives in a SPARK kernel
+   `AMV.Kernels.<Tool>` (`src/amv-kernels-<tool>.ads/.adb`) under the
+   rules of docs/DESIGN.md section 9: absence of run-time errors proved by
+   `make prove`, no `pragma Assume`, and `SPARK_Mode => Off` bodies only
+   for allocation (`Storage_Error` turned into `Failure_Out_Of_Memory`)
+   and C memory views, each listed in docs/PROOF.md. Its entry points are
+   the tool's C API (`Export, Convention => C`, names `ks_<tool>_*`),
+   declared in `include/amv_<tool>.h`, which `include/amv.h` includes in
+   its "Tools" section.
+2. **The Ada API only wraps.** `AMV.<Tool>` keeps the VisionPro object
+   model (a record extension of `AMV.Tools.Ks_Tool`, Run_Params, Results).
+   Its `Execute` obtains kernel handles and transforms through entry
+   points (`AMV.Images.Kernel_Images`, `AMV.Shapes.Kernel_Shapes`, the
+   Regions kernel), calls the tool's execute entry point,
+   `AMV.Checks.Check (Status)`, and stores the results; it never computes,
+   validates or loops over pixels (docs/DESIGN.md 9.3; `make check` runs
+   `tools/shell_check`, and new files never go on its legacy list).
+3. **Run parameters.** A C struct `ks_<tool>_run_params` (int32_t codes
+   for enumerations, int32_t 0/1 for booleans, double for reals, a fixed
+   capacity array plus a count for a list) that
+   `ks_<tool>_run_params_default` fills with the defaults. In Ada the
+   kernel's record type (Convention C, every component with its default)
+   is the run parameter record; `AMV.<Tool>` re-exports it as a subtype so
+   that `Tool.Run_Params.Contrast_Threshold := 5.0;` works. Enumeration
+   codes follow VisionPro's numeric values when the reference gives them,
+   otherwise the declaration order from 0; the Ada API converts with
+   `'Pos` / `'Val` or a constant table.
+4. **Inputs.** Images arrive as kernel handles (`const ks_image_8_grey *`
+   and so on); NULL is an image without pixels and fails with
+   `KS_FAILURE_IMAGE_NO_PIXELS` and a message naming the VisionPro
+   property ("InputImage has no pixels"). A region the tool accepts as any
+   ICogRegion arrives as a pixel region (`const ks_pixel_region *`) that
+   the wrapper builds with the Regions kernel: the whole image
+   (`ks_pixel_region_whole_image`) for an empty holder, otherwise
+   `ks_pixel_region_rasterize_<shape>` with the transform
+   `Image.Get_Transform ("#", Region.Selected_Space_Name)`. NULL, the
+   empty region (no pixel of the image inside it), is legal: document
+   what the tool reports for it. A tool that needs one particular shape
+   (Caliper's CogRectangleAffine) takes the shape struct of
+   AMV.Kernels.Shapes and the transform from the shape's space to pixel
+   space instead.
+5. **Coordinates.** The kernel works in pixel space. The wrapper passes
+   the transform from pixel space to the input image's selected space
+   (`Get_Transform (".", "#")` through the Images kernel), and the kernel
+   maps every position, angle and length it reports with it (document how
+   lengths and areas scale under a transform that is not a similarity).
+   Every reported coordinate stays within the bounds of
+   AMV.Kernels.Shapes (1.0E150) so it is a valid argument again.
+6. **Results.** An owned opaque handle `ks_<tool>_results *` that
+   `ks_<tool>_execute` returns (NULL when it fails), with
+   `ks_<tool>_results_destroy`, `ks_<tool>_results_count` and
+   `ks_<tool>_results_item (results, index, ks_<tool>_result *item,
+   status)` (0-based; `KS_FAILURE_INDEX_OUT_OF_RANGE` outside), plus the
+   tool's own accessors (a label image as a new image handle, a boundary
+   as a new polygon handle). Items are fixed-size C structs. In Ada,
+   Results is a private type that keeps the handle in an
+   `AMV.Shared_Handles` holder (copies share it, nobody changes it), and
+   `Reset_Results` clears the holder. Results are not stored in streams
+   (the holder writes nothing). The accessors follow VisionPro's shape
+   where it differs (a singular `ks_<tool>_result_*` for a tool whose
+   VisionPro results object is a single Result; a `filtered` flag on
+   count and item where VisionPro has `GetBlobs (filtered)`). A tool whose
+   VisionPro output is only an image or a number (OutputImage, Score)
+   returns it from its execute entry point directly, as new image
+   handles or a double, without a results handle.
+7. **Trained objects** (the patterns of CNLSearch and PMAlign, the
+   calibrations of CalibFix) are owned handles with train, destroy and
+   duplicate entry points; using an untrained one fails with
+   `KS_FAILURE_OPERATOR_NOT_TRAINED`. Users save them, so their Ada types
+   get stream attributes that store the data by value through Ada-only
+   kernel helpers that treat the stream as untrusted (as AMV.Images does).
+8. **Failures and limits.** Only the failure codes the spec documents,
+   with messages that name the VisionPro property
+   ("RunParams.ContrastThreshold must be >= 0"). Every size, count and
+   capacity has a named limit (a C macro too); a run that would exceed one
+   fails or cuts its results, as documented.
+9. **Proof.** Silver everywhere: no run-time error for any argument,
+   including non-finite values (rejected at the entry point, see
+   docs/PROOF.md) and any handle that is NULL or came from the kernel.
+   Gold for the discrete facts each task names (for example: the blob
+   areas and the background count add up to the region's pixel count; the
+   histogram bins add up to the number of samples). Floating-point
+   results: finite and within their stated ranges.
+10. **Tests.** `tests/test_<tool>.adb` tests the Ada API through `Run`
+    (the cases the task lists) and calls the kernel directly for what the
+    Ada API cannot reach (NULL handles, non-finite values, limits); add it
+    to `tests/test_suite.adb` (one `with`, one `Run_Area`).
+    `tests/c/test_c_<tool>.c` defines `void test_c_<tool> (void)` with the
+    helpers of `tests/c/c_test_support.h`; `tests/c/test_c_api.c`
+    declares and calls it.
+11. **Shared files.** Besides its own files a tool may touch only: one
+    include line in `include/amv.h`, one entry each in
+    `tests/test_suite.adb` and `tests/c/test_c_api.c`, its unit in the
+    `Prove` package of `amv.gpr` (only to raise its level), new rows and
+    paragraphs in `docs/PROOF.md` and `docs/API_MAPPING.md`, and new
+    subprograms (never changes) in the core kernels when a proof needs a
+    helper. It does not edit the total line of docs/PROOF.md,
+    docs/handoff/SPARK_PLAN.md or the READMEs; it reports its counts.
+12. **Build and check** in your own git worktree: `make check`,
+    `make test`, and `make prove` (or, while working, `gnatprove -P
+    amv.gpr -u <your units>`). Every PR passes all three.
+13. **VisionPro names.** Check the class, property, method and enumeration
+    names of your tool against the VisionPro 9.23 .NET reference
+    (docs.cognex.com; names and signatures only, never text) and follow
+    the reference where the plan below guesses differently. Mark names
+    you could not confirm "(AMV name)" in docs/API_MAPPING.md.
+
+## Common rules for every tool
+
+You are implementing part of AdaMachineVision (AMV), an Ada 2022 machine vision library in <repo root> (Windows host: D:\Src\AdaMachineVision; use the Bash tool with POSIX paths). Its public interface mirrors the Cognex VisionPro .NET API mapped to Ada naming; the implementation must be independent. CLEAN ROOM: never copy Cognex code, samples or documentation text; write every comment in your own words. Use algorithms from public literature or your own.
+
+Read first: docs/DESIGN.md (the contract), then the core specs you build on: src/amv.ads, src/amv-misc.ads, src/amv-transforms.ads, src/amv-coordinate_spaces.ads, src/amv-images.ads, src/amv-shapes.ads, src/amv-shapes-region_holders.ads, src/amv-regions.ads, src/amv-image_math.ads, src/amv-geometry.ads, src/amv-tools.ads, src/amv-image_file.ads, and tests/amv_test_support.ads, tests/amv_test_images.ads. These core packages are implemented and tested; READ their bodies when you need exact behaviour. Do not modify any core file; if you find a core defect, work around it only if trivial and report it in open_issues with a precise description.
+
+Build and test (ALWAYS pass your own --subdirs value; eight other agents build in the same tree concurrently):
+  cd <repo root>
+  gprbuild -p -P amv_tests.gpr --subdirs=SUBDIR test_xxx.adb
+  ./build/bin/SUBDIR/test_xxx          # exit status 0 means every check passed
+amv_tests.gpr compiles src/ and tests/ directly and only the closure of the main you name.
+
+Tool conventions (docs/DESIGN.md section 4 and 5 are binding):
+- A tool is a public record extension of AMV.Tools.Ks_Tool whose components carry the VisionPro property names: Input_Image, Region (AMV.Shapes.Region_Holders.Holder when VisionPro accepts any ICogRegion, an empty holder meaning the whole image; a concrete shape type when VisionPro requires one), Run_Params (a public record with defaults = the parameter bag), Pattern / Calibration (private types with getters/setters and Train/Calibrate), Results (private type, read-only by convention, with Count and 0-based Item, and public-record result items). Override Execute and Reset_Results. Users call Tool.Run.
+- Validate inputs in the kernel, with failures whose messages name the VisionPro property (e.g. "RunParams.ContrastThreshold must be >= 0"); AMV.Checks turns them into the AMV exceptions.
+- Geometry: work in pixel space internally; map regions into pixel space with AMV.Regions.Rasterize or Image.Get_Transform ("#", Shape.Selected_Space_Name); report positions/poses/lengths in the input image's selected space "." via Image.Get_Transform (".", "#"), mapping lengths and angles consistently (document how non-similarity transforms affect lengths and areas).
+- Reuse AMV.Image_Math (sampling, smoothing, Sobel, pyramids), AMV.Geometry (fits, intersections) and AMV.Regions; do not duplicate them.
+- Where VisionPro behaviour is unknown, choose a sensible behaviour and document it in the spec. If you are not sure a VisionPro class, property or enumeration name exists, still follow its naming style, and list that name in api_mapping_rows marked "(AMV name)" so the docs can flag it.
+
+Rules:
+- Create or modify ONLY the files assigned to you (your package specs/bodies and your tests/test_<area>.adb). Do not edit core files, tests/test_suite.adb, other agents' files or build files. No git commands that change state. Delete nothing outside build/*/SUBDIR.
+- Code must compile without warnings under the project switches (-gnat2022 -gnatwa -gnatVa; tests also -gnata and pragma Initialize_Scalars). Before finishing, rebuild your test main with "-cargs:Ada -gnatwe" appended.
+- Pixel data on the heap only; controlled ownership; no leaks; no whole-image arrays as stack locals.
+- Tests: tests/test_<area>.adb, a parameterless main using AMV_Test_Support with the Standalone generic. Use AMV_Test_Images to draw synthetic scenes with known ground truth and check results tightly (sub-pixel positions, angles, scores in expected ranges, counts). Include: default parameters, parameter validation (Run_Status = Error with the right Exception_Name), Run_Status Accept on success, Reset_Results behaviour (results empty after a failed run), a test where Input_Image has a non-trivial selected space (add a rotated+translated fixture space and select it) proving regions and results are mapped correctly, and noise robustness (AMV_Test_Images.Add_Noise).
+- Keep it efficient: a 640x480 run should take well under 1 s in the test build except where the algorithm is inherently heavier (state the measured time in test_summary).
+- Style: "--  " comments, lines within 79 columns where practical, behaviour documented in specs in your own words.
+
+Your final answer is structured data: files created/changed, spec changes (none expected to core), tests_pass, test_summary (check counts, timings), open_issues, and api_mapping_rows ("VisionPro name -> Ada name", marking uncertain VisionPro names "(AMV name)").
+
+## Blob
+
+TASK BLOB (SUBDIR=t_blob). Own: src/amv-blob.ads/.adb (+ private children if useful), tests/test_blob.adb. Counterpart of Cognex.VisionPro.Blob.
+API outline (adapt names to the Ada rules; every Run_Params record component has a default):
+- Enumerations: Ks_Blob_Segmentation_Mode_Constants (Hard_Fixed_Threshold, Hard_Relative_Threshold, Hard_Dynamic_Threshold, None), Ks_Blob_Segmentation_Polarity_Constants (Dark_Blobs, Light_Blobs), Ks_Blob_Connectivity_Mode_Constants (Grey_Scale, Whole_Image, Labeled), Ks_Blob_Connectivity_Cleanup_Constants (None, Fill, Prune), Ks_Blob_Measure_Constants (Area, Center_Mass_X, Center_Mass_Y, Perimeter, Angle, Elongation, Acircularity, Inertia_X, Inertia_Y, Inertia_Min, Inertia_Max, Bounding_Box_Pixel_Aligned_Min_X/_Min_Y/_Max_X/_Max_Y/_Width/_Height, Bounding_Box_Principal_Axis_Width/_Height, Connectivity_Label, Num_Holes), Ks_Blob_Filter_Mode_Constants (Include_Blobs_In_Range, Exclude_Blobs_In_Range), Ks_Blob_Measure_Mode_Constants (Filter, Run_Time), Ks_Blob_Axis_Constants (Pixel_Aligned, Principal), Ks_Blob_Sort_Direction (Ascending, Descending).
+- Ks_Blob_Segmentation_Params record: Mode, Polarity, Hard_Fixed_Threshold (Grey_8, 128), Hard_Relative_Threshold (percent of the region's histogram range, 50.0), and whatever Hard_Dynamic_Threshold needs (Otsu threshold on the region histogram).
+- Ks_Blob_Measure record: Measure, Mode, Filter_Mode, Filter_Range_Low, Filter_Range_High. A bounded/unbounded list of them in Run_Params (an Ada.Containers.Vectors instantiation is fine).
+- Ks_Blob run params record (the RunParams): Segmentation_Params, Connectivity_Mode (Grey_Scale), Connectivity_Cleanup (Prune), Connectivity_Min_Pixels (10), Run_Time_Measures (measures used for filtering), Sort_Enabled (False), Sort_Measure, Sort_Direction, Max_Results? (decide), Morphology: optional sequence of binary erode/dilate (3x3) applied to the segmented image before connectivity.
+- Ks_Blob_Tool: Input_Image, Region (holder), Run_Params, Results.
+- Ks_Blob_Results: Count/Item (0-based, the blobs that passed filtering, in sort order or in raster order of their first pixel), Get_Blob_By_ID, Get_Blob_ID_Image (8-bit or 16-bit label image? choose and document; labels > 255 need 16-bit), total counts before filtering.
+- Ks_Blob_Result record: ID, Area, Center_Of_Mass_X/Y, Angle (principal axis), Perimeter, Inertia values, Elongation, Acircularity (perimeter^2 / (4 Pi Area)), Connectivity_Label (1 for foreground blobs, 0 for holes), Num_Holes, Parent_ID (holes), pixel-aligned bounding box. Functions Get_Measure (Result, Measure) return Real, Get_Bounding_Box (Result, Axis) return AMV.Shapes.Ks_Rectangle_Affine (principal axis box in the selected space), Get_Boundary (Result) return AMV.Shapes.Ks_Polygon (outer boundary traced through boundary pixel corners or centres; document).
+Semantics: pixels inside the region are segmented into foreground (the blob polarity) and background; Grey_Scale connectivity = 8-connected foreground components (holes = 4-connected background components fully enclosed by one blob); Whole_Image = all foreground pixels form one blob; Labeled = connectivity among pixels of equal grey value (non-zero) treating each value as a label. Prune removes components smaller than Connectivity_Min_Pixels; Fill merges such components into their surrounding component (holes smaller than the limit are filled). Area excludes holes unless filled. Centroid/moments in pixel space then mapped to ".": positions mapped, areas scaled by |det| of the linear part, angle via Map_Angle, lengths scaled by sqrt |det| (document). Use an O(N) two-pass union-find labelling.
+Tests: exact areas/centroids of drawn rectangles and circles (anti-aliased edges: use thresholds at 128 and compare with analytic values to a tolerance justified in comments), polarity, holes (ring shapes: Num_Holes = 1, area = annulus area), Prune vs Fill, filters include/exclude ranges, sorting, principal angle of rotated rectangles (+/- 0.01 rad), elongation, bounding boxes, region restriction (blobs cut by a rectangle region), Whole_Image and Labeled modes, relative and dynamic thresholds on images with offset grey levels, fixture space mapping, an image with no blobs (Count = 0, Accept_Result), unallocated input -> Error.
+
+## Caliper, Find Line, Find Circle
+
+TASK CALIPER + FIND LINE/CIRCLE (SUBDIR=t_caliper). Own: src/amv-caliper.ads/.adb, src/amv-caliper-find_line.ads/.adb, src/amv-caliper-find_circle.ads/.adb, tests/test_caliper.adb, tests/test_find_line.adb, tests/test_find_circle.adb. Counterpart of Cognex.VisionPro.Caliper. Do the caliper first and test it fully, then build the find tools on it.
+
+Caliper API outline:
+- Enumerations: Ks_Caliper_Edge_Mode_Constants (Single_Edge, Pair), Ks_Caliper_Polarity_Constants (Dark_To_Light, Light_To_Dark, Dont_Care).
+- Scoring (our own design, documented): Ks_Caliper_Scorer_Contrast (Enabled True, Contrast_Low 0.0, Contrast_High 255.0: maps contrast linearly to 0..1, clamped), Ks_Caliper_Scorer_Position (Enabled False, Expected_Position 0.0, Half_Width: score falls linearly from 1 at the expected position to 0 at Half_Width away), Ks_Caliper_Scorer_Size_Diff_Norm (pairs; Enabled True in Pair mode; 1 - |width - Edge_Pair_Width| / Edge_Pair_Width clamped). Total score = product of enabled scorer outputs.
+- Ks_Caliper run params record: Edge_Mode (Single_Edge), Edge_0_Polarity (Dark_To_Light), Edge_1_Polarity (Light_To_Dark), Edge_Pair_Width (10.0, selected-space units), Contrast_Threshold (5.0 grey levels), Filter_Half_Size_In_Pixels (2), Max_Results (1), the scorers.
+- Ks_Caliper_Tool: Input_Image, Region : AMV.Shapes.Ks_Rectangle_Affine (search direction = side X direction, projection = side Y), Run_Params, Results.
+- Ks_Caliper_Edge record: Position (signed distance from the region centre along the search direction, selected-space units), Position_X, Position_Y (selected space), Contrast (grey levels, absolute), Polarity (the actual polarity of the edge).
+- Ks_Caliper_Result record: Score, Position (single edge: Edge_0.Position; pair: midpoint), Position_X/Y, Width (pair width, 0 for single), Edge_0, Edge_1. Ks_Caliper_Results: Count/Item sorted by score descending, at most Max_Results; also expose the projection profile and filtered profile for diagnostics (functions returning arrays of Real) if cheap.
+Algorithm: map the affine rectangle into pixel space (Get_Parent_From_Child_Transform composed with Image.Get_Transform ("#", Region.Selected_Space_Name)); sample a grid with about 1 pixel spacing along both directions (bilinear), average along the projection direction to get a 1-D profile; convolve with an edge filter of half size N (mean of the N samples ahead minus mean of the N behind); find local extrema whose absolute response >= Contrast_Threshold and matching polarity; sub-pixel refinement by parabola through the extremum and neighbours; convert positions back to selected-space coordinates. Pair mode: all ordered pairs (edge0 before edge1 along the search direction) with the requested polarities, scored with Size_Diff_Norm (and contrast = mean or min of both; document). Zero-width/zero-length regions -> Ks_Bad_Parameter_Exception.
+
+Find line (AMV.Caliper.Find_Line): Ks_Find_Line run params record (Ks_Find_Line): Expected_Line_Segment (Ks_Line_Segment), Num_Calipers (6, >= 2), Caliper_Search_Length (30.0), Caliper_Projection_Length (10.0), Caliper_Search_Direction (radians relative to the segment direction, default Pi/2), Num_To_Ignore (0), Caliper_Run_Params (Ks_Caliper; Max_Results forced to 1 per caliper or best scoring used). Calipers are centred at evenly spaced points from the segment start to its end (first and last at the endpoints; document). Ks_Find_Line_Tool: Input_Image, Run_Params, Results. Ks_Find_Line_Results: Count (= number of calipers), Item -> Ks_Find_Line_Result record (Found, Used, X, Y, Distance_To_Line, Caliper_Result), Get_Line return AMV.Shapes.Ks_Line (direction aligned with the expected segment), Get_Line_Segment (projections of the extreme used points), RMS_Error, Num_Points_Found, Num_Points_Used. Fewer than 2 usable points -> Run_Status Error with a clear message (results reset). Also a function returning the caliper regions (Ks_Rectangle_Affine) for display/debug.
+Find circle (AMV.Caliper.Find_Circle): Ks_Find_Circle_Search_Direction_Constants (Inward, Outward), run params: Expected_Circular_Arc (Ks_Circular_Arc), Num_Calipers (8, >= 3), Caliper_Search_Length, Caliper_Projection_Length, Caliper_Search_Direction (Outward), Num_To_Ignore, Caliper_Run_Params, Radius_Constraint_Enabled (False), Radius_Constraint (fixed radius fit if enabled). Results: Get_Circle (AMV.Shapes.Ks_Circle), Get_Circular_Arc, RMS_Error, per-caliper items. Calipers evenly spaced over the arc span (full circle: no duplicate at 2 Pi). Use AMV.Geometry fits (implement the fixed-radius fit locally if enabled).
+Tests: caliper on a drawn half-plane edge at known positions with rotated regions (position error < 0.05 px without noise, < 0.2 px with noise), polarity selection, contrast threshold rejection, pairs on drawn bars (width error < 0.1 px), Max_Results ordering, position scorer effect; find line on rotated half-planes and rectangles with an occluding blob as outlier and Num_To_Ignore; find circle on drawn disks/annuli inward and outward, partial arcs, radius constraint; fixture-space mapping for all three tools.
+
+## Dimensioning
+
+TASK DIMENSIONING (SUBDIR=t_dims). Own: src/amv-dimensioning.ads/.adb, tests/test_dimensioning.adb. Counterpart of Cognex.VisionPro.Dimensioning. These tools work on geometry only (numbers and shapes in one coordinate space); they have no Input_Image. Build on AMV.Geometry.
+Tools (each a Ks_Tool extension with input components named as in VisionPro and Results/outputs as private Results types or as plain output components updated by Run; choose one consistent style and document it):
+- Ks_Distance_Point_Point_Tool (Start_X, Start_Y, End_X, End_Y -> Distance, Angle)
+- Ks_Distance_Point_Line_Tool (X, Y, Line : Ks_Line -> Distance, Line_X, Line_Y (closest point))
+- Ks_Distance_Point_Segment_Tool (X, Y, Segment -> Distance, Segment_X, Segment_Y)
+- Ks_Distance_Point_Circle_Tool (X, Y, Circle -> Distance, Circle_X, Circle_Y)
+- Ks_Distance_Segment_Segment_Tool (Segment_A, Segment_B -> Distance, the two closest points)
+- Ks_Angle_Line_Line_Tool (Line_A, Line_B -> Angle in (-Pi, Pi])
+- Ks_Angle_Point_Point_Tool (Start/End -> Angle)
+- Ks_Intersect_Line_Line_Tool (Line_A, Line_B -> Intersects, X, Y, Angle)
+- Ks_Intersect_Line_Circle_Tool (Line, Circle -> Num_Points, X_0, Y_0, X_1, Y_1)
+- Ks_Intersect_Circle_Circle_Tool (Circle_A, Circle_B -> Num_Points, points)
+- Ks_Intersect_Segment_Segment_Tool (Segment_A, Segment_B -> Intersects, X, Y)
+- Ks_Fit_Line_Tool: Run_Params (Ks_Fit_Line): points list with Add_Point (X, Y), Set_Point, Remove_Point, Num_Points, Get_X, Get_Y, Clear; Num_To_Ignore. Results: Get_Line, Get_Line_Segment (extreme used points projected), RMS_Error, Num_Points_Used, Get_Point_Used (Index).
+- Ks_Fit_Circle_Tool: analogous with Get_Circle, RMS_Error.
+- Ks_Fit_Ellipse_Tool: direct least-squares ellipse fit (Fitzgibbon-Pilu-Fisher, numerically stable variant by Halir-Flusser) -> Get_Ellipse (Ks_Ellipse), RMS_Error (approximate geometric distance; document).
+Degenerate input -> Ks_Bad_Parameter_Exception, reported by Run as Error.
+Tests: every tool against hand-computed values incl. degenerate/parallel/tangent cases, outliers for the fit tools, ellipse fit recovering rotated ellipses from noisy samples.
+
+## Image processing: filters
+
+TASK IMAGE PROCESSING / FILTERS (SUBDIR=t_ipf). Own: src/amv-image_processing-histogram.ads/.adb, src/amv-image_processing-pixel_map.ads/.adb, src/amv-image_processing-ip_one_image.ads/.adb, src/amv-image_processing-sobel_edge.ads/.adb, src/amv-image_processing-sharpness.ads/.adb, tests/test_image_processing_filters.adb. The root package src/amv-image_processing.ads already exists as an empty namespace (pragma Pure): do NOT edit it; put shared enumerations in your own child packages. Another agent owns other children of AMV.Image_Processing (affine transform, polar unwrap, copy region, two-image tools, image convert); do not create those files.
+Contents:
+- Ks_Histogram_Tool (Input_Image, Region holder, Run_Params: Ks_Histogram record with Number_Of_Bins (256) -> Results: Mean, Standard_Deviation, Variance, Minimum, Maximum, Median, Mode, Num_Samples, Get_Histogram (array of Natural, one per bin), Percentile (Percent) return grey level). Empty region -> Num_Samples 0 and documented values (no exception) or Error; choose and document.
+- Ks_Pixel_Map_Tool: a 256-entry lookup table in Run_Params (identity default) -> Output_Image (same size, same coordinate spaces as input, region pixels mapped, others copied).
+- Ks_IP_One_Image_Tool: Operators (an ordered list of operators of class Ks_IP_One_Image_Operator'Class, e.g. Ada.Containers.Indefinite_Vectors) applied in sequence to the Region pixels -> Output_Image. Operators (AMV names following VisionPro style; mark uncertain ones in api_mapping_rows): Ks_IP_One_Image_Grey_Morphology (Operation: Erode, Dilate, Open, Close; Kernel_Width, Kernel_Height odd sizes; flat rectangular structuring element; use van Herk/Gil-Werman or separable running min/max so cost is independent of kernel size), Ks_IP_One_Image_Flip_Rotate (Flip_Horizontal, Flip_Vertical, Rotate_90, Rotate_180, Rotate_270, Transpose; output dimensions change accordingly, document how coordinate spaces are updated: set Pixel_From_Root_Transform so root coordinates are preserved), Ks_IP_One_Image_Gaussian (Sigma), Ks_IP_One_Image_Median (Kernel_Width/Height; histogram-based Huang algorithm or similar), Ks_IP_One_Image_Box_Filter (mean), Ks_IP_One_Image_Threshold (Threshold, Polarity, Low_Value 0, High_Value 255), Ks_IP_One_Image_Quantize (Levels), Ks_IP_One_Image_Equalize (histogram equalisation over the region), Ks_IP_One_Image_Gain_Offset (Gain, Offset, clamped), Ks_IP_One_Image_Convolution (user kernel, normalisation option, clamped), Ks_IP_One_Image_Unsharp_Mask (Sigma, Amount). Pixels outside the region are copied unchanged; operators that change geometry (flip/rotate) apply to the whole image and require an empty Region (else Ks_Bad_Parameter_Exception).
+- Ks_Sobel_Edge_Tool -> Results with Get_Edge_Magnitude_Image (8-bit, magnitude clamped, scale factor in Run_Params), Get_Edge_Angle_Image (8-bit, angle 0..2 Pi mapped to 0..255), and the raw magnitude as Real_Image via a function.
+- Ks_Image_Sharpness_Tool -> Score (mean squared gradient magnitude over the region, Gaussian pre-smoothing option); larger is sharper.
+Output images keep the input's coordinate space tree, selected space and Pixel_From_Root_Transform (Get_/Set_Coordinate_Space_Tree, Selected_Space_Name / Set_Selected_Space_Name, Pixel_From_Root_Transform / Set_Pixel_From_Root_Transform), except geometric operators as documented.
+Tests: each operator against brute-force reference implementations on small random images (deterministic LCG), morphology identities (open is idempotent, erode <= original <= dilate), median vs sorting reference, flips/rotations exact and coordinate spaces consistent (a point in "@" maps to the same physical pixel content), histogram statistics against direct computation on drawn images and regions, sharpness higher for a sharp edge than a blurred one.
+
+## Image processing: geometry
+
+TASK IMAGE PROCESSING / GEOMETRY (SUBDIR=t_ipg). Own: src/amv-image_processing-affine_transform.ads/.adb, src/amv-image_processing-polar_unwrap.ads/.adb, src/amv-image_processing-copy_region.ads/.adb, src/amv-image_processing-ip_two_image.ads/.adb, src/amv-image_processing-image_convert.ads/.adb, and if needed src/amv-images-image_holders.ads (an Ada.Containers.Indefinite_Holders instantiation for AMV.Images.Ks_Image'Class), tests/test_image_processing_geometry.adb. The root package src/amv-image_processing.ads already exists as an empty namespace (pragma Pure); do NOT edit it. Another agent owns the histogram, pixel map, IP-one-image, Sobel and sharpness children; do not create those files.
+Contents:
+- Ks_Affine_Transform_Tool: Input_Image, Region : Ks_Rectangle_Affine, Run_Params (Scaling_X 1.0, Scaling_Y 1.0: output pixels per selected-space unit along side X / side Y... choose: output size = round (Side_Length * Scaling) at least 1; Sampling_Mode: Bilinear, Nearest_Neighbor; Fill_Value for samples outside the input). Output_Image: the resampled rectangle (side X along output x). Coordinate spaces: the output image gets a copy of the input's tree and a Pixel_From_Root_Transform chosen so that root-space ("@") coordinates mean the same physical location in input and output; selected space copied. So a measurement in "." on the output equals the same measurement on the input.
+- Ks_Polar_Unwrap_Tool: Input_Image, Region : Ks_Circular_Annulus_Section, Run_Params (Angle_Samples or Angular_Resolution, Radial_Samples or Radial_Resolution, Sampling_Mode) -> Output_Image with angle along x (from Angle_Start through Angle_Span) and radius along y (from Radius to Radius * Radial_Scale). The mapping is non-linear: give the output a fresh coordinate tree (root = output pixel space) and provide functions Get_Input_Point (Tool, Output_X, Output_Y, Input_X, Input_Y) mapping output pixels back to input selected-space coordinates.
+- Ks_Copy_Region_Tool: Input_Image, Region (holder), Run_Params (Fill_Outside_Region Boolean, Fill_Value, Crop_To_Region_Bounds Boolean) -> Output_Image; when cropping, Pixel_From_Root_Transform is updated (Set_Pixel_From_Root_Transform) so root coordinates are preserved.
+- Ks_IP_Two_Image_Add_Tool, Ks_IP_Two_Image_Subtract_Tool (Mode: Clamp, Absolute, Offset_128?), Ks_IP_Two_Image_Min_Max_Tool (Operation: Min, Max), each with Input_Image_A, Input_Image_B (same size, else Ks_Bad_Parameter_Exception) -> Output_Image (A's coordinate spaces).
+- Ks_Image_Convert_Tool: Input_Image : AMV.Images.Image_Holders.Holder (any image type), Run_Params: Run_Mode (Intensity: 0.299/0.587/0.114 rounded; Red, Green, Blue planes; Intensity_Weighted with user weights; for 16-bit input: High_Byte or Scale_To_Range with given min/max) -> Output_Image : Ks_Image_8_Grey (input's coordinate spaces).
+Tests: affine transform with axis-aligned, rotated and skewed regions on drawn scenes (output content vs analytic, and a blob/edge measured on input vs output in "." agreeing to < 0.05 px using simple centroid computations), nearest-neighbour exactness, polar unwrap of concentric circles giving horizontal lines at the right rows and Get_Input_Point round trips, copy region crop coordinates, two-image ops vs brute force incl. size mismatch errors, convert modes on colour and 16-bit images.
+
+## CNL Search
+
+TASK CNL SEARCH (SUBDIR=t_cnl). Own: src/amv-cnl_search.ads/.adb (+ private children if useful), tests/test_cnl_search.adb. Counterpart of Cognex.VisionPro.CNLSearch (normalised correlation search, translation only).
+API outline: Ks_CNL_Search_Pattern (private): Train_Image, Train_Region (Ks_Rectangle, in the train image's selected space), Origin_X/Origin_Y (pattern origin in the train image selected space, default = centre of the train region; Set_Origin), Train procedure (raises Ks_Image_No_Pixels_Exception / Ks_Bad_Parameter_Exception for bad inputs, e.g. region outside the image or a flat (zero-variance) pattern), Trained, Untrain; changing any training input untrains. Ks_CNL_Search_Algorithm_Constants (Normalized_Correlation, Normalized_Correlation_Pyramid? choose: Exhaustive, Pyramid). Run params record: Accept_Threshold (0.6, score 0..1), Confusion_Threshold (0.8), Number_To_Find (1), Algorithm, Score_Mode? (Correlation or Absolute value of correlation for polarity-insensitive), Timeout_Enabled/Timeout (ms). Ks_CNL_Search_Tool: Input_Image, Search_Region (holder; empty = whole image), Pattern, Run_Params, Results. Ks_CNL_Search_Results: Count/Item sorted by score; Ks_CNL_Search_Result record: Score (r^2 or r? choose and document; VisionPro-style scores are 0..1), Contrast (pattern-relative), X, Y? and function Get_Pose (translation-only transform mapping pattern coordinates (origin at the pattern origin, pattern-train selected space units) to the input image selected space).
+Algorithm: zero-mean normalised cross-correlation; for speed use integral images (sum and sum of squares) for the image statistics and a coarse-to-fine pyramid (AMV.Image_Math.Downsample_2) with candidate refinement; sub-pixel peak by fitting a 2-D quadratic to the 3x3 neighbourhood; non-maximum suppression (results must not overlap by more than half the pattern size); only positions where the pattern lies fully inside the search region/image. Timeout -> stop and report results so far with Warning (document).
+Tests: train on a drawn pattern (e.g. cross + circle composite with texture), search translated copies in a larger image at sub-pixel offsets (position error < 0.1 px; render the scene with the test image routines at fractional positions), multiple instances with Number_To_Find, contrast/brightness changes (score stays high), noise, search region restriction, untrained -> Error with Ks_Operator_Not_Trained_Exception, fixture space on the search image and on the train image.
+
+## PMAlign
+
+TASK PMALIGN (SUBDIR=t_pmalign). Own: src/amv-pm_align.ads/.adb (+ private children, e.g. AMV.PM_Align.Model, AMV.PM_Align.Search), tests/test_pm_align.adb. Counterpart of Cognex.VisionPro.PMAlign: geometric pattern location with rotation and scale. This is the hardest tool; take the time to make it accurate and reasonably fast. The implementation must be our own, based on public literature (e.g. gradient-orientation shape matching as in Steger's similarity measure, coarse-to-fine pyramids, least squares pose refinement).
+API outline:
+- Ks_PM_Align_Train_Algorithm_Constants (Pat_Quick, Pat_Max, Pat_Max_And_Pat_Quick) and Ks_PM_Align_Run_Algorithm_Constants (Pat_Quick, Pat_Max, ...) - Pat_Quick = coarse only (faster, less accurate), Pat_Max = with fine refinement (document our meaning).
+- Ks_PM_Align_Zone_Constants (Nominal, Low_High) and records Ks_PM_Align_Zone (Configuration, Low, High, Nominal) for Zone_Angle (default Nominal 0.0, Low -Pi/4? choose; VisionPro defaults to nominal) and Zone_Scale (Nominal 1.0).
+- Ks_PM_Align_Pattern (private): Train_Image, Train_Region (holder or Ks_Rectangle_Affine; any region in the train image selected space), Origin (Ks_Transform_2D_Linear: the pattern's own coordinate frame expressed in the train image selected space; default: translation to the train region centre), Train_Algorithm, Grain_Limit_Coarse / Grain_Limit_Fine (auto by default), Train, Trained, Untrain (setters untrain), Get_Trained_Features (model edge points for display/debug: positions in pattern coordinates and directions).
+- Run params record Ks_PM_Align_Run_Params: Accept_Threshold (0.5), Approximate_Number_To_Find (1), Zone_Angle, Zone_Scale, Contrast_Threshold (10.0), Run_Algorithm, Score_Using_Clutter (True), Timeout_Enabled (False), Timeout (ms), Outside_Region_Threshold (0.0..1.0 fraction of the model allowed outside the image).
+- Ks_PM_Align_Tool: Input_Image, Search_Region (holder; empty = whole image), Pattern, Run_Params, Results. Ks_PM_Align_Results: Count/Item sorted by score; Ks_PM_Align_Result record: Score (0..1), Fit_Error (RMS edge distance in pixels, pattern scale), Coverage (fraction of model features matched), Clutter (fraction of image edge pixels in the footprint not explained by the model), ID, Pose (Ks_Transform_2D_Linear mapping pattern coordinates to the input image selected space: TranslationX/Y = position of the pattern origin, Rotation, Scaling), plus function Get_Pose.
+Algorithm sketch (refine as you see fit): training extracts edge features (Gaussian-smoothed Sobel, non-maximum suppression, hysteresis or contrast threshold, then subsampling to a manageable count) at each pyramid level, expressed in pattern coordinates. Search: build the image gradient pyramid once; at the coarsest level evaluate the similarity score (mean of cos of the angle between model and image gradient directions at transformed feature positions, polarity-sensitive, optionally ignoring weak gradients) over translations x angles (step ~ 1 / model radius at that level) x scales (if zone scale is not nominal), with early termination when the remaining features cannot lift the score above threshold; keep local maxima; track candidates down the pyramid refining translation/angle/scale in a neighbourhood; at the finest level refine the pose by iterative least squares minimising distances from model features to image edge points along their normals (sub-pixel edge positions); compute Fit_Error, Coverage, Clutter; final score = coverage-based score (optionally minus clutter); non-maximum suppression of overlapping results.
+Performance target: a 640x480 search with full 360 degree angle zone in a few seconds at most in the test build (-O1); faster with a narrower zone. Measure and report.
+Tests: train on a drawn asymmetric shape (e.g. an L-shape or a polygon with a hole), then locate rendered instances with known translation (< 0.1 px error), rotation (< 0.1 degree error over the full circle including near +/-180), scale (when the zone allows it, error < 0.5%), multiple instances, partial occlusion (score drops but found), noise and contrast changes, no false positives on a blank or unrelated image (Count = 0, Accept_Result), the origin convention (Pose maps the pattern origin to the right image point; a custom Origin), untrained -> Error (Ks_Operator_Not_Trained_Exception), search region restriction, fixture-space input. Then demonstrate the classic chain in a test: PMAlign pose -> fixture transform (just compose transforms manually since the fixture tool is written by another agent).
+
+## CalibFix
+
+TASK CALFIX (SUBDIR=t_calfix). Own: src/amv-cal_fix.ads/.adb (+ private children if useful), tests/test_cal_fix.adb. Counterpart of Cognex.VisionPro.CalibFix.
+Contents:
+- Ks_Calib_Fix_Compute_DOF_Constants? (choose a clear AMV name if unsure): Translation, Rotation_And_Translation, Scaling_Rotation_And_Translation, Scaling_Aspect_Rotation_And_Translation, Scaling_Aspect_Rotation_Skew_And_Translation. A least squares fit of a Ks_Transform_2D_Linear from point pairs for each DOF level (closed-form Umeyama/Procrustes for rigid and similarity; linear least squares for the affine case; the aspect case by nonlinear refinement or a documented closed form). Minimum point counts per DOF (1, 2, 2, 3, 3) with Ks_Bad_Parameter_Exception otherwise.
+- Ks_Fixture_Tool: Input_Image, Run_Params (Unfixtured_From_Fixtured_Transform : Ks_Transform_2D_Linear, Fixtured_Space_Name : String default "Fixture" (a path component)), Output_Image. Run: Output_Image shares the input pixels (assignment), adds the space <input selected space> & "\" & Fixtured_Space_Name to the output's tree with Parent_From_New = Unfixtured_From_Fixtured passed directly (AMV.Coordinate_Spaces.Add_Space takes the transform from the new space into its parent, as VisionPro's AddSpace does; no Invert), and selects it. Unfixtured coordinates are the input's selected space. Re-running replaces the space (Add_Space's default Duplicate_Handling, Replace_Duplicate, replaces its transform and keeps its descendants). If the input's selected space is "#" (pixel space, which is not a tree space, so Add_Space rejects it), add the space under "@" with Parent_From_New = Image.Get_Transform ("@", "#").Compose (Unfixtured_From_Fixtured) (fixtured -> pixel -> root) or raise Ks_Image_Bad_Selected_Space_Name_Exception naming InputImage.SelectedSpaceName; choose one, document it, and use the same rule in the calibration tools.
+- Ks_Fixture_N_Point_To_N_Point_Tool: Run_Params with point pairs (Add_Point_Pair (Unfixtured_X, Unfixtured_Y, Fixtured_X, Fixtured_Y), Num_Points, getters, Clear), DOFs_To_Compute, Fixtured_Space_Name -> fits Unfixtured_From_Fixtured and fixtures as above; Results: Get_Computed_Unfixtured_From_Fixtured_Transform, Computed_RMS_Error.
+- Ks_Calib_N_Point_To_N_Point (private calibration object): Add_Point_Pair (Uncalibrated_X, Uncalibrated_Y, Raw_Calibrated_X, Raw_Calibrated_Y) (uncalibrated = pixel coordinates in the calibration image's selected space), Num_Points, Get_*, Set_*, Remove/Clear, DOFs_To_Compute, Calibrated_Space_Name ("Calibrated"; the tool adds it under the input image's selected space, so the full name is "@\Calibrated" only when that selected space is "@"), Calibrate, Calibrated, Uncalibrate, Get_Computed_Uncalibrated_From_Calibrated_Transform, Computed_RMS_Error. Changing inputs uncalibrates.
+- Ks_Calib_N_Point_To_N_Point_Tool: Input_Image, Calibration, Output_Image (shares pixels; adds the calibrated space as a child of the input's selected space and selects it). Not calibrated -> Ks_Operator_Not_Trained_Exception.
+- Ks_Calib_Checkerboard (private): Calibration_Image, Phys_Tile_Size_X/Y (selected... physical units), DOFs_To_Compute, Calibrated_Space_Name, Calibrate (detect checkerboard X-corners with a saddle-point detector (e.g. Hessian determinant or a ChESS-like response on a smoothed image), sub-pixel refinement (saddle fit or gradient-orthogonality iteration), organise into a grid by nearest-neighbour indexing robust to rotation, assign grid coordinates with the origin at the corner nearest the image centre and x/y axes along the grid directions closest to image +x / +y, then fit Uncalibrated_From_Calibrated with the chosen DOFs), Calibrated, Num_Corners_Found, Get_Corner (image and grid coordinates), Computed_RMS_Error, Get_Computed_Uncalibrated_From_Calibrated_Transform. Linear model only (no lens distortion); document it.
+- Ks_Calib_Checkerboard_Tool: Input_Image, Calibration, Output_Image (as for the N-point tool).
+Tests: DOF fits recover known transforms exactly from noiseless pairs and with small noise (RMS ~ noise), minimum point checks; fixture tool output tree and selection, measuring a point via Get_Transform before/after; N-point fixture; N-point calibration with a known pixel size, rotation and aspect; checkerboard calibration on AMV_Test_Images.Checkerboard renders with rotation (0, 17 degrees) and tile sizes 20-40 px recovering pixel size within 0.2% and rotation within 0.05 degrees, plus noise; uncalibrated tool run -> Error.
+
+## Tool group and tool block
+
+TASK TOOL GROUP + EXAMPLES SUPPORT (SUBDIR=t_group). Own: src/amv-tool_group.ads/.adb, src/amv-tool_block.ads/.adb, tests/test_tool_group.adb. Counterpart of Cognex.VisionPro.ToolGroup and ToolBlock.
+- Ks_Tool_Group (a Ks_Tool): an ordered list of non-owning references (type Ks_Tool_Access is access all AMV.Tools.Ks_Tool'Class) to tools the user declared aliased; Add (Tool), Insert, Remove, Count, Item; Run runs each tool in order; Abort_On_Error (False) stops after a tool fails; the group's Run_Status = worst of the members (Error > Reject > Warning > Accept_Result) with a message naming the first failing tool (by Name or index). Run_Each? Optional per-tool enable flags (Enabled array). A tool cannot be added twice or to itself (Ks_Bad_Parameter_Exception).
+- Ks_Tool_Block (extends the group idea with terminals): Inputs and Outputs as named terminal collections holding typed values (a variant record or a small class hierarchy for Real, Integer, Boolean, String, Ks_Image_8_Grey, Ks_Transform_2D_Linear, and a shape holder of AMV.Shapes.Ks_Shape'Class); Add_Input/Add_Output (name, initial value), Set/Get by name with type checking (Ks_Bad_Parameter_Exception on a type mismatch or unknown name); Tools list as in the group; and a user script hook: an access-to-procedure called with the block in place of the default "run every tool in order" (the analogue of overriding GroupRun in a ToolBlock script). Document the analogy.
+Tests: groups of small test tools (declared in the test) for ordering, abort behaviour, worst-status aggregation, duplicate add errors; tool block terminals of each type, type mismatch errors, a script hook that wires an input image into a contained tool, runs it, and publishes an output.
+

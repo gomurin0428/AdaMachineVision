@@ -1,0 +1,147 @@
+# Builds, tests and proves AdaMachineVision on Linux with the reference
+# toolchain (GNAT 16.1, gprbuild 26, gnatprove 16.1 from the GNAT FSF
+# builds), the same steps as before a pull request: make check, make test,
+# make run-examples, make test-real-images and make prove. The proof is
+# split into groups of kernels (tools/prove_groups.sh), each proved by its
+# own job in parallel with the build and tests.
+
+name: CI
+
+# Feature branches are checked by their pull request runs only: a push run
+# of a feature branch would repeat the same work, and its prover cache is
+# not visible to the pull request runs anyway (a pull request run restores
+# the caches of its own merge ref and of main). Pushes to main keep main's
+# cache warm for every pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its run in progress; runs on main
+# always finish, so that their prover caches are saved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GNAT_RELEASE: gnat-16.1.0-1
+  GNAT_ASSET: gnat-x86_64-linux-16.1.0-1.tar.gz
+  GPRBUILD_RELEASE: gprbuild-26.0.0-1
+  GPRBUILD_ASSET: gprbuild-x86_64-linux-26.0.0-1.tar.gz
+  GNATPROVE_RELEASE: gnatprove-16.1.0-1
+  GNATPROVE_ASSET: gnatprove-x86_64-linux-16.1.0-1.tar.gz
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/toolchain
+
+      - name: make check (warnings as errors, thin Ada API)
+        run: make check
+
+      - name: make test (Ada and C API tests)
+        run: make test
+
+      - name: make run-examples (run the examples, check their reports)
+        run: make run-examples
+
+      # The real-image tests download images (pinned, checked by SHA-256)
+      # and convert them to BMP with ImageMagick (python3, preinstalled,
+      # unpacks the BBBC006 TIFFs).
+      - name: Install ImageMagick (for the real-image tests)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q imagemagick
+
+      - name: make test-real-images (open camera images and targets)
+        run: make test-real-images
+
+      # Every kernel file must belong to a proof group (a new kernel falls
+      # into "core"), and every group must have files.
+      - name: Check the proof groups
+        run: |
+          tools/prove_groups.sh list | cut -d' ' -f1 | sort | uniq -c
+          for group in pm-align calib-cnl filters geometry-measure \
+                       dimensioning-tools core; do
+            tools/prove_groups.sh "$group" > /dev/null
+          done
+
+  prove:
+    name: prove (${{ matrix.group }})
+    runs-on: ubuntu-24.04
+    # A group proved from scratch must fit in a hosted runner's 360
+    # minutes; the whole project from scratch no longer does (more than
+    # five hours in one job, 2026-11), which is why the proof is split.
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        # The groups of tools/prove_groups.sh, its "core" included.
+        group: [pm-align, calib-cnl, filters, geometry-measure,
+                dimensioning-tools, core]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/toolchain
+
+      - name: Choose the prover cache directories
+        run: |
+          echo "PROVE_CACHE=$RUNNER_TEMP/gnatprove-cache" >> "$GITHUB_ENV"
+          echo "PROVE_CACHE_TAR=$RUNNER_TEMP/gnatprove-cache.tar" >> "$GITHUB_ENV"
+
+      # Prover results are cached by proof obligation (gnatprove
+      # --memcached-server=file:DIR), so only obligations that changed are
+      # proved again. The directory holds a great many small files, which
+      # actions/cache fails to save ("Maximum call stack size exceeded"),
+      # so it is kept as one tar file. Each group saves its own key (run id
+      # and attempt) and restores the newest cache of the group made from
+      # the same kernel sources, else the newest of the group, else the
+      # newest cache of the whole project from before the split (its
+      # results are valid for every group). It saves even after a failed or
+      # timed-out proof, whose proved obligations stay valid.
+      - name: Restore the prover cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PROVE_CACHE_TAR }}
+          key: gnatprove-${{ matrix.group }}-tar-${{ env.GNATPROVE_RELEASE }}-${{ hashFiles('src/amv-kernels*.ads', 'src/amv-kernels*.adb', 'amv.gpr') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            gnatprove-${{ matrix.group }}-tar-${{ env.GNATPROVE_RELEASE }}-${{ hashFiles('src/amv-kernels*.ads', 'src/amv-kernels*.adb', 'amv.gpr') }}-
+            gnatprove-${{ matrix.group }}-tar-${{ env.GNATPROVE_RELEASE }}-
+            gnatprove-tar-${{ env.GNATPROVE_RELEASE }}-
+
+      - name: Unpack the prover cache
+        run: |
+          mkdir -p "$PROVE_CACHE"
+          if [ -f "$PROVE_CACHE_TAR" ]; then
+            tar -xf "$PROVE_CACHE_TAR" -C "$PROVE_CACHE"
+          fi
+          echo "prover cache: $(find "$PROVE_CACHE" -type f | wc -l) files"
+
+      - name: make prove (the group's kernels)
+        timeout-minutes: 300
+        run: |
+          make prove PROVE_CACHE="$PROVE_CACHE" \
+            PROVE_UNITS="$(tools/prove_groups.sh ${{ matrix.group }})"
+
+      - name: Pack the prover cache
+        if: always()
+        run: |
+          if [ -d "$PROVE_CACHE" ]; then
+            tar -cf "$PROVE_CACHE_TAR" -C "$PROVE_CACHE" .
+            ls -l "$PROVE_CACHE_TAR"
+          fi
+
+      - name: Save the prover cache
+        if: always() && env.PROVE_CACHE_TAR != ''
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.PROVE_CACHE_TAR }}
+          key: gnatprove-${{ matrix.group }}-tar-${{ env.GNATPROVE_RELEASE }}-${{ hashFiles('src/amv-kernels*.ads', 'src/amv-kernels*.adb', 'amv.gpr') }}-${{ github.run_id }}-${{ github.run_attempt }}

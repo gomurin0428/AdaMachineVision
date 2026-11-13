@@ -1,0 +1,60 @@
+# The reference toolchain (GNAT 16.1, gprbuild 26, gnatprove 16.1 from the
+# GNAT FSF builds), restored from the cache or downloaded and checked by
+# SHA-256, then put on PATH. The releases come from the workflow's env.
+
+name: AMV toolchain
+description: GNAT, gprbuild and gnatprove for AdaMachineVision, on PATH
+
+runs:
+  using: composite
+  steps:
+    # Outside the checkout. actions/cache rejects paths that contain "..",
+    # so the directory is set here from RUNNER_TEMP.
+    - name: Choose the toolchain directory
+      shell: bash
+      run: echo "TOOLCHAIN=$RUNNER_TEMP/amv-toolchain" >> "$GITHUB_ENV"
+
+    - name: Restore the toolchain from the cache
+      id: toolchain-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.TOOLCHAIN }}
+        key: amv-toolchain-x86_64-linux-${{ env.GNAT_RELEASE }}-${{ env.GPRBUILD_RELEASE }}-${{ env.GNATPROVE_RELEASE }}
+
+    - name: Download and verify the toolchain
+      if: steps.toolchain-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        base=https://github.com/alire-project/GNAT-FSF-builds/releases/download
+        mkdir -p "$TOOLCHAIN" "$RUNNER_TEMP/dl"
+        cd "$RUNNER_TEMP/dl"
+        for pair in "$GNAT_RELEASE/$GNAT_ASSET" \
+                    "$GPRBUILD_RELEASE/$GPRBUILD_ASSET" \
+                    "$GNATPROVE_RELEASE/$GNATPROVE_ASSET"; do
+          asset=${pair#*/}
+          curl -fsSL -o "$asset" "$base/$pair"
+          curl -fsSL -o "$asset.sha256" "$base/$pair.sha256"
+          expected=$(cut -c1-64 "$asset.sha256")
+          actual=$(sha256sum "$asset" | cut -d' ' -f1)
+          if [ "$expected" != "$actual" ]; then
+            echo "checksum mismatch for $asset" >&2
+            exit 1
+          fi
+          tar -xzf "$asset" -C "$TOOLCHAIN"
+          rm -f "$asset"
+        done
+
+    - name: Put the toolchain on PATH
+      shell: bash
+      run: |
+        for dir in "$TOOLCHAIN"/*/bin; do
+          echo "$dir" >> "$GITHUB_PATH"
+        done
+
+    - name: Show the tool versions
+      shell: bash
+      run: |
+        gnat --version | sed -n 1p
+        gprbuild --version | sed -n 1p
+        gnatprove --version | sed -n 1p

@@ -1,0 +1,4 @@
+--  Every scalar the code leaves unset starts invalid, and -gnatVa checks
+--  every use, so an output a subprogram forgets to set fails the tests
+--  instead of passing whenever a stale value happens to be the expected one.
+pragma Initialize_Scalars;

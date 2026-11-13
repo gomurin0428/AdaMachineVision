@@ -1,0 +1,4 @@
+# Bodies of the Ada API whose logic has not moved into a SPARK kernel yet.
+# amv_shell_check skips them. Remove a file from this list when its
+# package becomes a thin wrapper (docs/DESIGN.md section 9); new packages
+# never go on it.

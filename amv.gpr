@@ -1,0 +1,24 @@
+library project AMV is
+   for Source_Dirs use ("src");
+   for Object_Dir use "build/obj";
+   for Library_Dir use "build/lib";
+   for Library_Name use "amv";
+   for Library_Kind use "static";
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-gnatwa", "-gnatVa", "-O2", "-gnatn");
+   end Compiler;
+
+   --  gnatprove settings (make prove). Raise the level for a single heavy
+   --  unit with, for example:
+   --     for Proof_Switches ("amv-kernels-image_math.adb") use ("--level=4");
+   package Prove is
+      --  Level 2 gives each prover 5 seconds of wall-clock time, which a
+      --  loaded or slower machine (a CI runner) can exceed on checks that
+      --  take a few seconds here. The longer limit only matters for such
+      --  checks; everything else proves as fast as before.
+      for Proof_Switches ("Ada") use ("--level=2", "--timeout=30");
+   end Prove;
+end AMV;
