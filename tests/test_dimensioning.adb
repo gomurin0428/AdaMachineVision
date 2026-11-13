@@ -119,6 +119,15 @@ procedure Test_Dimensioning is
    end Noise;
    --  A value in [-Amplitude, Amplitude].
 
+   procedure Noisy_Point (X, Y, Amplitude : Real; Nx, Ny : out Real) is
+   begin
+      Nx := X + Noise (Amplitude);
+      Ny := Y + Noise (Amplitude);
+   end Noisy_Point;
+   --  (X, Y) with noise, drawn for X first. The language leaves the order
+   --  of two calls of Noise in one parameter list to the compiler, and it
+   --  differs between targets: the data of the tests would differ with it.
+
    procedure Ellipse_Point
      (CX, CY, RX, RY, Rotation, T : Real;
       X, Y                        : out Real) is
@@ -969,7 +978,7 @@ procedure Test_Dimensioning is
       Rot : constant Real := 0.6;
       Tool : Ks_Fit_Ellipse_Tool;
       E    : Ks_Ellipse;
-      X, Y : Real;
+      X, Y, Nx, Ny : Real;
    begin
       Section ("Fitting: ellipses");
       for I in 0 .. 39 loop
@@ -995,7 +1004,8 @@ procedure Test_Dimensioning is
          for I in 0 .. 199 loop
             Ellipse_Point (CX, CY, RX, RY, Rot, 2.0 * Pi * Real (I) / 200.0,
                            X, Y);
-            Noisy.Run_Params.Add_Point (X + Noise (0.2), Y + Noise (0.2));
+            Noisy_Point (X, Y, 0.2, Nx, Ny);
+            Noisy.Run_Params.Add_Point (Nx, Ny);
          end loop;
          Noisy.Run;
          E := Noisy.Result.Get_Ellipse;
@@ -1021,7 +1031,8 @@ procedure Test_Dimensioning is
          for I in 0 .. 99 loop
             Ellipse_Point (CX, CY, RX, RY, -1.1, Pi * Real (I) / 99.0,
                            X, Y);
-            Half.Run_Params.Add_Point (X + Noise (0.05), Y + Noise (0.05));
+            Noisy_Point (X, Y, 0.05, Nx, Ny);
+            Half.Run_Params.Add_Point (Nx, Ny);
          end loop;
          Half.Run;
          E := Half.Result.Get_Ellipse;
@@ -1209,13 +1220,14 @@ procedure Test_Dimensioning is
       Fit_C : Ks_Fit_Circle_Tool;
       PE    : Ks_Distance_Point_Ellipse_Tool;
       Start : Ada.Calendar.Time;
-      X, Y  : Real;
+      X, Y, Nx, Ny : Real;
    begin
       Section ("Dimensioning: timing");
       for I in 0 .. 999 loop
          Ellipse_Point (0.0, 0.0, 300.0, 100.0, 0.3,
                         2.0 * Pi * Real (I) / 1000.0, X, Y);
-         Tool.Run_Params.Add_Point (X + Noise (0.5), Y + Noise (0.5));
+         Noisy_Point (X, Y, 0.5, Nx, Ny);
+         Tool.Run_Params.Add_Point (Nx, Ny);
          if I mod 5 = 0 then
             Fit_C.Run_Params.Add_Point (X, Y);
          end if;
