@@ -1,5 +1,6 @@
---  Helpers shared by the examples: synthetic images, so that the examples
---  run without image files, and number formatting for their reports.
+--  Helpers shared by the examples: synthetic images, so that the first
+--  examples run without image files, the loading of the real images of
+--  examples/real_images, and number formatting for the reports.
 
 with AMV;
 with AMV.Images;
@@ -20,6 +21,18 @@ package Example_Support is
    --  [X - 0.5, X + 0.5] x [Y - 0.5, Y + 0.5]) and moves towards Value by
    --  the fraction of the samples that fall inside, so edges are
    --  anti-aliased as in a camera image.
+
+   Missing_Image : exception;
+
+   function Real_Image_File (Name : String) return String;
+   --  The path of the image file Name ("coins.bmp") of the real-image
+   --  examples: in the directory named by the environment variable
+   --  AMV_REAL_IMAGES, build/real-images by default (make
+   --  fetch-real-images puts the images there). Raises Missing_Image,
+   --  with a message that says so, when the file is not there.
+
+   function Real_Image (Name : String) return AMV.Images.Ks_Image_8_Grey;
+   --  That file as 8-bit grey.
 
    function Image (Value : Real; Aft : Natural := 1) return String;
    --  Value in fixed-point notation with Aft decimals, without leading

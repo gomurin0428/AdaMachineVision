@@ -7,6 +7,9 @@
 --  them defective, and a speck of dust) and writes that image to
 --  blob_input.pgm in the current directory. With an argument it reads the
 --  image from that file (PGM, PPM or BMP; colour is converted to grey).
+--  Either way it writes blob_result.bmp: the image with every washer
+--  outlined, green when it passes and red when it does not, and its
+--  verdict next to it.
 
 with Ada.Command_Line;
 with Ada.Text_IO;
@@ -18,6 +21,7 @@ with AMV.Images;
 with AMV.Tools;
 with AMV.Transforms;
 
+with Example_Draw;
 with Example_Support;
 
 procedure Blob_Inspection is
@@ -110,6 +114,35 @@ begin
         Tool.Results.Get_Blobs;
       Features : constant Ks_Blob_Result_Collection'Class :=
         Tool.Results.Get_Blobs (Filtered => False);
+      Shown    : Example_Draw.Picture :=
+        Example_Draw.Create (Input, Scale => 2.0);
+
+      procedure Mark
+        (Washer : Ks_Blob_Result; Verdict : String; Pass : Boolean);
+      --  Draws the washer's outline, that of its holes, and the verdict.
+
+      procedure Mark
+        (Washer : Ks_Blob_Result; Verdict : String; Pass : Boolean)
+      is
+         Ink : constant Example_Draw.Colour :=
+           (if Pass then Example_Draw.Green else Example_Draw.Red);
+      begin
+         Example_Draw.Outline
+           (Shown, Tool.Results.Get_Boundary (Integer (Washer.ID)), Ink,
+            Width => 2.5);
+         for J in 0 .. Features.Count - 1 loop
+            if Features.Item (J).Parent_ID = Washer.ID then
+               Example_Draw.Outline
+                 (Shown,
+                  Tool.Results.Get_Boundary
+                    (Integer (Features.Item (J).ID)),
+                  Ink, Width => 2.5);
+            end if;
+         end loop;
+         Example_Draw.Text
+           (Shown, Washer.Center_Of_Mass_X, Washer.Center_Of_Mass_Y,
+            Verdict, Ink, DX => -6 * Verdict'Length, DY => 52);
+      end Mark;
    begin
       Put_Line ("found" & Washers.Count'Image & " washers among"
                 & Features.Count'Image & " features (washers, holes, dust)"
@@ -145,19 +178,28 @@ begin
             then
                Good := Good + 1;
                Put_Line ("hole area " & Image (Hole_Area) & ": OK");
+               Mark (Washer, "OK", Pass => True);
             elsif Holes = 1 then
                Bad := Bad + 1;
                Put_Line
                  ("hole area " & Image (Hole_Area) & ": NG (hole size)");
+               Mark (Washer, "NG: HOLE SIZE", Pass => False);
             elsif Holes = 0 then
                Bad := Bad + 1;
                Put_Line ("no hole: NG");
+               Mark (Washer, "NG: NO HOLE", Pass => False);
             else
                Bad := Bad + 1;
                Put_Line ("several holes: NG");
+               Mark (Washer, "NG: HOLES", Pass => False);
             end if;
          end;
       end loop;
+
+      Example_Draw.Caption
+        (Shown, 0, "OK:" & Good'Image & ", NG:" & Bad'Image);
+      Example_Draw.Write (Shown, "blob_result.bmp");
+      Put_Line ("wrote the result picture to blob_result.bmp");
    end;
 
    Put_Line ("OK:" & Good'Image & ", NG:" & Bad'Image);

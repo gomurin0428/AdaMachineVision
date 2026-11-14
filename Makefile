@@ -12,7 +12,8 @@ PROVE_CACHE_SWITCH = $(if $(PROVE_CACHE),--memcached-server=file:$(abspath $(PRO
 PROVE_UNITS ?=
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
-	test-real-images check shell-check prove clean
+	test-real-images run-real-image-examples pictures check shell-check \
+	prove clean
 
 all: build
 
@@ -58,6 +59,33 @@ run-examples: examples
 	cd build/example-run && ../bin/c_blob_inspection > c_blob_inspection.txt \
 	  && cat c_blob_inspection.txt && grep -q "^OK: 4, NG: 2$$" c_blob_inspection.txt
 	cd build/example-run && ../bin/align_and_measure
+
+# Runs the examples on real images (examples/real_images/README.md) in
+# build/example-run and checks the main facts of their reports: the exit
+# status and the counts. They write their result pictures there.
+REAL_IMAGES = $(CURDIR)/build/real-images
+run-real-image-examples: examples fetch-real-images
+	mkdir -p build/example-run
+	cd build/example-run && AMV_REAL_IMAGES=$(REAL_IMAGES) ../bin/coin_count \
+	  > coin_count.txt && cat coin_count.txt \
+	  && grep -q "^after the top-hat: 24 coins$$" coin_count.txt
+	cd build/example-run && AMV_REAL_IMAGES=$(REAL_IMAGES) ../bin/pcb_gauging \
+	  > pcb_gauging.txt && cat pcb_gauging.txt \
+	  && test "$$(grep -c '^board [0-9]*: found' pcb_gauging.txt)" = 6 \
+	  && test "$$(grep -c '^  width: 9[0-9][0-9]\.' pcb_gauging.txt)" = 6
+	cd build/example-run && AMV_REAL_IMAGES=$(REAL_IMAGES) ../bin/candle_rims \
+	  > candle_rims.txt && cat candle_rims.txt \
+	  && grep -q "PMAlign found 4 lights$$" candle_rims.txt \
+	  && test "$$(grep -c 'rim centre' candle_rims.txt)" = 4
+	cd build/example-run && AMV_REAL_IMAGES=$(REAL_IMAGES) ../bin/nuclei_count \
+	  > nuclei_count.txt && cat nuclei_count.txt \
+	  && grep -q "^field eval_07: 98 blobs$$" nuclei_count.txt
+
+# The result pictures the READMEs show (docs/images): runs the examples
+# and converts the pictures they wrote to PNG; needs ImageMagick or sips
+# (macOS). Run it when an example's picture changes, and commit the result.
+pictures: run-examples run-real-image-examples
+	./tools/update_pictures.sh
 
 # Everything with warnings as errors, plus the check that the Ada API stays
 # a thin layer over the SPARK kernels. Run before every pull request.

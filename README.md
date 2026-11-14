@@ -14,6 +14,39 @@ are used.
 > AMV is not affiliated with or endorsed by Cognex Corporation.
 > "Cognex" and "VisionPro" are trademarks of Cognex Corporation.
 
+## What it finds
+
+Pictures written by the example programs: the input photograph with what
+AMV's tools found drawn on it. Green is what a tool found, cyan and
+magenta where it looked, red what it left out.
+
+| Gauging a board wherever it lies | Several objects of one kind |
+|---|---|
+| ![A circuit board lying upside down, its four holes circled in green, its two outlines marked in orange and its width measured by a magenta caliper](docs/images/pcb_gauging_3_measured.png) | ![Four tea lights, each rim circled in green with its radius](docs/images/candle_rims_3_measured.png) |
+| PMAlign finds the board, here lying upside down. The pose it reports places Find Circle on the four holes, Find Line on the two outlines and a Caliper across the width, all taught once on another board. | PMAlign finds the four tea lights, and each result's pose places a Find Circle, which measures the rim. |
+
+| Counting coins | Counting nuclei, and checking the count |
+|---|---|
+| ![24 coins, each outlined in green and numbered](docs/images/coin_count_result.png) | ![A microscope field of cell nuclei with each blob outlined in green and an orange cross on each nucleus without a blob of its own](docs/images/nuclei_count_result.png) |
+| The background is brighter at the top, so a threshold alone merges a coin with it. A top-hat flattens the background first, and Blob finds the 24 coins. | Blob finds 98 blobs where 115 nuclei were drawn by hand. The orange crosses mark the 17 nuclei without a blob of their own: a blob tool does not split nuclei that touch, and some are too dim for the threshold. |
+
+| How Find Circle gets a hole | The same settings on six boards |
+|---|---|
+| ![One hole enlarged, with 48 calipers around it, their edge points and the fitted circle](docs/images/pcb_gauging_4_hole.png) | ![Six boards, each with its holes, outlines and width drawn](docs/images/pcb_gauging_boards.png) |
+| 48 calipers (cyan) cross the hole's edge. The circle (green) is fitted to the edge points they find; the points farthest from it are left out (red). The yellow circle is where the pose put the tool. | One pattern and one set of tool settings; the boards are shifted, turned and, in one photograph, upside down. |
+
+Every step of these examples, with its picture, the settings and the
+measured values, is in
+[`examples/real_images/README.md`](examples/real_images/README.md); the
+examples on synthetic images are in
+[`examples/README.md`](examples/README.md). The photographs are from
+VisA (Zou et al., ECCV 2022; Amazon; CC BY 4.0), BBBC039 (Broad Bioimage
+Benchmark Collection; CC0 1.0) and scikit-image's `coins` (Brooklyn
+Museum; no known copyright restrictions), converted to grey and resized,
+with AMV's results drawn on them:
+[`docs/images/README.md`](docs/images/README.md) names the source and
+the licence of each picture.
+
 ## Status
 
 Version 0.1.0, the first release (C ABI version 2). `CHANGELOG.md` lists
@@ -102,6 +135,8 @@ make prove       # prove the SPARK kernels (gnatprove)
 make examples    # build/bin/quick_look, blob_inspection, ...
 make run-examples  # run the examples and check their reports
 make test-real-images  # fetch public images and run the real-image tests
+make run-real-image-examples  # run the examples on those images
+make pictures    # write the result pictures of docs/images again
 ```
 
 Run the tests from the repository root (some write under `tests/output/`).
@@ -112,9 +147,10 @@ Run the tests from the repository root (some write under `tests/output/`).
 src/             the library: AMV.* (Ada API) and AMV.Kernels.* (SPARK kernels)
 include/amv.h    the C API
 tests/           Ada tests (test_suite runs them all) and tests/c (C API)
-examples/        example programs
+examples/        example programs; examples/real_images runs on photographs
 tools/           development tools (the thin-API check)
 docs/            DESIGN.md (binding rules), PROOF.md, API_MAPPING.md,
+                 images/ (the result pictures the READMEs show),
                  handoff/ (plans and notes, in Japanese)
 ```
 
@@ -125,8 +161,12 @@ docs/            DESIGN.md (binding rules), PROOF.md, API_MAPPING.md,
 * `docs/PROOF.md`: what is proved, what is trusted, and the limits.
 * `docs/API_MAPPING.md`: VisionPro names and their AMV counterparts.
 * `CHANGELOG.md`: what each release contains and changes.
+* `examples/README.md` and `examples/real_images/README.md`: the
+  examples, with pictures of what they find.
 * `tests/real_images/README.md`: the real-image tests, their images and
   licences, and the tuning and evaluation protocol.
+* `docs/images/README.md`: the result pictures, and the source and
+  licence of the photograph under each.
 
 ## License
 

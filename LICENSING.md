@@ -40,9 +40,14 @@ open an issue before you send a pull request.
 
 ## What these licences do not cover
 
-* The images of the real-image tests are not part of this repository.
-  They are downloaded at test time and keep their own licences
+* The images of the real-image tests and of the examples on photographs
+  are not part of this repository. They are downloaded when the tests or
+  those examples are run, and keep their own licences
   (`tests/real_images/README.md`).
+* The result pictures in `docs/images` show some of those photographs
+  with AMV's results drawn on them. The photographs in them keep their
+  own licences too; `docs/images/README.md` names the source and the
+  licence of each.
 * "Cognex" and "VisionPro" are trademarks of Cognex Corporation. AMV is
   not affiliated with or endorsed by Cognex Corporation.
 

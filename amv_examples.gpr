@@ -1,11 +1,13 @@
 with "amv.gpr";
 
 project AMV_Examples is
-   for Source_Dirs use ("examples");
+   for Source_Dirs use ("examples", "examples/real_images");
    for Object_Dir use "build/example-obj";
    for Exec_Dir use "build/bin";
    for Main use
-     ("quick_look.adb", "blob_inspection.adb", "align_and_measure.adb");
+     ("quick_look.adb", "blob_inspection.adb", "align_and_measure.adb",
+      "coin_count.adb", "pcb_gauging.adb", "candle_rims.adb",
+      "nuclei_count.adb");
    for Languages use ("Ada");
 
    package Compiler is
