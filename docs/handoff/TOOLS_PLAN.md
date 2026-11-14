@@ -71,7 +71,7 @@ These rules are binding for every tool.
    take a `filtered` flag. A tool whose output is only an image or a
    number (OutputImage, Score) returns it from its execute entry point
    directly, as new image handles or a double, without a results handle.
-7. **Trained objects** (the patterns of CNLSearch and PMAlign, the
+7. **Trained objects** (the patterns of NCC Search and Shape Match, the
    calibrations of CalibFix) are owned handles with train, destroy and
    duplicate entry points; using an untrained one fails with
    `KS_FAILURE_OPERATOR_NOT_TRAINED`. Users save them, so their Ada types

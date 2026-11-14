@@ -36,8 +36,8 @@ The child packages of `AMV`, by area:
 | Calipers, line and circle finding   | `AMV.Caliper`, `AMV.Caliper.Find_Line`, `AMV.Caliper.Find_Circle` |
 | Measuring, fitting, shape creation  | `AMV.Dimensioning` (+ children) |
 | Image processing                    | `AMV.Image_Processing` (+ children) |
-| Correlation search                  | `AMV.CNL_Search`               |
-| Geometric pattern location          | `AMV.PM_Align`                 |
+| Correlation search                  | `AMV.NCC_Search`               |
+| Geometric pattern location          | `AMV.Shape_Match`              |
 | Fixtures and calibration            | `AMV.Calib_Fix`                |
 | Tool groups and tool blocks         | `AMV.Tool_Group`, `AMV.Tool_Block` |
 
@@ -53,8 +53,8 @@ packages; their entry points form the C API (section 9).
 
 * Type and exception names start with `Ks_`, with `_` between words and
   between letters and digits: `Ks_Blob_Tool`, `Ks_Image_8_Grey`,
-  `Ks_PM_Align_Tool`, `Ks_CNL_Search_Tool`, `Ks_IP_One_Image_Tool`. The
-  acronyms PM, CNL, IP, ID and RMS stay together. `XY` naming a
+  `Ks_Shape_Match_Tool`, `Ks_NCC_Search_Tool`, `Ks_IP_One_Image_Tool`. The
+  acronyms NCC, IP, ID and RMS stay together. `XY` naming a
   coordinate pair also stays one word, set off by `_`:
   `Set_Center_XY_Radius_XY_Rotation`, `Set_From_Start_XY_End_XY`.
 * Properties: a read-only property `Foo` is a function `Foo (Obj)`. A
@@ -292,7 +292,7 @@ SPARK kernels").
   images, trees, regions, patterns, calibrations, fit points) keeps the
   streams of an earlier release readable: a changed format gets a new
   stream code, and `Read` still accepts the old code with the old
-  meaning (as the CNL pattern does for its train region mode). A record
+  meaning (as the NCC pattern does for its train region mode). A record
   streamed by the predefined attributes (run parameters, tools, result
   records) changes its stream format whenever a component is added;
   `CHANGELOG.md` lists such a change. Removing or renaming a public Ada

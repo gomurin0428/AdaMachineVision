@@ -75,7 +75,7 @@ run-real-image-examples: examples fetch-real-images
 	  && test "$$(grep -c '^  width: 9[0-9][0-9]\.' pcb_gauging.txt)" = 6
 	cd build/example-run && AMV_REAL_IMAGES=$(REAL_IMAGES) ../bin/candle_rims \
 	  > candle_rims.txt && cat candle_rims.txt \
-	  && grep -q "PMAlign found 4 lights$$" candle_rims.txt \
+	  && grep -q "Shape Match found 4 lights$$" candle_rims.txt \
 	  && test "$$(grep -c 'rim centre' candle_rims.txt)" = 4
 	cd build/example-run && AMV_REAL_IMAGES=$(REAL_IMAGES) ../bin/nuclei_count \
 	  > nuclei_count.txt && cat nuclei_count.txt \

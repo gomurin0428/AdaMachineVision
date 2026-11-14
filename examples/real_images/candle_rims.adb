@@ -1,4 +1,4 @@
---  Several objects of one kind in an image: PMAlign finds the four tea
+--  Several objects of one kind in an image: Shape Match finds the four tea
 --  lights of a photograph, and Find Circle, placed by each result's pose,
 --  measures the rim of each light's cup.
 --
@@ -13,7 +13,7 @@
 --
 --     candle_rims_1_train.bmp     the taught light: the train region, the
 --                                 trained features and the taught rim
---     candle_rims_2_found.bmp     the other image: the four lights PMAlign
+--     candle_rims_2_found.bmp     the other image: the four lights Shape Match
 --                                 found, each with its score
 --     candle_rims_3_measured.bmp  the same image: the four rims
 --     candle_rims_4_rim.bmp       a part of one rim, enlarged: the calipers
@@ -32,7 +32,7 @@ with AMV;
 with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
 with AMV.Images;
-with AMV.PM_Align;
+with AMV.Shape_Match;
 with AMV.Shapes;
 with AMV.Shapes.Region_Holders;
 with AMV.Tools;
@@ -45,7 +45,7 @@ procedure Candle_Rims is
 
    use Ada.Text_IO;
    use AMV;
-   use AMV.PM_Align;
+   use AMV.Shape_Match;
    use type AMV.Tools.Ks_Tool_Result_Constants;
 
    package EF is new Ada.Numerics.Generic_Elementary_Functions (Real);
@@ -71,7 +71,7 @@ procedure Candle_Rims is
      (if Ada.Command_Line.Argument_Count >= 1
       then Ada.Command_Line.Argument (1) else "0450");
 
-   Finder : Ks_PM_Align_Tool;
+   Finder : Ks_Shape_Match_Tool;
 
    procedure Draw_Pattern
      (Onto : in out Draw.Picture;
@@ -270,17 +270,18 @@ begin
       Finder.Input_Image := Lights;
       Finder.Run;
       if Finder.Run_Status.Result /= AMV.Tools.Accept_Result then
-         Put_Line ("image " & Name & ": PMAlign found no light");
+         Put_Line ("image " & Name & ": Shape Match found no light");
          Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
          return;
       end if;
       Put_Line
-        ("image " & Name & ": PMAlign found"
+        ("image " & Name & ": Shape Match found"
          & Natural'Image (Finder.Results.Count) & " lights");
 
       for N in 0 .. Finder.Results.Count - 1 loop
          declare
-            Match   : constant Ks_PM_Align_Result := Finder.Results.Item (N);
+            Match   : constant Ks_Shape_Match_Result :=
+              Finder.Results.Item (N);
             Pose    : constant AMV.Transforms.Ks_Transform_2D_Linear :=
               Get_Pose (Match);
             Light   : constant String := Number (N + 1);
@@ -327,7 +328,7 @@ begin
       end loop;
 
       Draw.Caption
-        (Found, 0, "PMALIGN:" & Natural'Image (Finder.Results.Count)
+        (Found, 0, "SHAPE MATCH:" & Natural'Image (Finder.Results.Count)
          & " LIGHTS IN IMAGE " & Name);
       Draw.Caption (Found, 1, "PATTERN, WHERE FOUND", Draw.Cyan);
       Draw.Caption (Found, 2, "ITS FEATURES", Draw.Yellow);

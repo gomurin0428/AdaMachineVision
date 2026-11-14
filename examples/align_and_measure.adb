@@ -1,5 +1,5 @@
 --  Locate, fixture, measure: the usual chain of a gauging application.
---  PMAlign finds the part (its position and angle), the fixture tool puts
+--  Shape Match finds the part (its position and angle), the fixture tool puts
 --  a coordinate space on the part at that pose, and calipers placed in
 --  that space measure the part wherever it lies in the image.
 --
@@ -10,7 +10,7 @@
 --  scenes are written to align_scene_1.pgm and align_scene_2.pgm in the
 --  current directory, and align_result.bmp shows both with what was found
 --  drawn on them: the pattern's region and the part's axes at the pose
---  PMAlign found, each caliper's region as the fixture placed it, and the
+--  Shape Match found, each caliper's region as the fixture placed it, and the
 --  two edges it measured between. Each measure is checked against the
 --  drawn size within a tolerance of 0.1 pixel; the exit status is a
 --  failure when a part is not found or a measure is out of tolerance.
@@ -25,7 +25,7 @@ with AMV.Caliper;
 with AMV.Image_File;
 with AMV.Images;
 with AMV.Misc;
-with AMV.PM_Align;
+with AMV.Shape_Match;
 with AMV.Shapes;
 with AMV.Shapes.Region_Holders;
 with AMV.Tools;
@@ -86,11 +86,11 @@ procedure Align_And_Measure is
    --  Training
    ---------------------------------------------------------------------
 
-   procedure Train (Pattern : in out AMV.PM_Align.Ks_PM_Align_Pattern);
+   procedure Train (Pattern : in out AMV.Shape_Match.Ks_Shape_Match_Pattern);
    --  Trains Pattern on a model image with the part at (100, 80), not
    --  turned.
 
-   procedure Train (Pattern : in out AMV.PM_Align.Ks_PM_Align_Pattern) is
+   procedure Train (Pattern : in out AMV.Shape_Match.Ks_Shape_Match_Pattern) is
       Model_Pose : constant Ks_Transform_2D_Linear :=
         Create_Rigid (Rotation => 0.0, Translation_X => 100.0,
                       Translation_Y => 80.0);
@@ -241,7 +241,7 @@ procedure Align_And_Measure is
    Scenes : constant array (1 .. 2) of Placement :=
      [(230.0, 140.0, 25.0), (150.0, 170.0, -110.0)];
 
-   Align   : AMV.PM_Align.Ks_PM_Align_Tool;
+   Align   : AMV.Shape_Match.Ks_Shape_Match_Tool;
    Fixture : AMV.Calib_Fix.Ks_Fixture_Tool;
    Shown   : array (Scenes'Range) of Draw.Picture;
 
@@ -250,7 +250,7 @@ begin
 
    --  Look for the part at any angle.
    Align.Run_Params.Zone_Angle.Configuration :=
-     AMV.PM_Align.Code (AMV.PM_Align.Low_High);
+     AMV.Shape_Match.Code (AMV.Shape_Match.Low_High);
    Align.Run_Params.Zone_Angle.Low := -Ada.Numerics.Pi;
    Align.Run_Params.Zone_Angle.High := Ada.Numerics.Pi;
 
@@ -273,22 +273,22 @@ begin
          Align.Input_Image := Scene;
          Align.Run;
          if Align.Run_Status.Result /= AMV.Tools.Accept_Result then
-            Put_Line ("  PMAlign failed: "
+            Put_Line ("  Shape Match failed: "
                       & AMV.Tools.Message (Align.Run_Status));
-            Draw.Caption (Shown (N), 0, "PMALIGN: FAILED", Draw.Red);
+            Draw.Caption (Shown (N), 0, "SHAPE MATCH: FAILED", Draw.Red);
             All_Good := False;
          elsif Align.Results.Count = 0 then
-            Put_Line ("  PMAlign did not find the part");
-            Draw.Caption (Shown (N), 0, "PMALIGN: NOT FOUND", Draw.Red);
+            Put_Line ("  Shape Match did not find the part");
+            Draw.Caption (Shown (N), 0, "SHAPE MATCH: NOT FOUND", Draw.Red);
             All_Good := False;
          else
             declare
-               Found : constant AMV.PM_Align.Ks_PM_Align_Result :=
+               Found : constant AMV.Shape_Match.Ks_Shape_Match_Result :=
                  Align.Results.Item (0);
                Pose  : constant Ks_Transform_2D_Linear :=
-                 AMV.PM_Align.Get_Pose (Found);
+                 AMV.Shape_Match.Get_Pose (Found);
             begin
-               Put_Line ("  PMAlign: found at ("
+               Put_Line ("  Shape Match: found at ("
                          & Image (Found.Translation_X, 2)
                          & ", " & Image (Found.Translation_Y, 2)
                          & "), turned by "
@@ -319,7 +319,7 @@ begin
                   Draw.Yellow, Size => 4.0);
                Draw.Caption
                  (Shown (N), 0,
-                  "PMALIGN: AT (" & Image (Found.Translation_X) & ", "
+                  "SHAPE MATCH: AT (" & Image (Found.Translation_X) & ", "
                   & Image (Found.Translation_Y) & "), TURNED "
                   & Image (AMV.Misc.Rad_To_Deg (Found.Rotation)) & " DEG",
                   Draw.Cyan);

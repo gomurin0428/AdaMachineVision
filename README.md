@@ -20,7 +20,7 @@ magenta where it looked, red what it left out.
 | Gauging a board wherever it lies | Several objects of one kind |
 |---|---|
 | ![A circuit board lying upside down, its four holes circled in green, its two outlines marked in orange and its width measured by a magenta caliper](docs/images/pcb_gauging_3_measured.png) | ![Four tea lights, each rim circled in green with its radius](docs/images/candle_rims_3_measured.png) |
-| PMAlign finds the board, here lying upside down. The pose it reports places Find Circle on the four holes, Find Line on the two outlines and a Caliper across the width, all taught once on another board. | PMAlign finds the four tea lights, and each result's pose places a Find Circle, which measures the rim. |
+| Shape Match finds the board, here lying upside down. The pose it reports places Find Circle on the four holes, Find Line on the two outlines and a Caliper across the width, all taught once on another board. | Shape Match finds the four tea lights, and each result's pose places a Find Circle, which measures the rim. |
 
 | Counting coins | Counting nuclei, and checking the count |
 |---|---|
@@ -55,12 +55,12 @@ what it contains and every change since.
   implemented and tested.
 * **Vision tools:** Blob, Caliper, Find Line / Find Circle, the
   Dimensioning measuring, fitting and shape creation tools, the Image
-  Processing filter, one-image and geometry tools, CNL Search, PMAlign,
+  Processing filter, one-image and geometry tools, NCC Search, Shape Match,
   CalibFix (fixtures, N-point and checkerboard calibration) and
   ToolGroup / ToolBlock are implemented and tested. The spec of each
   package (`src/amv-blob.ads`, ...) documents the tool, its defaults and
-  what it does not support. PMAlign's search is AMV's own method from
-  the public literature (`src/amv-kernels-pm_align.ads` describes it).
+  what it does not support. Shape Match's search is AMV's own method from
+  the public literature (`src/amv-kernels-shape_match.ads` describes it).
 * **Proofs:** all logic lives in SPARK kernels, and every kernel is
   proved free of run-time errors for any input (and, for the facts listed
   in `docs/PROOF.md`, functionally correct): 34514 checks, all proved,

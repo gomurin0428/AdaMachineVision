@@ -48,7 +48,7 @@ with AMV.Calib_Fix;
 with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
 with AMV.Caliper.Find_Line;
-with AMV.CNL_Search;
+with AMV.NCC_Search;
 with AMV.Coordinate_Spaces;
 with AMV.Dimensioning;
 with AMV.Dimensioning.Create_Shapes;
@@ -70,7 +70,7 @@ with AMV.Images;                           use AMV.Images;
 with AMV.Images.Image_Holders;
 with AMV.Kernels;
 with AMV.Misc;
-with AMV.PM_Align;
+with AMV.Shape_Match;
 with AMV.Regions;
 with AMV.Shapes;                           use AMV.Shapes;
 with AMV.Shapes.Region_Holders;
@@ -5628,19 +5628,19 @@ procedure Test_Robustness is
    end Sweep_Calib_Fix;
 
    ---------------------------------------------------------------------
-   --  CNL Search, PMAlign
+   --  NCC Search, Shape Match
    ---------------------------------------------------------------------
 
-   procedure Sweep_CNL_Search is
-      package C renames AMV.CNL_Search;
-      Trained : C.Ks_CNL_Search_Pattern;
-      procedure Prepare (T : in out C.Ks_CNL_Search_Tool) is
+   procedure Sweep_NCC_Search is
+      package C renames AMV.NCC_Search;
+      Trained : C.Ks_NCC_Search_Pattern;
+      procedure Prepare (T : in out C.Ks_NCC_Search_Tool) is
       begin
          T.Input_Image := Small;
          T.Pattern := Trained;
          T.Run_Params.Max_Results := 2;
       end Prepare;
-      procedure Use_Results (T : C.Ks_CNL_Search_Tool; Call : String) is
+      procedure Use_Results (T : C.Ks_NCC_Search_Tool; Call : String) is
          procedure Read is
          begin
             for I in 0 .. T.Results.Count - 1 loop
@@ -5656,9 +5656,9 @@ procedure Test_Robustness is
          Integer_Sweep (Call & " / Item", [T.Results.Count, Natural'Last],
                         Beyond'Access, True);
       end Use_Results;
-      package S is new Sweeps (C.Ks_CNL_Search_Tool, "CNLSearch", Prepare,
+      package S is new Sweeps (C.Ks_NCC_Search_Tool, "NCCSearch", Prepare,
                                Use_Results);
-      procedure Set_Image (T : in out C.Ks_CNL_Search_Tool; F : Positive;
+      procedure Set_Image (T : in out C.Ks_NCC_Search_Tool; F : Positive;
                            I : Ks_Image_8_Grey) is
       begin
          case F is
@@ -5671,7 +5671,7 @@ procedure Test_Robustness is
                T.Pattern.Train;
          end case;
       end Set_Image;
-      procedure Set_Real (T : in out C.Ks_CNL_Search_Tool; F : Positive;
+      procedure Set_Real (T : in out C.Ks_NCC_Search_Tool; F : Positive;
                           V : Real) is
       begin
          case F is
@@ -5694,9 +5694,9 @@ procedure Test_Robustness is
                T.Pattern.Train;
          end case;
       end Set_Real;
-      procedure Set_Integer (T : in out C.Ks_CNL_Search_Tool; F : Positive;
+      procedure Set_Integer (T : in out C.Ks_NCC_Search_Tool; F : Positive;
                              V : Integer) is
-         R : C.Ks_CNL_Search_Run_Params renames T.Run_Params;
+         R : C.Ks_NCC_Search_Run_Params renames T.Run_Params;
          I : constant Int32 := Int32 (V);
       begin
          case F is
@@ -5710,7 +5710,7 @@ procedure Test_Robustness is
             when 8 => R.Partial_Match_Limit_Down := I;
             when 9 => R.Partial_Match_Reduce_Score := I;
             when 10 =>
-               R.Algorithm := C.Linear_CNLPAS;
+               R.Algorithm := C.Pyramid_Search;
                R.Accuracy := I;
             when 11 =>
                T.Pattern.Set_Train_Image_Mask (Small);
@@ -5722,8 +5722,8 @@ procedure Test_Robustness is
                T.Pattern.Train;
             when 13 =>
                --  Only the codes the Ada subtype allows.
-               if I in C.Ks_CNL_Search_Accuracy_Constants then
-                  T.Pattern.Set_Algorithms (C.Linear_CNLPAS);
+               if I in C.Ks_NCC_Search_Accuracy_Constants then
+                  T.Pattern.Set_Algorithms (C.Pyramid_Search);
                   T.Pattern.Set_Accuracies (I);
                   T.Pattern.Train;
                end if;
@@ -5748,24 +5748,24 @@ procedure Test_Robustness is
                T.Pattern.Train;
          end case;
       end Set_Integer;
-      procedure Set_Region (T : in out C.Ks_CNL_Search_Tool;
+      procedure Set_Region (T : in out C.Ks_NCC_Search_Tool;
                             R : Ks_Region'Class) is
       begin
          T.Search_Region := RH.To_Holder (R);
       end Set_Region;
-      procedure Set_Region_Affine (T : in out C.Ks_CNL_Search_Tool;
+      procedure Set_Region_Affine (T : in out C.Ks_NCC_Search_Tool;
                                    R : Ks_Region'Class) is
       begin
          T.Run_Params.Search_Region_Mode := C.Affine_Transform;
          T.Search_Region := RH.To_Holder (R);
       end Set_Region_Affine;
-      procedure Set_Train_Region (T : in out C.Ks_CNL_Search_Tool;
+      procedure Set_Train_Region (T : in out C.Ks_NCC_Search_Tool;
                                   R : Ks_Region'Class) is
       begin
          T.Pattern.Set_Train_Region (RH.To_Holder (R));
          T.Pattern.Train;
       end Set_Train_Region;
-      procedure Set_Train_Region_Affine (T : in out C.Ks_CNL_Search_Tool;
+      procedure Set_Train_Region_Affine (T : in out C.Ks_NCC_Search_Tool;
                                          R : Ks_Region'Class) is
       begin
          T.Pattern.Set_Train_Region_Mode (C.Affine_Transform);
@@ -5773,7 +5773,7 @@ procedure Test_Robustness is
          T.Pattern.Train;
       end Set_Train_Region_Affine;
       procedure Untrained is
-         P : C.Ks_CNL_Search_Pattern;
+         P : C.Ks_NCC_Search_Pattern;
       begin
          Consume (P.Trained_Pattern_Width + P.Trained_Pattern_Height);
          Consume (P.Get_Trained_Pattern_Image.Width);
@@ -5785,7 +5785,7 @@ procedure Test_Robustness is
       Trained.Set_Origin_X (20.0);
       Trained.Set_Origin_Y (18.0);
       Trained.Train;
-      Begin_Area ("CNL Search", Is_Tool => True);
+      Begin_Area ("NCC Search", Is_Tool => True);
       S.Default_Run;
       S.Images ("InputImage,Pattern.TrainImage,Pattern.TrainImageMask",
                 Set_Image'Access);
@@ -5795,7 +5795,7 @@ procedure Test_Robustness is
       S.Integers ("Algorithm,Accuracy,MaxResults,SearchRegionMode,"
                   & "PartialMatchLimitLeft,PartialMatchLimitRight,"
                   & "PartialMatchLimitUp,PartialMatchLimitDown,"
-                  & "PartialMatchReduceScore,Accuracy (CNLPAS),"
+                  & "PartialMatchReduceScore,Accuracy (PyramidSearch),"
                   & "Pattern.TrainImageMaskOffsetX,"
                   & "Pattern.TrainImageMaskOffsetY,Pattern.Accuracies,"
                   & "Pattern.TrainRegionMode,"
@@ -5811,17 +5811,17 @@ procedure Test_Robustness is
                  Set_Train_Region_Affine'Access);
       Try ("untrained pattern", Untrained'Access);
       End_Area;
-   end Sweep_CNL_Search;
+   end Sweep_NCC_Search;
 
-   procedure Sweep_PM_Align is
-      package P renames AMV.PM_Align;
-      Trained : P.Ks_PM_Align_Pattern;
-      procedure Prepare (T : in out P.Ks_PM_Align_Tool) is
+   procedure Sweep_Shape_Match is
+      package P renames AMV.Shape_Match;
+      Trained : P.Ks_Shape_Match_Pattern;
+      procedure Prepare (T : in out P.Ks_Shape_Match_Tool) is
       begin
          T.Input_Image := Small;
          T.Pattern := Trained;
       end Prepare;
-      procedure Use_Results (T : P.Ks_PM_Align_Tool; Call : String) is
+      procedure Use_Results (T : P.Ks_Shape_Match_Tool; Call : String) is
          procedure Read is
          begin
             for I in 0 .. T.Results.Count - 1 loop
@@ -5837,9 +5837,9 @@ procedure Test_Robustness is
          Integer_Sweep (Call & " / Item", [T.Results.Count, Natural'Last],
                         Beyond'Access, True);
       end Use_Results;
-      package S is new Sweeps (P.Ks_PM_Align_Tool, "PMAlign", Prepare,
+      package S is new Sweeps (P.Ks_Shape_Match_Tool, "ShapeMatch", Prepare,
                                Use_Results);
-      procedure Set_Image (T : in out P.Ks_PM_Align_Tool; F : Positive;
+      procedure Set_Image (T : in out P.Ks_Shape_Match_Tool; F : Positive;
                            I : Ks_Image_8_Grey) is
       begin
          case F is
@@ -5853,9 +5853,9 @@ procedure Test_Robustness is
                T.Pattern.Train;
          end case;
       end Set_Image;
-      procedure Set_Real (T : in out P.Ks_PM_Align_Tool; F : Positive;
+      procedure Set_Real (T : in out P.Ks_Shape_Match_Tool; F : Positive;
                           V : Real) is
-         R : P.Ks_PM_Align_Run_Params renames T.Run_Params;
+         R : P.Ks_Shape_Match_Run_Params renames T.Run_Params;
       begin
          case F is
             when 1 => R.Accept_Threshold := V;
@@ -5895,9 +5895,9 @@ procedure Test_Robustness is
                T.Pattern.Train;
          end case;
       end Set_Real;
-      procedure Set_Integer (T : in out P.Ks_PM_Align_Tool; F : Positive;
+      procedure Set_Integer (T : in out P.Ks_Shape_Match_Tool; F : Positive;
                              V : Integer) is
-         R : P.Ks_PM_Align_Run_Params renames T.Run_Params;
+         R : P.Ks_Shape_Match_Run_Params renames T.Run_Params;
          I : constant Int32 := Int32 (V);
       begin
          case F is
@@ -5924,19 +5924,19 @@ procedure Test_Robustness is
                T.Pattern.Train;
          end case;
       end Set_Integer;
-      procedure Set_Region (T : in out P.Ks_PM_Align_Tool;
+      procedure Set_Region (T : in out P.Ks_Shape_Match_Tool;
                             R : Ks_Region'Class) is
       begin
          T.Search_Region := RH.To_Holder (R);
       end Set_Region;
-      procedure Set_Train_Region (T : in out P.Ks_PM_Align_Tool;
+      procedure Set_Train_Region (T : in out P.Ks_Shape_Match_Tool;
                                   R : Ks_Region'Class) is
       begin
          T.Pattern.Set_Train_Region (RH.To_Holder (R));
          T.Pattern.Train;
       end Set_Train_Region;
       procedure Pose (Field : Positive; Value : Real) is
-         R : P.Ks_PM_Align_Result;
+         R : P.Ks_Shape_Match_Result;
       begin
          case Field is
             when 1 => R.Translation_X := Value;
@@ -5947,13 +5947,13 @@ procedure Test_Robustness is
          Use_Nothing (P.Get_Pose (R));
       end Pose;
       procedure Origin (A : Real_List) is
-         Q : P.Ks_PM_Align_Pattern := Trained;
+         Q : P.Ks_Shape_Match_Pattern := Trained;
       begin
          Q.Set_Origin (Create (A (1), A (2), A (3), A (4), A (5), A (6)));
          Q.Train;
       end Origin;
       procedure Untrained is
-         Q : P.Ks_PM_Align_Pattern;
+         Q : P.Ks_Shape_Match_Pattern;
       begin
          Consume (Integer (P.Get_Trained_Features (Q, True)'Length));
       end Untrained;
@@ -5966,7 +5966,7 @@ procedure Test_Robustness is
       Trained.Set_Train_Region (RH.To_Holder
                                   (Region_With (Rectangle, 0, 0.0)));
       Trained.Train;
-      Begin_Area ("PMAlign", Is_Tool => True);
+      Begin_Area ("Shape Match", Is_Tool => True);
       S.Default_Run;
       S.Images ("InputImage,SearchImageMask,Pattern.TrainImage,"
                 & "Pattern.TrainImageMask", Set_Image'Access);
@@ -5991,7 +5991,7 @@ procedure Test_Robustness is
       Try ("untrained pattern", Untrained'Access);
       Integer_Sweep ("Zone (code)", Bad_Integers, Codes'Access, True);
       End_Area;
-   end Sweep_PM_Align;
+   end Sweep_Shape_Match;
 
    ---------------------------------------------------------------------
    --  ToolGroup, ToolBlock, Image File
@@ -6480,61 +6480,61 @@ procedure Test_Robustness is
       procedure Circular_Arcs is new Shape_Sweep
         (Ks_Circular_Arc, "Ks_Circular_Arc", Arc_Default);
 
-      function Make_CNL return AMV.CNL_Search.Ks_CNL_Search_Pattern is
+      function Make_NCC return AMV.NCC_Search.Ks_NCC_Search_Pattern is
       begin
-         return P : AMV.CNL_Search.Ks_CNL_Search_Pattern do
+         return P : AMV.NCC_Search.Ks_NCC_Search_Pattern do
             P.Set_Train_Image (Tiny_Scene);
             P.Set_Train_Image_Mask (Tiny_Scene);
             P.Train;
          end return;
-      end Make_CNL;
-      procedure Use_CNL (P : AMV.CNL_Search.Ks_CNL_Search_Pattern) is
+      end Make_NCC;
+      procedure Use_NCC (P : AMV.NCC_Search.Ks_NCC_Search_Pattern) is
       begin
          Consume (P.Trained);
          Consume (P.Trained_Pattern_Width);
          Consume (P.Origin_X);
-      end Use_CNL;
-      procedure CNL_Patterns is new Stream_Sweep
-        (AMV.CNL_Search.Ks_CNL_Search_Pattern, "Ks_CNL_Search_Pattern",
-         Make_CNL, Use_CNL);
-      function Make_CNL_Affine
-         return AMV.CNL_Search.Ks_CNL_Search_Pattern is
+      end Use_NCC;
+      procedure NCC_Patterns is new Stream_Sweep
+        (AMV.NCC_Search.Ks_NCC_Search_Pattern, "Ks_NCC_Search_Pattern",
+         Make_NCC, Use_NCC);
+      function Make_NCC_Affine
+         return AMV.NCC_Search.Ks_NCC_Search_Pattern is
          Rectangle : Ks_Rectangle_Affine;
       begin
          Rectangle.Set_Center_Lengths_Rotation_Skew
            (5.5, 4.5, 9.0, 8.0, 0.1, 0.0);
-         return P : AMV.CNL_Search.Ks_CNL_Search_Pattern do
+         return P : AMV.NCC_Search.Ks_NCC_Search_Pattern do
             P.Set_Train_Image (Tiny_Scene);
             P.Set_Train_Region (RH.To_Holder (Rectangle));
-            P.Set_Train_Region_Mode (AMV.CNL_Search.Affine_Transform);
+            P.Set_Train_Region_Mode (AMV.NCC_Search.Affine_Transform);
             P.Set_Origin_X (5.0);
             P.Set_Origin_Y (4.0);
             P.Train;
          end return;
-      end Make_CNL_Affine;
-      procedure CNL_Affine_Patterns is new Stream_Sweep
-        (AMV.CNL_Search.Ks_CNL_Search_Pattern,
-         "Ks_CNL_Search_Pattern (AffineTransform)", Make_CNL_Affine,
-         Use_CNL);
+      end Make_NCC_Affine;
+      procedure NCC_Affine_Patterns is new Stream_Sweep
+        (AMV.NCC_Search.Ks_NCC_Search_Pattern,
+         "Ks_NCC_Search_Pattern (AffineTransform)", Make_NCC_Affine,
+         Use_NCC);
 
-      function Make_PM return AMV.PM_Align.Ks_PM_Align_Pattern is
+      function Make_Match return AMV.Shape_Match.Ks_Shape_Match_Pattern is
       begin
-         return P : AMV.PM_Align.Ks_PM_Align_Pattern do
+         return P : AMV.Shape_Match.Ks_Shape_Match_Pattern do
             P.Set_Train_Image (Small);
             P.Set_Train_Region
               (RH.To_Holder (Region_With (Rectangle, 0, 0.0)));
             P.Train;
          end return;
-      end Make_PM;
-      procedure Use_PM (P : AMV.PM_Align.Ks_PM_Align_Pattern) is
+      end Make_Match;
+      procedure Use_Match (P : AMV.Shape_Match.Ks_Shape_Match_Pattern) is
       begin
          Consume (P.Trained);
-         Consume (Integer (AMV.PM_Align.Get_Trained_Features (P, True)
+         Consume (Integer (AMV.Shape_Match.Get_Trained_Features (P, True)
                              'Length));
-      end Use_PM;
-      procedure PM_Patterns is new Stream_Sweep
-        (AMV.PM_Align.Ks_PM_Align_Pattern, "Ks_PM_Align_Pattern", Make_PM,
-         Use_PM);
+      end Use_Match;
+      procedure Match_Patterns is new Stream_Sweep
+        (AMV.Shape_Match.Ks_Shape_Match_Pattern, "Ks_Shape_Match_Pattern",
+         Make_Match, Use_Match);
 
       function Make_Pairs return AMV.Calib_Fix.Ks_N_Point_To_N_Point is
       begin
@@ -6696,9 +6696,9 @@ procedure Test_Robustness is
       End_Area;
 
       Begin_Area ("Streams of patterns, calibrations and fits");
-      CNL_Patterns;
-      CNL_Affine_Patterns;
-      PM_Patterns;
+      NCC_Patterns;
+      NCC_Affine_Patterns;
+      Match_Patterns;
       Pairs;
       Calibrations;
       Fixtures;
@@ -6737,8 +6737,8 @@ procedure Test_Robustness is
       Sweep_Create_Shapes;
       Sweep_Fitting;
       Sweep_Calib_Fix;
-      Sweep_CNL_Search;
-      Sweep_PM_Align;
+      Sweep_NCC_Search;
+      Sweep_Shape_Match;
       Sweep_Tool_Group;
       Sweep_Image_File;
       Sweep_Streams;

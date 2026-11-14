@@ -73,7 +73,7 @@ jobs:
       - name: Check the proof groups
         run: |
           tools/prove_groups.sh list | cut -d' ' -f1 | sort | uniq -c
-          for group in pm-align calib-cnl filters geometry-measure \
+          for group in shape-match calib-ncc filters geometry-measure \
                        dimensioning-tools core; do
             tools/prove_groups.sh "$group" > /dev/null
           done
@@ -89,7 +89,7 @@ jobs:
       fail-fast: false
       matrix:
         # The groups of tools/prove_groups.sh, its "core" included.
-        group: [pm-align, calib-cnl, filters, geometry-measure,
+        group: [shape-match, calib-ncc, filters, geometry-measure,
                 dimensioning-tools, core]
     steps:
       - uses: actions/checkout@v4

@@ -7,8 +7,8 @@ pictures below are those pictures, as the programs wrote them.
 | Program | Tools | Image |
 |---|---|---|
 | [`coin_count.adb`](#coin_count-counting-coins) | IP One Image (top-hat), Blob | a photograph of coins |
-| [`pcb_gauging.adb`](#pcb_gauging-gauging-a-board-wherever-it-lies) | PMAlign, Find Circle, Find Line, Caliper | a circuit board, shifted and turned |
-| [`candle_rims.adb`](#candle_rims-several-objects-of-one-kind) | PMAlign (several results), Find Circle | four tea lights |
+| [`pcb_gauging.adb`](#pcb_gauging-gauging-a-board-wherever-it-lies) | Shape Match, Find Circle, Find Line, Caliper | a circuit board, shifted and turned |
+| [`candle_rims.adb`](#candle_rims-several-objects-of-one-kind) | Shape Match (several results), Find Circle | four tea lights |
 | [`nuclei_count.adb`](#nuclei_count-counting-nuclei-and-checking-the-count) | Blob | a microscope field of cell nuclei |
 
 In every picture:
@@ -20,7 +20,7 @@ In every picture:
 * **cyan** is where a tool looked: a pattern's train region, the
   calipers of Find Circle and Find Line; **magenta** is the caliper
   across a width;
-* **yellow** is what PMAlign trained and reports (the features, the
+* **yellow** is what Shape Match trained and reports (the features, the
   scores) and where a pose puts a tool before the tool runs;
 * **orange** is a second kind of result beside the green one: the
   board's outlines, the nuclei that have no blob of their own.
@@ -62,7 +62,7 @@ The result on the input, enlarged twice: each coin's boundary
 ## `pcb_gauging`: gauging a board wherever it lies
 
 The usual chain of a gauging application, on seven photographs of one
-kind of board: PMAlign finds the board, and the pose it reports places
+kind of board: Shape Match finds the board, and the pose it reports places
 the measuring tools, which were set up once on the first image.
 
 ![Board 0000 with the train region in cyan, the trained features in yellow, the four taught holes in green and the two taught outlines in orange](../../docs/images/pcb_gauging_1_train.png)
@@ -71,9 +71,9 @@ the measuring tools, which were set up once on the first image.
 region (the yellow dots are its trained features). The four mounting
 holes and two stretches of the outline are taught there once.
 
-![Board 0700, upside down: the trained features and region drawn where PMAlign found the pattern](../../docs/images/pcb_gauging_2_found.png)
+![Board 0700, upside down: the trained features and region drawn where Shape Match found the pattern](../../docs/images/pcb_gauging_2_found.png)
 
-**2. Finding another board.** Board 0700 lies upside down. PMAlign
+**2. Finding another board.** Board 0700 lies upside down. Shape Match
 reports the pose (here turned by 179.8 degrees), and the features drawn
 through that pose fall on the board's edges.
 
@@ -120,7 +120,7 @@ measured independently of AMV is in
 
 ## `candle_rims`: several objects of one kind
 
-PMAlign returns several results, and each result's pose places a Find
+Shape Match returns several results, and each result's pose places a Find
 Circle.
 
 ![The top left tea light of image 0000 with the train region, the trained features and the taught rim](../../docs/images/candle_rims_1_train.png)
@@ -128,9 +128,9 @@ Circle.
 **1. Teaching.** The pattern is trained on the top left light of image
 0000, and its rim is taught there.
 
-![Image 0450: the pattern drawn on each of the four lights, turned as PMAlign found it, with the score](../../docs/images/candle_rims_2_found.png)
+![Image 0450: the pattern drawn on each of the four lights, turned as Shape Match found it, with the score](../../docs/images/candle_rims_2_found.png)
 
-**2. Four results.** In image 0450 PMAlign finds the four lights
+**2. Four results.** In image 0450 Shape Match finds the four lights
 (`Approximate_Number_To_Find` 4, any angle), with scores of 0.41 to
 0.50. A tea light looks nearly the same from every side, so the angle of
 a result means little here; its position is what places the next tool.

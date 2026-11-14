@@ -4,9 +4,9 @@
 |---|---|
 | `quick_look.adb` | An image, a fixture coordinate space under the root, a point mapped from pixel space into the selected space, and writing a PGM file |
 | `blob_inspection.adb` | Blob analysis: find washers, filter out dust and holes by area, find each washer's holes among its children and judge it by their number and size. Reads an image file given as an argument, or inspects a synthetic one |
-| `align_and_measure.adb` | The usual gauging chain: PMAlign locates a part at any angle, the fixture tool puts the part's coordinate space on the image at the found pose, and calipers set once in part coordinates measure a slot and the plate length in every scene, with a tolerance check |
+| `align_and_measure.adb` | The usual gauging chain: Shape Match locates a part at any angle, the fixture tool puts the part's coordinate space on the image at the found pose, and calipers set once in part coordinates measure a slot and the plate length in every scene, with a tolerance check |
 | `c/c_blob_inspection.c` | The blob inspection through the C API (`include/amv.h`): `adainit`, `ks_status` checks, run parameters, results and the destroy functions |
-| [`real_images/`](real_images/README.md) | The tools on photographs: counting coins and cell nuclei (Blob), gauging a circuit board wherever it lies (PMAlign, Find Circle, Find Line, Caliper), and finding four tea lights and their rims (PMAlign, Find Circle), with a picture of every step |
+| [`real_images/`](real_images/README.md) | The tools on photographs: counting coins and cell nuclei (Blob), gauging a circuit board wherever it lies (Shape Match, Find Circle, Find Line, Caliper), and finding four tea lights and their rims (Shape Match, Find Circle), with a picture of every step |
 
 ## What the examples find
 
@@ -31,7 +31,7 @@ outline.
 
 The same plate at two poses. In each scene:
 
-* **cyan**: the pattern's train region, drawn at the pose PMAlign
+* **cyan**: the pattern's train region, drawn at the pose Shape Match
   found, and that pose as text;
 * **yellow**: the origin and the first axis of the part's coordinate
   space, which the fixture tool puts on the image;

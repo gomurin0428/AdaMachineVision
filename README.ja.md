@@ -19,7 +19,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 | 基板がどう置かれていても測る | 同じ種類のものを複数見つける |
 |---|---|
 | ![上下が逆に置かれた基板。4 つの穴を緑の円で囲み、2 本の外形線を橙で示し、幅をマゼンタのキャリパで測っている](docs/images/pcb_gauging_3_measured.png) | ![4 つのティーライト。それぞれの縁を緑の円で囲み、半径を添えている](docs/images/candle_rims_3_measured.png) |
-| PMAlign が基板を見つけます(この写真では上下が逆)。その姿勢を使って、別の基板で一度だけ教えた位置にツールを置きます。Find Circle が 4 つの穴を、Find Line が 2 本の外形線を、Caliper が幅を測ります。 | PMAlign が 4 つのティーライトを見つけます。それぞれの姿勢で Find Circle を置き、縁の円を測ります。 |
+| Shape Match が基板を見つけます(この写真では上下が逆)。その姿勢を使って、別の基板で一度だけ教えた位置にツールを置きます。Find Circle が 4 つの穴を、Find Line が 2 本の外形線を、Caliper が幅を測ります。 | Shape Match が 4 つのティーライトを見つけます。それぞれの姿勢で Find Circle を置き、縁の円を測ります。 |
 
 | コインを数える | 細胞核を数えて、数を確かめる |
 |---|---|
@@ -53,11 +53,11 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
   - Blob、Caliper、Find Line / Find Circle
   - Dimensioning(測定ツール、フィット、形状生成ツール)
   - Image Processing(フィルタ系、1 画像のオペレータ、幾何系)
-  - CNL Search、PMAlign
+  - NCC Search、Shape Match
   - CalibFix(Fixture、N 点キャリブレーション、チェッカーボード・キャリブレーション)
   - ToolGroup / ToolBlock
 
-  各ツールの内容、既定値、対応していない機能は、それぞれのパッケージの仕様(`src/amv-blob.ads` など)に書いています。PMAlign の探索は、公開文献に基づく AMV 独自の手法です(`src/amv-kernels-pm_align.ads` に説明があります)。
+  各ツールの内容、既定値、対応していない機能は、それぞれのパッケージの仕様(`src/amv-blob.ads` など)に書いています。Shape Match の探索は、公開文献に基づく AMV 独自の手法です(`src/amv-kernels-shape_match.ads` に説明があります)。
 - **証明:** ロジックはすべて SPARK のカーネルにあります。どのカーネルも、任意の入力で実行時エラーが起きないことを gnatprove で証明しています。`docs/PROOF.md` に挙げた性質については、機能的な正しさも証明しています。チェックは 34514 項目で、すべて証明済みです。`pragma Assume` も、正当化で済ませたチェックもありません。証明していない部分(薄い Ada API、画素の共有の参照カウント、確保・C のメモリとのコピー・ストリームの変換を行う小さな補助)は、同じファイルに列挙しています。
 - **v0.1 の対象外:** バーコード(ID)と OCR。
 
