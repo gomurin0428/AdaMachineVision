@@ -24,8 +24,8 @@ void test_c_ip_geometry(void);
 void test_c_dimensioning(void);
 void test_c_create_shapes(void);
 void test_c_calib_fix(void);
-void test_c_cnl_search(void);
-void test_c_pm_align(void);
+void test_c_ncc_search(void);
+void test_c_shape_match(void);
 void test_c_tool_group(void);
 
 static ks_coordinate_space_tree tree;
@@ -1944,8 +1944,8 @@ int main(void)
     test_c_dimensioning();
     test_c_create_shapes();
     test_c_calib_fix();
-    test_c_cnl_search();
-    test_c_pm_align();
+    test_c_ncc_search();
+    test_c_shape_match();
     test_c_tool_group();
 
     adafinal();

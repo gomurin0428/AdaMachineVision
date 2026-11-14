@@ -32,7 +32,7 @@ from these images that are committed.
 
 A test on real images is only an evaluation if neither the tool's
 parameters nor the tolerances were fitted to the images it is judged on.
-The gauging and CNL tests below follow this protocol; the older tests are
+The gauging and NCC tests below follow this protocol; the older tests are
 being brought to it (see "Status" at the end).
 
 1. One set of tool parameters per series (one camera setup and kind of
@@ -84,8 +84,8 @@ leave room for the small differences between JPEG decoders.
 | Blob after a top-hat | `coins.png` | 24 coins (the ones in the photo), one blob within 6 px of each coin centre, which were measured by eye (± 3 px). A plain threshold merges a coin with the brighter top of the background; the top-hat (the image minus its grey opening by 75 × 75) flattens it first |
 | Blob | `smarties.png` | 14 sweets: 13 blobs, of which one is the touching pair near (125, 265), four touch the image border, and eight are single round sweets (area 1900–2700, elongation < 1.4) |
 | Find Circle | `gauge-1.jpg` | the dial face: centre (125.5, 134.5) ± 2 and radius 96 ± 2, from the face's extent in a threshold of the image (x 28.5–222.5, y 39.5–229.5); the same circle (centre ± 1.5 px, radius ± 1 px) from three different starting guesses (the slightly oblique dial is a little elliptical) |
-| PMAlign | `box.png` in itself | found at the origin (± 0.05), coverage ≈ 1 and score ≥ 0.9 |
-| PMAlign | `box.png` in `box_in_scene.png` | the box at (184, 225) ± 6, turned 8 ± 5°, scaled 0.54 ± 0.05 (the position measured by eye from its corners). The box is seen in perspective, which a similarity pose cannot follow, so the accept threshold is 0.15 |
+| Shape Match | `box.png` in itself | found at the origin (± 0.05), coverage ≈ 1 and score ≥ 0.9 |
+| Shape Match | `box.png` in `box_in_scene.png` | the box at (184, 225) ± 6, turned 8 ± 5°, scaled 0.54 ± 0.05 (the position measured by eye from its corners). The box is seen in perspective, which a similarity pose cannot follow, so the accept threshold is 0.15 |
 | Checkerboard calibration | `left01` … `left14`, `chessboard.png` | the 9 × 6 inner corners: 54 corners in a 9 × 6 grid, no grid index twice, and the corners on a homography of their grid indices. The camera has barrel distortion (OpenCV's calibration of it: k1 ≈ −0.28 at f ≈ 536 px), which a homography alone leaves at 0.8–1.9 px, so the camera images are fitted with one radial term about the image centre added (RMS ≤ 0.5 px; 0.14–0.40 px measured); the rendered board with a homography alone (RMS ≤ 0.05 px; 0.010 px measured) |
 
 ### Gauging on VisA pcb1 (Find Circle, Dimensioning, Find Line, Caliper, Polar Unwrap)
@@ -111,7 +111,7 @@ does).
 
 **Where the tools are placed (the fixture).** As a recipe would place
 them: board 0000's reference holes and outlines, taught once on that
-board, are mapped into each board by the board's PMAlign pose (a pattern
+board, are mapped into each board by the board's Shape Match pose (a pattern
 trained on 0000). No tool starts from the board's own references, which
 only judge the results. The pose is off by up to about 7 px at the holes
 and outlines, so each finder runs twice: from the fixture, then from its
@@ -190,7 +190,7 @@ fail.
   levels on some boards, so a contrast threshold of 30 or a 10 px
   projection loses it.
 
-### CNL Search on resampled real images
+### NCC Search on resampled real images
 
 A real image is resampled with the affine transform tool (bilinear) on a
 grid moved by a known sub-pixel shift; the output keeps the input's
@@ -203,7 +203,7 @@ score at least 0.5. Evaluation: the "HC-SR04" lettering of VisA pcb1 0000,
 the pattern: the box's fine texture gives about 0.13 px at quarter-pixel
 shifts.
 
-### CNL Search partial matches on cropped real images
+### NCC Search partial matches on cropped real images
 
 The same patterns, in crops (resampled as above, at sub-pixel shifts)
 whose border cuts through them, so that 12 .. 47 % of the pattern lies
@@ -255,7 +255,7 @@ which a01 failed; recomputed by the same rule on the tuning fields, it is
 
 ## Defects these tests found
 
-* **PMAlign clutter on textured patterns.** A pattern found in its own
+* **Shape Match clutter on textured patterns.** A pattern found in its own
   train image scored 0.72: training keeps only edges above a fifth of the
   strongest one and thinned them every n-th in raster order, while clutter
   counted every edge above ContrastThreshold farther than 2 px from a
@@ -312,7 +312,7 @@ point (within 1e-6 px). An exact property on real corners, no reference:
 on all 27 images (`left*`, `right*`, the rendered board) both differences
 are exactly 0.
 
-### PMAlign: VisA pcb1 boards
+### Shape Match: VisA pcb1 boards
 
 * Accuracy, on resampled boards: a board image is turned, scaled and moved
   by known amounts (affine transform tool); a pattern trained on the
@@ -321,13 +321,13 @@ are exactly 0.
   1.03): the holes mapped by the pose move by at most 0.075 px, frozen
   tolerance 0.15 px. Evaluation (boards 0100 and 0700, -47 and 123 degrees,
   scale 1.02 and 0.98): at most 0.061 px.
-* Finding other boards: trained on board 0000, PMAlign finds every board
+* Finding other boards: trained on board 0000, Shape Match finds every board
   at any angle and scale 0.95 .. 1.05 with grain limits 4 .. 32 (with the
   automatic choice the transducers' mesh and the lettering keep it from
   finding 8 of the 10 tuning boards). The four holes of 0000 mapped by the
   pose land within 9.5 px of each board's holes (1.5 times the tuning
   maximum, 6.1 px; evaluation 1.8 .. 5.2 px). This is coarse on purpose:
-  the pose follows what PMAlign sees, the routed outline and the tall
+  the pose follows what Shape Match sees, the routed outline and the tall
   transducer rings above all, while the holes are drilled in the board,
   and on each physical board these sit differently: the outline's width
   varies by up to 0.8 % against the holes' spacing (947.8 .. 957.4 px for
@@ -335,18 +335,18 @@ are exactly 0.
   board (measured by correlating 40 px patches of each board with board
   0000). Settings tried on the tuning boards (an edge direction check in
   the refinement, other train margins and grains) did not change the
-  error, so it is not taken as a fault of the refinement. PMAlign's own
+  error, so it is not taken as a fault of the refinement. Shape Match's own
   error on a rigid scene is what the resampling test measures. This pose
   is also the gauging tests' fixture (above).
 * With the default settings (the grain chosen at run time, see
-  `AMV.Kernels.PM_Align`): the same pattern and run parameters without
+  `AMV.Kernels.Shape_Match`): the same pattern and run parameters without
   grain limits find every board; the holes land within 11.5 px (1.5 times
   the tuning maximum, 7.49 px on board 0750; the mean of the worst hole
   per tuning board 2.56 px, as with grains 4 .. 32 by hand); evaluation
   1.39 .. 4.66 px. Before the run-time choice, the defaults found 2 of
   the 10 tuning boards. The rule has no parameter fitted to these images;
   its one constant (a level gives results only with at 64 features or
-  more) comes from PMAlign's unit test of unrelated shapes.
+  more) comes from Shape Match's unit test of unrelated shapes.
 
 ### Blob on BBBC039 nuclei
 
@@ -403,7 +403,7 @@ the Otsu threshold 23), so most of their pixels fall below the threshold
 and what remains is pruned. A global threshold cannot find them; a local
 threshold or a seeded split would be needed, which Blob does not have.
 
-### Gauging on VisA candle (PMAlign fixture, Find Circle)
+### Gauging on VisA candle (Shape Match fixture, Find Circle)
 
 Four tea lights in a tray (VisA's `candle` category, normal images):
 the outer rim of each light's metal cup, a light rim on the dark tray.
@@ -422,7 +422,7 @@ seen slightly from the side, so their outlines are not perfectly round.
 The four rims found in evaluation image 0450 (drawn by
 `examples/real_images/candle_rims.adb`).
 
-**Where the tools are placed (the fixture).** PMAlign is trained on
+**Where the tools are placed (the fixture).** Shape Match is trained on
 0000's top left light (the light's square, origin the identity) and finds
 the four lights of each image (ApproximateNumberToFind 4, any angle, scale
 0.95 .. 1.05, accept 0.3: the tuning lights score 0.40 .. 0.70); each
@@ -457,7 +457,7 @@ dropped 8 of its 120 rays as outliers.
 Evaluated by the protocol above: the VisA candle rims (one known failure
 in each set), the VisA pcb1 gauging tests (holes,
 outlines, widths with Find Line and with one caliper pair, the holes
-unwrapped), PMAlign on VisA pcb1 (resampled and across boards), the CNL
+unwrapped), Shape Match on VisA pcb1 (resampled and across boards), the NCC
 shifts and partial matches, the checkerboard calibration (`right*` images),
 the BBBC006 focus stacks and Blob on BBBC039 nuclei
 (one known failure).
@@ -466,6 +466,6 @@ Single-image regression examples, tuned on the image they are judged on
 (no second image of the same series is available): Blob on coins.png (the
 top-hat and the threshold were chosen on it; Blob is evaluated on a series
 in the BBBC039 test), Find Circle on gauge-1.jpg
-(the tolerance between starts was widened after a CI failure) and PMAlign
+(the tolerance between starts was widened after a CI failure) and Shape Match
 on box_in_scene.png (the accept threshold was set after seeing the score).
 Blob on smarties.png uses the tool's defaults.

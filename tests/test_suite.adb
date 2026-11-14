@@ -34,8 +34,8 @@ with Test_IP_Geometry;
 with Test_Dimensioning;
 with Test_Create_Shapes;
 with Test_Calib_Fix;
-with Test_CNL_Search;
-with Test_PM_Align;
+with Test_NCC_Search;
+with Test_Shape_Match;
 with Test_Tool_Group;
 with Test_Robustness;
 
@@ -72,8 +72,8 @@ begin
    Run_Area ("Test_Dimensioning", Test_Dimensioning'Access);
    Run_Area ("Test_Create_Shapes", Test_Create_Shapes'Access);
    Run_Area ("Test_Calib_Fix", Test_Calib_Fix'Access);
-   Run_Area ("Test_CNL_Search", Test_CNL_Search'Access);
-   Run_Area ("Test_PM_Align", Test_PM_Align'Access);
+   Run_Area ("Test_NCC_Search", Test_NCC_Search'Access);
+   Run_Area ("Test_Shape_Match", Test_Shape_Match'Access);
    Run_Area ("Test_Tool_Group", Test_Tool_Group'Access);
    Run_Area ("Test_Robustness", Test_Robustness'Access);
 

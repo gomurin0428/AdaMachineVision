@@ -26,6 +26,23 @@ section 9.1.
   this way.
 * `docs/API_MAPPING.md` is removed. The spec of each package documents
   the tool, its defaults and what it does not support.
+* The pattern location tool and the correlation search tool are named
+  Shape Match and NCC Search, in every public name: `AMV.Shape_Match`
+  (`Ks_Shape_Match_*`, `ks_shape_match_*`, `KS_SHAPE_MATCH_*`,
+  `include/amv_shape_match.h`) and `AMV.NCC_Search` (`Ks_NCC_Search_*`,
+  `ks_ncc_search_*`, `KS_NCC_SEARCH_*`, `include/amv_ncc_search.h`), with
+  the kernels `AMV.Kernels.Shape_Match` and `AMV.Kernels.NCC_Search`. The
+  algorithms of Shape Match are `Edge_Fit` (0), `Grid_Search` (1) and, as
+  code 2, `Edge_Fit_And_Grid_Search` for training and `Best_Trained` for
+  a run; those of NCC Search are `Linear_Search` (1) and `Pyramid_Search`
+  (2). The earlier names are not kept: code that uses the two tools has
+  to be changed to the new names. The records, the codes, the stream
+  formats and what the tools compute are the same, so the ABI version
+  stays 3. The algorithm codes that were declared only to be rejected are
+  no longer declared; they fail with a bad parameter as before, like any
+  other code that is not listed. The messages of both tools spell the
+  new names (`ShapeMatch: out of memory`, `RunParams.RunAlgorithm must
+  be EdgeFit, GridSearch or BestTrained`).
 
 ### Fixed
 
@@ -52,9 +69,9 @@ section 9.1.
 * Histogram: `Region_Mode` (AdjustMask, the default,
   PixelAlignedBoundingBox and AffineTransform); C:
   `ks_histogram_execute_affine` and `ks_pixel_region_bounding_box`.
-* CNL Search: the AffineTransform region mode, for `Train_Region_Mode`
+* NCC Search: the AffineTransform region mode, for `Train_Region_Mode`
   and `Search_Region_Mode`, in the new kernel
-  `AMV.Kernels.CNL_Search.Region_Modes`. An affine rectangle is
+  `AMV.Kernels.NCC_Search.Region_Modes`. An affine rectangle is
   resampled into an upright image by the affine transform tool's kernel
   with its default run parameters: training makes it the pattern (the
   train region must be an affine rectangle lying entirely in the train
@@ -62,13 +79,13 @@ section 9.1.
   the train image mask is resampled with it), and the search searches it
   and maps every location back into the input image's selected space.
   With any other search region, both search region modes search the
-  region's bounding box, so `ks_cnl_search_execute` now accepts
+  region's bounding box, so `ks_ncc_search_execute` now accepts
   `search_region_mode` 2 for its pixel region instead of rejecting it.
-  C: `ks_cnl_search_pattern_train_affine`,
-  `ks_cnl_search_execute_affine` (no record changes). Patterns trained in
+  C: `ks_ncc_search_pattern_train_affine`,
+  `ks_ncc_search_execute_affine` (no record changes). Patterns trained in
   the new mode are streamed with the existing format code "KSCR". Proved:
   the trained pattern has exactly the resampled size, and the results of
-  an affine search have the proved facts of `ks_cnl_search_execute`, with
+  an affine search have the proved facts of `ks_ncc_search_execute`, with
   every window inside the resampled rectangle.
 * Examples: every example writes a picture of its results, the input
   image with what the tools found drawn on it (`examples/example_draw`,
@@ -115,10 +132,10 @@ The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
   calibration, including the nonlinear PerspectiveAndRadialWarp mode, the
   calibrated origin and handedness, and mapping points of a distorted
   input image.
-* CNL Search: normalised correlation with trained patterns, train and
+* NCC Search: normalised correlation with trained patterns, train and
   search masks, partial matches, and TrainRegionMode with the default
   AdjustMask.
-* PMAlign: pattern location under rotation and scale with train and
+* Shape Match: pattern location under rotation and scale with train and
   search masks and XYOverlap. The search is AMV's own method from public
   literature.
 * ToolGroup and ToolBlock.

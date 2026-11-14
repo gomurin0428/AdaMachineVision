@@ -1442,8 +1442,8 @@ void ks_geometry_fit_circle_robust(const ks_point_2d *points, int32_t count,
 #include "amv_dimensioning.h"
 #include "amv_create_shapes.h"
 #include "amv_calib_fix.h"
-#include "amv_cnl_search.h"
-#include "amv_pm_align.h"
+#include "amv_ncc_search.h"
+#include "amv_shape_match.h"
 #include "amv_tool_group.h"
 
 #endif /* AMV_H */

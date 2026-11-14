@@ -27,7 +27,7 @@ with AMV.Calib_Fix;
 with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
 with AMV.Caliper.Find_Line;
-with AMV.CNL_Search;
+with AMV.NCC_Search;
 with AMV.Dimensioning;
 with AMV.Image_File;
 with AMV.Image_Processing.Affine_Transform;
@@ -37,7 +37,7 @@ with AMV.Image_Processing.Sharpness;
 with AMV.Images;                             use AMV.Images;
 with AMV.Kernels;
 with AMV.Misc;
-with AMV.PM_Align;
+with AMV.Shape_Match;
 with AMV.Shapes;
 with AMV.Shapes.Region_Holders;
 with AMV.Tools;                              use AMV.Tools;
@@ -297,17 +297,17 @@ procedure Test_Real_Images is
    end Test_Gauge;
 
    ---------------------------------------------------------------------
-   --  PMAlign: box.png
+   --  Shape Match: box.png
    ---------------------------------------------------------------------
 
-   function Trained_Box return AMV.PM_Align.Ks_PM_Align_Pattern;
+   function Trained_Box return AMV.Shape_Match.Ks_Shape_Match_Pattern;
    --  A pattern trained on the whole of box.png, its origin at the centre
    --  of the image.
 
-   function Trained_Box return AMV.PM_Align.Ks_PM_Align_Pattern is
+   function Trained_Box return AMV.Shape_Match.Ks_Shape_Match_Pattern is
       Model : constant Ks_Image_8_Grey := Load ("box");
    begin
-      return Pattern : AMV.PM_Align.Ks_PM_Align_Pattern do
+      return Pattern : AMV.Shape_Match.Ks_Shape_Match_Pattern do
          Pattern.Set_Train_Image (Model);
          Pattern.Set_Origin
            (AMV.Transforms.Create_Rigid
@@ -318,10 +318,10 @@ procedure Test_Real_Images is
    end Trained_Box;
 
    procedure Test_Box_Self is
-      use AMV.PM_Align;
-      Tool : Ks_PM_Align_Tool;
+      use AMV.Shape_Match;
+      Tool : Ks_Shape_Match_Tool;
    begin
-      Section ("PMAlign: box.png in itself");
+      Section ("Shape Match: box.png in itself");
 
       --  A pattern found in its own train image should score close to 1:
       --  every trained feature is there, and nothing else is.
@@ -332,7 +332,7 @@ procedure Test_Real_Images is
       Check (Tool.Results.Count = 1, "found");
       if Tool.Results.Count = 1 then
          declare
-            R : constant Ks_PM_Align_Result := Tool.Results.Item (0);
+            R : constant Ks_Shape_Match_Result := Tool.Results.Item (0);
          begin
             Check_Near (R.Translation_X, 161.5, 0.05, "x");
             Check_Near (R.Translation_Y, 111.0, 0.05, "y");
@@ -345,10 +345,10 @@ procedure Test_Real_Images is
    end Test_Box_Self;
 
    procedure Test_Box_In_Scene is
-      use AMV.PM_Align;
-      Tool : Ks_PM_Align_Tool;
+      use AMV.Shape_Match;
+      Tool : Ks_Shape_Match_Tool;
    begin
-      Section ("PMAlign: box.png in box_in_scene.png");
+      Section ("Shape Match: box.png in box_in_scene.png");
 
       --  The box lies among other packets, about half its size, turned by
       --  a few degrees and seen in perspective (which a similarity pose
@@ -368,7 +368,7 @@ procedure Test_Real_Images is
       Check (Tool.Results.Count = 1, "found");
       if Tool.Results.Count = 1 then
          declare
-            R : constant Ks_PM_Align_Result := Tool.Results.Item (0);
+            R : constant Ks_Shape_Match_Result := Tool.Results.Item (0);
          begin
             Check (Distance ((R.Translation_X, R.Translation_Y),
                              (184.0, 225.0)) <= 6.0, "position");
@@ -1068,16 +1068,16 @@ procedure Test_Real_Images is
 
    --  The gauging tools are placed as a recipe would place them: board
    --  0000's reference holes and outlines, taught once on that board,
-   --  mapped into each board by the board's pose from PMAlign (a pattern
+   --  mapped into each board by the board's pose from Shape Match (a pattern
    --  trained on 0000: the board's area, origin the identity, so that a
    --  pose maps 0000's coordinates into the other image's). No tool starts
    --  from the board's own references, which only judge the results (and
    --  name the hole or edge a result belongs to). The pose is off by up to
-   --  about 6 px at the holes (see the PMAlign test below), which the
+   --  about 6 px at the holes (see the Shape Match test below), which the
    --  tools must absorb.
 
    Fixture_Trained : Boolean := False;
-   Fixture_Tool    : AMV.PM_Align.Ks_PM_Align_Tool;
+   Fixture_Tool    : AMV.Shape_Match.Ks_Shape_Match_Tool;
    Fixture_Known   : array (Boards'Range) of Boolean := [others => False];
    Fixture_Found   : array (Boards'Range) of Boolean := [others => False];
    Fixture_Poses   : array (Boards'Range) of
@@ -1087,7 +1087,7 @@ procedure Test_Real_Images is
      (I     : Positive;
       Found : out Boolean;
       Pose  : out AMV.Transforms.Ks_Transform_2D_Linear);
-   --  The pose of board I (Found False unless PMAlign finds exactly one
+   --  The pose of board I (Found False unless Shape Match finds exactly one
    --  board), computed once.
 
    procedure Find_Fixture
@@ -1095,7 +1095,7 @@ procedure Test_Real_Images is
       Found : out Boolean;
       Pose  : out AMV.Transforms.Ks_Transform_2D_Linear)
    is
-      use AMV.PM_Align;
+      use AMV.Shape_Match;
    begin
       if not Fixture_Trained then
          declare
@@ -1118,7 +1118,7 @@ procedure Test_Real_Images is
               (AMV.Shapes.Region_Holders.To_Holder (Region));
             --  Grain 4 .. 32 (chosen on the tuning boards): with the
             --  automatic choice the fine texture (the transducers' mesh,
-            --  the lettering) keeps PMAlign from finding 8 of the 10
+            --  the lettering) keeps Shape Match from finding 8 of the 10
             --  boards; grain 8 scores higher but places the holes less
             --  accurately.
             Fixture_Tool.Pattern.Set_Grain_Limit_Auto_Select (False);
@@ -1676,7 +1676,7 @@ procedure Test_Real_Images is
    end Test_PCB_Caliper_Width;
 
    ---------------------------------------------------------------------
-   --  PMAlign: the pose of VisA pcb1 boards, judged by their holes
+   --  Shape Match: the pose of VisA pcb1 boards, judged by their holes
    ---------------------------------------------------------------------
 
    --  The fixture's pattern (above) finds every board at any angle (some
@@ -1691,12 +1691,12 @@ procedure Test_Real_Images is
    --  board's holes; on each physical board these sit differently: the
    --  outline's width varies by up to 0.8 % against the holes' spacing
    --  (947.8 .. 957.4 px for about 891 px), and the transducers turn by
-   --  about 0.1 degree against the board. PMAlign's own error on a rigid
+   --  about 0.1 degree against the board. Shape Match's own error on a rigid
    --  scene is what the resampling test below measures.
 
    procedure Test_PCB_Pose is
    begin
-      Section ("PMAlign: VisA pcb1 board poses (holes as ground truth)");
+      Section ("Shape Match: VisA pcb1 board poses (holes as ground truth)");
       for I in Boards'Range loop
          declare
             B     : Board renames Boards (I);
@@ -1883,7 +1883,7 @@ procedure Test_Real_Images is
       end loop;
    end Test_PCB_Hole_Unwrap;
 
-   --  PMAlign's own accuracy: a board image resampled (affine transform
+   --  Shape Match's own accuracy: a board image resampled (affine transform
    --  tool) turned, scaled and moved by known amounts. The output keeps
    --  the input's coordinate tree, so a pattern trained on the original
    --  must be found with the identity pose in the output's selected space;
@@ -1892,7 +1892,7 @@ procedure Test_Real_Images is
    --  (board 0000), rounded up; the evaluation boards and transforms were
    --  run only after.
 
-   PM_Resampled_Tolerance : constant := 0.15;  --  (tuning max 0.075 px)
+   Match_Resampled_Tolerance : constant := 0.15;  --  (tuning max 0.075 px)
 
    type Similarity is record
       Degrees, Scale : Real;
@@ -1900,12 +1900,12 @@ procedure Test_Real_Images is
 
    type Similarity_List is array (Positive range <>) of Similarity;
 
-   procedure PM_Resampled
+   procedure Match_Resampled
      (Set_Name : String; B : Board; Transforms : Similarity_List)
    is
-      use AMV.PM_Align;
+      use AMV.Shape_Match;
       Image  : constant Ks_Image_8_Grey := Load ("visa_pcb1_" & B.Name);
-      Tool   : Ks_PM_Align_Tool;
+      Tool   : Ks_Shape_Match_Tool;
       Region : AMV.Shapes.Ks_Rectangle;
       CX     : constant Real :=
         (B.Holes (1).X + B.Holes (2).X + B.Holes (3).X + B.Holes (4).X)
@@ -1961,32 +1961,32 @@ procedure Test_Real_Images is
                      Pose.Map_Point (H.X, H.Y, PX, PY);
                      Worst := Real'Max (Worst, Distance ((PX, PY), (H.X, H.Y)));
                   end loop;
-                  Check (Worst <= PM_Resampled_Tolerance,
+                  Check (Worst <= Match_Resampled_Tolerance,
                          Label & "holes stay (worst"
                          & Integer (Worst * 1000.0)'Image & "e-3 px)");
                end;
             end if;
          end;
       end loop;
-   end PM_Resampled;
+   end Match_Resampled;
 
-   procedure Test_PM_Resampled is
+   procedure Test_Match_Resampled is
    begin
-      Section ("PMAlign: resampled VisA pcb1 boards (known poses)");
-      PM_Resampled ("tuning", Boards (1),
-                    [(30.0, 1.0), (-90.0, 0.97), (180.0, 1.03)]);
-      PM_Resampled ("evaluation", Boards (11),
-                    [(-47.0, 1.02), (123.0, 0.98)]);
-      PM_Resampled ("evaluation", Boards (15),
-                    [(-47.0, 1.02), (123.0, 0.98)]);
-   end Test_PM_Resampled;
+      Section ("Shape Match: resampled VisA pcb1 boards (known poses)");
+      Match_Resampled ("tuning", Boards (1),
+                       [(30.0, 1.0), (-90.0, 0.97), (180.0, 1.03)]);
+      Match_Resampled ("evaluation", Boards (11),
+                       [(-47.0, 1.02), (123.0, 0.98)]);
+      Match_Resampled ("evaluation", Boards (15),
+                       [(-47.0, 1.02), (123.0, 0.98)]);
+   end Test_Match_Resampled;
 
    ---------------------------------------------------------------------
-   --  PMAlign with its default settings (the grain chosen at run time)
+   --  Shape Match with its default settings (the grain chosen at run time)
    ---------------------------------------------------------------------
 
-   --  With GrainLimitAutoSelect (the default) PMAlign chooses the level at
-   --  which it measures its results per run (see AMV.Kernels.PM_Align).
+   --  With GrainLimitAutoSelect (the default) Shape Match chooses the level at
+   --  which it measures its results per run (see AMV.Kernels.Shape_Match).
    --  Before, with the defaults it found 2 of the 10 tuning boards of pcb1
    --  (the fine mesh and the lettering differ from board to board), which
    --  is why the fixture above sets its grain limits by hand. Here the
@@ -2000,15 +2000,15 @@ procedure Test_Real_Images is
    --  0750), rounded up; with grains 4 .. 32 by hand the fixture's pose
    --  reaches 6.14 px there.
 
-   procedure Test_PM_Defaults is
-      use AMV.PM_Align;
+   procedure Test_Match_Defaults is
+      use AMV.Shape_Match;
    begin
-      Section ("PMAlign with its default settings (grain chosen at run"
+      Section ("Shape Match with its default settings (grain chosen at run"
                & " time)");
       declare
          Train  : constant Board := Boards (1);
          Image  : constant Ks_Image_8_Grey := Load ("visa_pcb1_" & Train.Name);
-         Tool   : Ks_PM_Align_Tool;
+         Tool   : Ks_Shape_Match_Tool;
          Region : AMV.Shapes.Ks_Rectangle;
          X0     : constant Real :=
            Real'Min (Train.Holes (1).X, Train.Holes (3).X) - 60.0;
@@ -2061,10 +2061,10 @@ procedure Test_Real_Images is
             end if;
          end loop;
       end;
-   end Test_PM_Defaults;
+   end Test_Match_Defaults;
 
    ---------------------------------------------------------------------
-   --  CNL Search: sub-pixel shifts of real images
+   --  NCC Search: sub-pixel shifts of real images
    ---------------------------------------------------------------------
 
    --  A real image is resampled (affine transform tool, bilinear) on a
@@ -2076,8 +2076,8 @@ procedure Test_Real_Images is
    --  1.5 times the error, rounded up, and 0.75 times the score. The
    --  evaluation shifts of a VisA board were run only after.
 
-   CNL_Location_Tolerance : constant := 0.2;
-   CNL_Min_Score          : constant := 0.5;
+   NCC_Location_Tolerance : constant := 0.2;
+   NCC_Min_Score          : constant := 0.5;
 
    type Shift is record
       DX, DY : Real;
@@ -2085,7 +2085,7 @@ procedure Test_Real_Images is
 
    type Shift_List is array (Positive range <>) of Shift;
 
-   procedure CNL_Shifts
+   procedure NCC_Shifts
      (Set_Name         : String;
       Image_Name       : String;
       CX, CY           : Real;
@@ -2097,9 +2097,9 @@ procedure Test_Real_Images is
       --  The pattern: centre (its origin) and size.
       Shifts           : Shift_List)
    is
-      use AMV.CNL_Search;
+      use AMV.NCC_Search;
       Image   : constant Ks_Image_8_Grey := Load (Image_Name);
-      Pattern : Ks_CNL_Search_Pattern;
+      Pattern : Ks_NCC_Search_Pattern;
       Region  : AMV.Shapes.Ks_Rectangle;
    begin
       Region.Set_Center_Width_Height (PX, PY, PW, PH);
@@ -2114,7 +2114,7 @@ procedure Test_Real_Images is
          declare
             Affine : AMV.Image_Processing.Affine_Transform
                        .Ks_Affine_Transform_Tool;
-            Tool   : Ks_CNL_Search_Tool;
+            Tool   : Ks_NCC_Search_Tool;
             Label  : constant String :=
               Set_Name & " shift" & Integer (S.DX * 100.0)'Image & "e-2,"
               & Integer (S.DY * 100.0)'Image & "e-2: ";
@@ -2132,27 +2132,27 @@ procedure Test_Real_Images is
                    and then Tool.Results.Count = 1, Label & "found");
             if Tool.Results.Count = 1 then
                declare
-                  R : constant Ks_CNL_Search_Result := Tool.Results.Item (0);
+                  R : constant Ks_NCC_Search_Result := Tool.Results.Item (0);
                   E : constant Real :=
                     Distance ((R.Location_X, R.Location_Y), (PX, PY));
                begin
-                  Check (E <= CNL_Location_Tolerance,
+                  Check (E <= NCC_Location_Tolerance,
                          Label & "location (" & Integer (E * 1000.0)'Image
                          & "e-3 px)");
-                  Check (R.Score >= CNL_Min_Score,
+                  Check (R.Score >= NCC_Min_Score,
                          Label & "score (" & Integer (R.Score * 1000.0)'Image
                          & "e-3)");
                end;
             end if;
          end;
       end loop;
-   end CNL_Shifts;
+   end NCC_Shifts;
 
 
-   CNL_Partial_Tolerance : constant := 0.3;
+   NCC_Partial_Tolerance : constant := 0.3;
    --  1.5 times the largest location error of the tuning cuts (0.178 px),
    --  rounded up to 0.05 px; the score of the whole-window shifts
-   --  (CNL_Min_Score) still applies (tuning: at least 0.696).
+   --  (NCC_Min_Score) still applies (tuning: at least 0.696).
 
    --  Partial matches: the same patterns in crops whose border cuts
    --  through them, so that part of the pattern lies outside the search
@@ -2166,7 +2166,7 @@ procedure Test_Real_Images is
    --  crop.
 
    type Cut is record
-      Side    : AMV.CNL_Search.Ks_CNL_Search_Edge_Hit_Constants;
+      Side    : AMV.NCC_Search.Ks_NCC_Search_Edge_Hit_Constants;
       Outside : Real;
       --  The pattern's columns (Left, Right) or rows (Top, Bottom) the
       --  crop leaves out.
@@ -2176,7 +2176,7 @@ procedure Test_Real_Images is
 
    type Cut_List is array (Positive range <>) of Cut;
 
-   procedure CNL_Partial
+   procedure NCC_Partial
      (Set_Name   : String;
       Image_Name : String;
       PX, PY     : Real;
@@ -2184,16 +2184,16 @@ procedure Test_Real_Images is
       --  The pattern: centre (its origin) and size.
       Cuts       : Cut_List);
 
-   procedure CNL_Partial
+   procedure NCC_Partial
      (Set_Name   : String;
       Image_Name : String;
       PX, PY     : Real;
       PW, PH     : Real;
       Cuts       : Cut_List)
    is
-      use AMV.CNL_Search;
+      use AMV.NCC_Search;
       Image   : constant Ks_Image_8_Grey := Load (Image_Name);
-      Pattern : Ks_CNL_Search_Pattern;
+      Pattern : Ks_NCC_Search_Pattern;
       Region  : AMV.Shapes.Ks_Rectangle;
       Margin  : constant Real := Real'Max (PW, PH) / 2.0 + 10.0;
       --  The crop reaches this far beyond the pattern on the sides it
@@ -2241,7 +2241,7 @@ procedure Test_Real_Images is
                declare
                   Affine : AMV.Image_Processing.Affine_Transform
                              .Ks_Affine_Transform_Tool;
-                  Tool   : Ks_CNL_Search_Tool;
+                  Tool   : Ks_NCC_Search_Tool;
                   Name   : constant String :=
                     Label & (if Reduce then "reduced score: " else "");
                begin
@@ -2275,20 +2275,20 @@ procedure Test_Real_Images is
                          Name & "found (" & Tool.Run_Status.Message & ")");
                   if Tool.Results.Count = 1 then
                      declare
-                        R : constant Ks_CNL_Search_Result :=
+                        R : constant Ks_NCC_Search_Result :=
                           Tool.Results.Item (0);
                         E : constant Real :=
                           Distance ((R.Location_X, R.Location_Y), (PX, PY));
                      begin
                         Ada.Text_IO.Put_Line
-                          ("  cnl partial " & Name & "location"
+                          ("  ncc partial " & Name & "location"
                            & Integer (E * 1000.0)'Image & "e-3 px, score"
                            & Integer (R.Score * 1000.0)'Image
                            & "e-3, inside"
                            & Integer (Inside * 1000.0)'Image & "e-3");
                         Check (R.Edge_Hit = C.Side,
                                Name & "EdgeHit" & R.Edge_Hit'Image);
-                        Check (E <= CNL_Partial_Tolerance,
+                        Check (E <= NCC_Partial_Tolerance,
                                Name & "location ("
                                & Integer (E * 1000.0)'Image & "e-3 px)");
                         if Reduce then
@@ -2296,7 +2296,7 @@ procedure Test_Real_Images is
                                   Name & "score within the fraction"
                                   & " inside");
                         else
-                           Check (R.Score >= CNL_Min_Score,
+                           Check (R.Score >= NCC_Min_Score,
                                   Name & "score ("
                                   & Integer (R.Score * 1000.0)'Image
                                   & "e-3)");
@@ -2307,43 +2307,43 @@ procedure Test_Real_Images is
             end loop;
          end;
       end loop;
-   end CNL_Partial;
+   end NCC_Partial;
 
-   procedure Test_CNL_Partial is
-      use AMV.CNL_Search;
+   procedure Test_NCC_Partial is
+      use AMV.NCC_Search;
    begin
-      Section ("CNL Search: partial matches in real images cut by the crop");
+      Section ("NCC Search: partial matches in real images cut by the crop");
       --  Tuning: box.png, the pattern of the shift test above.
-      CNL_Partial ("tuning box", "box", 110.0, 120.0, 96.0, 64.0,
+      NCC_Partial ("tuning box", "box", 110.0, 120.0, 96.0, 64.0,
                    [(Left, 20.0, 0.0, 0.0), (Left, 40.0, 0.25, 0.5),
                     (Right, 30.0, 0.5, 0.0), (Right, 45.0, 0.0, 0.25),
                     (Top, 16.0, 0.75, 0.0), (Top, 28.0, 0.0, 0.5),
                     (Bottom, 12.0, 0.5, 0.5), (Bottom, 30.0, 0.25, 0.75)]);
       --  Evaluation: VisA pcb1 0000, the "HC-SR04" lettering of the shift
       --  test (160 x 60 about (655, 593)).
-      CNL_Partial ("evaluation pcb1 0000", "visa_pcb1_0000",
+      NCC_Partial ("evaluation pcb1 0000", "visa_pcb1_0000",
                    655.0, 593.0, 160.0, 60.0,
                    [(Left, 50.0, 0.3, 0.7), (Right, 70.0, -0.6, 0.2),
                     (Top, 20.0, 0.45, -0.15), (Bottom, 25.0, -0.8, 0.55)]);
-   end Test_CNL_Partial;
+   end Test_NCC_Partial;
 
-   procedure Test_CNL_Shift is
+   procedure Test_NCC_Shift is
    begin
-      Section ("CNL Search: real images resampled at sub-pixel shifts");
+      Section ("NCC Search: real images resampled at sub-pixel shifts");
       --  Tuning: box.png, the "BASTONCINI" lettering and the photo's
       --  corner (96 x 64 about (110, 120)). The image's centre is
       --  (161.5, 111); 111.5 puts the unshifted grid on whole pixels.
-      CNL_Shifts ("tuning box", "box", 161.5, 111.5, 300.0, 200.0,
+      NCC_Shifts ("tuning box", "box", 161.5, 111.5, 300.0, 200.0,
                   110.0, 120.0, 96.0, 64.0,
                   [(0.0, 0.0), (0.25, 0.0), (0.5, 0.0), (0.75, 0.0),
                    (0.0, 0.25), (0.5, -0.5), (12.3, -7.6), (-5.75, 3.4)]);
       --  Evaluation: VisA pcb1 0000, the "HC-SR04" lettering
       --  (160 x 60 about (655, 593)).
-      CNL_Shifts ("evaluation pcb1 0000", "visa_pcb1_0000",
+      NCC_Shifts ("evaluation pcb1 0000", "visa_pcb1_0000",
                   701.5, 535.0, 1300.0, 1000.0, 655.0, 593.0, 160.0, 60.0,
                   [(0.3, 0.7), (-0.6, 0.2), (7.45, -3.15), (-11.8, 5.55),
                    (0.9, -0.35)]);
-   end Test_CNL_Shift;
+   end Test_NCC_Shift;
 
    ---------------------------------------------------------------------
    --  Sharpness: BBBC006 focus stacks
@@ -2583,7 +2583,7 @@ procedure Test_Real_Images is
    end Test_Nuclei;
 
    ---------------------------------------------------------------------
-   --  Gauging: VisA candle (PMAlign fixture, Find Circle)
+   --  Gauging: VisA candle (Shape Match fixture, Find Circle)
    ---------------------------------------------------------------------
 
    --  Four tea lights in a tray (VisA's candle category): the outer rim of
@@ -2603,7 +2603,7 @@ procedure Test_Real_Images is
    --
    --  The tools are placed as a recipe would place them: image 0000's top
    --  left light, taught once (its reference circle), is mapped into each
-   --  image by the pose of each light PMAlign finds there (a pattern
+   --  image by the pose of each light Shape Match finds there (a pattern
    --  trained on that light: the light's area, origin the identity, so a
    --  pose maps 0000's coordinates into the other image's). No tool starts
    --  from an image's own references, which only judge the results (and
@@ -2743,10 +2743,10 @@ procedure Test_Real_Images is
    --  fail, so that a change shows up here.
 
    procedure Test_Candles is
-      use AMV.PM_Align;
-      Fixture : Ks_PM_Align_Tool;
+      use AMV.Shape_Match;
+      Fixture : Ks_Shape_Match_Tool;
    begin
-      Section ("Gauging: VisA candle rims (PMAlign fixture, Find Circle)");
+      Section ("Gauging: VisA candle rims (Shape Match fixture, Find Circle)");
       declare
          Train  : constant Ks_Image_8_Grey :=
            Load ("visa_candle_" & Candle_Images (1).Name);
@@ -2782,7 +2782,8 @@ procedure Test_Real_Images is
                Fixture.Run;
                Check (Fixture.Run_Status.Result = Accept_Result
                       and then Fixture.Results.Count = 4,
-                      Candle_Set_Name (C) & ": PMAlign finds the 4 lights ("
+                      Candle_Set_Name (C)
+                      & ": Shape Match finds the 4 lights ("
                       & Natural'Image (Fixture.Results.Count) & ")");
                for N in 0 .. Fixture.Results.Count - 1 loop
                   declare
@@ -2876,10 +2877,10 @@ procedure Test_Real_Images is
       Run (Test_PCB_Width'Access);
       Run (Test_PCB_Caliper_Width'Access);
       Run (Test_PCB_Pose'Access);
-      Run (Test_PM_Resampled'Access);
-      Run (Test_PM_Defaults'Access);
-      Run (Test_CNL_Shift'Access);
-      Run (Test_CNL_Partial'Access);
+      Run (Test_Match_Resampled'Access);
+      Run (Test_Match_Defaults'Access);
+      Run (Test_NCC_Shift'Access);
+      Run (Test_NCC_Partial'Access);
       Run (Test_Focus_Stacks'Access);
       Run (Test_Nuclei'Access);
       Run (Test_Candles'Access);

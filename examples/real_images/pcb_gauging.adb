@@ -1,4 +1,4 @@
---  Gauging a circuit board wherever it lies: PMAlign finds the board, and
+--  Gauging a circuit board wherever it lies: Shape Match finds the board, and
 --  the pose it reports places Find Circle on the four mounting holes, Find
 --  Line on two outlines and a Caliper across the board's width.
 --
@@ -14,7 +14,7 @@
 --     pcb_gauging_1_train.bmp     the taught board: the train region, the
 --                                 trained features, the taught holes and
 --                                 outlines
---     pcb_gauging_2_found.bmp     board 0700: where PMAlign found the
+--     pcb_gauging_2_found.bmp     board 0700: where Shape Match found the
 --                                 pattern
 --     pcb_gauging_3_measured.bmp  the same board: the holes, the outlines
 --                                 and the width
@@ -37,7 +37,7 @@ with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
 with AMV.Caliper.Find_Line;
 with AMV.Images;
-with AMV.PM_Align;
+with AMV.Shape_Match;
 with AMV.Shapes;
 with AMV.Shapes.Region_Holders;
 with AMV.Tools;
@@ -77,7 +77,7 @@ procedure PCB_Gauging is
    --  The centres of the four mounting holes (top left, top right, bottom
    --  left, bottom right) and a stretch of the left and of the right
    --  outline, in the pixels of visa_pcb1_0000.bmp. The tools below start
-   --  from these, moved to where PMAlign finds the board.
+   --  from these, moved to where Shape Match finds the board.
 
    Taught_Holes : constant array (1 .. 4) of Point :=
      [(218.690, 351.971), (1112.845, 348.926),
@@ -126,7 +126,7 @@ procedure PCB_Gauging is
 
    type Board_Result is record
       Found        : Boolean := False;
-      Match        : AMV.PM_Align.Ks_PM_Align_Result;
+      Match        : AMV.Shape_Match.Ks_Shape_Match_Result;
       Pose         : AMV.Transforms.Ks_Transform_2D_Linear;
       Holes        : Hole_Results;
       Outlines     : Outline_Results;
@@ -149,15 +149,15 @@ procedure PCB_Gauging is
    end Mapped;
 
    ---------------------------------------------------------------------
-   --  PMAlign: where is the board?
+   --  Shape Match: where is the board?
    ---------------------------------------------------------------------
 
-   Finder : AMV.PM_Align.Ks_PM_Align_Tool;
+   Finder : AMV.Shape_Match.Ks_Shape_Match_Tool;
 
    procedure Train (Board : AMV.Images.Ks_Image_8_Grey);
 
    procedure Train (Board : AMV.Images.Ks_Image_8_Grey) is
-      use AMV.PM_Align;
+      use AMV.Shape_Match;
       Region : AMV.Shapes.Ks_Rectangle;
    begin
       Region.Set_XY_Width_Height
@@ -172,7 +172,7 @@ procedure PCB_Gauging is
       --
       --  Features 4 to 32 pixels apart: with the automatic choice the
       --  fine texture of the board (the mesh of the transducers, the
-      --  lettering) keeps PMAlign from finding most boards.
+      --  lettering) keeps Shape Match from finding most boards.
       Finder.Pattern.Set_Grain_Limit_Auto_Select (False);
       Finder.Pattern.Set_Grain_Limit_Fine (4.0);
       Finder.Pattern.Set_Grain_Limit_Coarse (32.0);
@@ -593,7 +593,7 @@ procedure PCB_Gauging is
    --  the pictures 2 to 5 as well.
 
    function Gauge (Name : String; Detail : Boolean) return Draw.Picture is
-      use AMV.PM_Align;
+      use AMV.Shape_Match;
       Board  : constant AMV.Images.Ks_Image_8_Grey :=
         Example_Support.Real_Image ("visa_pcb1_" & Name & ".bmp");
       Result : Board_Result;
@@ -679,7 +679,7 @@ procedure PCB_Gauging is
             Measured : Draw.Picture := Draw.Create (Board, Scale => 0.5);
          begin
             Draw_Pattern (Found, Result.Pose, Features => True);
-            Draw.Caption (Found, 0, "PMALIGN: THE BOARD OF " & Name);
+            Draw.Caption (Found, 0, "SHAPE MATCH: THE BOARD OF " & Name);
             Draw.Caption
               (Found, 1, "SCORE " & Image (Result.Match.Score, 2)
                & ", TURNED BY "
