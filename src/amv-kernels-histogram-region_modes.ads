@@ -1,10 +1,9 @@
---  The region modes of the histogram tool (CogHistogram.RegionMode,
---  CogRegionModeConstants): which pixels of the input image are the
---  samples.
+--  The region modes of the histogram tool (RegionMode): which pixels of the
+--  input image are the samples.
 --
---  * Pixel_Aligned_Bounding_Box_Adjust_Mask (0, VisionPro's default): the
---    pixels the region covers (AMV.Kernels.Histogram.Execute with the
---    rasterised region).
+--  * Pixel_Aligned_Bounding_Box_Adjust_Mask (0, the default): the pixels
+--    the region covers (AMV.Kernels.Histogram.Execute with the rasterised
+--    region).
 --  * Pixel_Aligned_Bounding_Box (1): every pixel of the region's
 --    pixel-aligned bounding box, whatever the region's shape
 --    (AMV.Kernels.Histogram.Execute with AMV.Kernels.Regions.Bounding_Box
@@ -15,13 +14,10 @@
 --    parameters (one output pixel per input pixel along each side;
 --    samples outside the image are 0), every pixel of it (Execute_Affine).
 --
---  VisionPro's reference states the default (AdjustMask) and that the
---  property accepts AffineTransform and PixelAlignedBoundingBox; AMV
---  accepts all three codes. The input image mask applies to the samples
---  of the first two modes (after the bounding box is taken); with
---  Affine_Transform it is rejected (AMV's choice: the mask lies over the
---  input image, not over the resampled one). An empty region (the whole
---  image) gives the same samples in every mode.
+--  The input image mask applies to the samples of the first two modes
+--  (after the bounding box is taken); with Affine_Transform it is rejected
+--  (the mask lies over the input image, not over the resampled one). An
+--  empty region (the whole image) gives the same samples in every mode.
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any image
 --  handle that is null or came from the kernels and any parameters; no
@@ -49,7 +45,7 @@ is
    Region_Mode_Pixel_Aligned_Bounding_Box_Adjust_Mask : constant Int32 := 0;
    Region_Mode_Pixel_Aligned_Bounding_Box             : constant Int32 := 1;
    Region_Mode_Affine_Transform                       : constant Int32 := 2;
-   --  CogRegionModeConstants (VisionPro's values).
+   --  The RegionMode codes.
 
    ---------------------------------------------------------------------
    --  For the Ada API only (not exported)

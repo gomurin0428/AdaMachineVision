@@ -308,7 +308,7 @@ static void test_runs(void)
     ks_tool_group_run_begin(&group, 5, &empty, 1, &cursor, &status);
     check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
                      "Run: the script's result must be a "
-                     "CogToolResultConstants code (-1 .. 2)"),
+                     "KS_TOOL_RESULT_* code (-1 .. 2)"),
           "run: bad script result");
     ks_tool_group_run_begin(&group, 0, &empty, 2, &cursor, &status);
     check(status.failure == KS_FAILURE_BAD_PARAMETER, "run: bad run_tools");

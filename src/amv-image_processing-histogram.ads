@@ -1,6 +1,5 @@
---  The histogram tool: the counterpart of CogHistogramTool, its run
---  parameters CogHistogram and its result CogHistogramResult
---  (Cognex.VisionPro.ImageProcessing).
+--  The histogram tool, Ks_Histogram_Tool, its run parameters, Ks_Histogram,
+--  and its result, Ks_Histogram_Result.
 --
 --     Tool.Input_Image := Image;
 --     Tool.Region := AMV.Shapes.Region_Holders.To_Holder (Circle);
@@ -15,24 +14,23 @@
 --  without samples: Num_Samples = 0, every bin 0 and every statistic 0
 --  (no exception).
 --
---  Input image mask (VisionPro's InputImageMask, InputImageMaskOffsetX and
---  InputImageMaskOffsetY; in AMV components of the tool, since the run
---  parameters are the kernel's C record). An allocated
---  Input_Image_Mask removes from the samples the pixels it marks "don't
---  care": mask pixel (U, V) lies over pixel (U + Input_Image_Mask_Offset_X,
---  V + Input_Image_Mask_Offset_Y) of Input_Image, a mask pixel of value 0
---  marks the pixel under it "don't care", and a pixel under a mask pixel of
---  any other value, or under no mask pixel at all, stays a sample
+--  Input image mask (Input_Image_Mask, Input_Image_Mask_Offset_X and
+--  Input_Image_Mask_Offset_Y: components of the tool, since the run
+--  parameters are the kernel's C record). An allocated Input_Image_Mask
+--  removes from the samples the pixels it marks "don't care": mask pixel
+--  (U, V) lies over pixel (U + Input_Image_Mask_Offset_X, V +
+--  Input_Image_Mask_Offset_Y) of Input_Image, a mask pixel of value 0 marks
+--  the pixel under it "don't care", and a pixel under a mask pixel of any
+--  other value, or under no mask pixel at all, stays a sample
 --  (AMV.Regions.Restrict_To_Mask; the mask may have any size and lie partly
 --  or wholly outside the image). The default, an unallocated mask with
 --  offsets 0, changes nothing. A mask that removes every pixel of the
 --  region gives a result without samples, as above.
 --
---  Region mode (VisionPro's CogHistogram.RegionMode; in AMV a component of
---  the tool, Region_Mode, since the run parameters are the kernel's C
---  record): which pixels the Region selects.
---  * Pixel_Aligned_Bounding_Box_Adjust_Mask (0, the default, as in
---    VisionPro): the pixels the region covers (above).
+--  Region mode (Region_Mode, a component of the tool, since the run
+--  parameters are the kernel's C record): which pixels the Region selects.
+--  * Pixel_Aligned_Bounding_Box_Adjust_Mask (0, the default): the pixels
+--    the region covers (above).
 --  * Pixel_Aligned_Bounding_Box (1): every pixel of the region's
 --    pixel-aligned bounding box (the rectangle around the pixels it
 --    covers), whatever its shape.
@@ -42,15 +40,13 @@
 --    0), as the affine transform tool would produce with its defaults.
 --    Another shape raises Ks_Bad_Parameter_Exception ("Region must be an
 --    affine rectangle for RegionMode AffineTransform"), and so does an
---    allocated Input_Image_Mask (AMV's choice: the mask lies over the
---    input image, not over the resampled one).
---  The mask applies after the bounding box is taken. An empty Region
---  holder (the whole image) gives the same samples in every mode. Any
---  other value raises Ks_Bad_Parameter_Exception. (VisionPro's reference
---  gives AdjustMask as the default and lists only the other two as
---  accepted; AMV accepts all three.) The kernel is
---  AMV.Kernels.Histogram.Region_Modes (C: ks_histogram_execute_affine,
---  and ks_pixel_region_bounding_box for the bounding box).
+--    allocated Input_Image_Mask (the mask lies over the input image, not
+--    over the resampled one).
+--  The mask applies after the bounding box is taken. An empty Region holder
+--  (the whole image) gives the same samples in every mode. Any other value
+--  raises Ks_Bad_Parameter_Exception. The kernel is
+--  AMV.Kernels.Histogram.Region_Modes (C: ks_histogram_execute_affine, and
+--  ks_pixel_region_bounding_box for the bounding box).
 --
 --  The work is done by the SPARK kernel AMV.Kernels.Histogram (C:
 --  ks_histogram_*, include/amv_image_processing.h), which proves that
@@ -79,13 +75,13 @@ private with AMV.Shared_Handles;
 package AMV.Image_Processing.Histogram is
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogHistogram)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_Histogram_Bin_Mode_Constants is AMV.Kernels.Int32 range 1 .. 3;
-   --  CogHistogramBinModeConstants, with VisionPro's values. The run
-   --  parameter record is the kernel's C record, so its Bin_Mode holds one
-   --  of these codes: Tool.Run_Params.Bin_Mode := Uniform;
+   --  The codes of Bin_Mode. The run parameter record is the kernel's C
+   --  record, so its Bin_Mode holds one of these codes:
+   --  Tool.Run_Params.Bin_Mode := Uniform;
 
    Compatibility : constant Ks_Histogram_Bin_Mode_Constants :=
      AMV.Kernels.Histogram.Bin_Mode_Compatibility;
@@ -98,11 +94,11 @@ package AMV.Image_Processing.Histogram is
    --  One bin per grey level (256), Num_Bins ignored. The default.
 
    subtype Ks_Histogram is AMV.Kernels.Histogram.Ks_Histogram;
-   --  The run parameters (CogHistogram): a record with the components
-   --  Bin_Mode (default Auto) and Num_Bins (default 256, 1 .. 65536).
+   --  The run parameters: a record with the components Bin_Mode (default
+   --  Auto) and Num_Bins (default 256, 1 .. 65536).
 
    ---------------------------------------------------------------------
-   --  The result (CogHistogramResult)
+   --  The result
    ---------------------------------------------------------------------
 
    type Ks_Histogram_Result is tagged private;
@@ -153,14 +149,13 @@ package AMV.Image_Processing.Histogram is
    --  Minimum when the samples hold one grey level, 0 without samples.
 
    ---------------------------------------------------------------------
-   --  The tool (CogHistogramTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    Pixel_Aligned_Bounding_Box_Adjust_Mask : constant AMV.Kernels.Int32 := 0;
    Pixel_Aligned_Bounding_Box             : constant AMV.Kernels.Int32 := 1;
    Affine_Transform                       : constant AMV.Kernels.Int32 := 2;
-   --  The codes of Region_Mode (CogRegionModeConstants, VisionPro's
-   --  values).
+   --  The codes of Region_Mode.
 
    type Ks_Histogram_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image               : AMV.Images.Ks_Image_8_Grey;
@@ -174,7 +169,7 @@ package AMV.Image_Processing.Histogram is
       --  Where the mask lies over Input_Image (see above).
       Region_Mode               : AMV.Kernels.Int32 :=
         Pixel_Aligned_Bounding_Box_Adjust_Mask;
-      --  CogHistogram.RegionMode (see above).
+      --  The region mode (see above).
       Result                    : Ks_Histogram_Result;
       --  Set by Run.
    end record;

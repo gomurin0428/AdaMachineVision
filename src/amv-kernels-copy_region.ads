@@ -1,24 +1,18 @@
---  Kernel of AMV.Image_Processing.Copy_Region: the copy region tool
---  (CogCopyRegionTool, whose run parameters are a CogCopyRegion). The C
---  API is declared in include/amv_ip_geometry.h.
+--  Kernel of AMV.Image_Processing.Copy_Region: the copy region tool,
+--  whose run parameters are a Ks_Copy_Region. The C API is declared in
+--  include/amv_ip_geometry.h.
 --
---  Execute copies the pixels of a region of an 8-bit image into a new
---  image of the size of the region's pixel-aligned bounding box (the
---  smallest rectangle of pixels around the region, which a pixel region
---  handle of AMV.Kernels.Regions stores): output pixel (X, Y) belongs to
---  input pixel (X + X_Min, Y + Y_Min). RegionMode
---  (CogRegionModeConstants, VisionPro's values) says which pixels of the
---  box count as the region's: PixelAlignedBoundingBoxAdjustMask (0, the
---  default) only those the region contains, PixelAlignedBoundingBox (1)
---  all of them; AffineTransform (2) is not implemented (Bad_Parameter).
---  A pixel of the region gets FillRegionValue when FillRegion is set and
---  the input pixel otherwise; any other pixel of the box gets
---  FillBoundingBoxValue when FillBoundingBox is set (the default) and the
---  input pixel otherwise.
---
---  VisionPro can also copy into an existing destination image, with an
---  alignment of the two images; AMV always makes a new image (no
---  DestinationImage, no alignment).
+--  Execute copies the pixels of a region of an 8-bit image into a new image
+--  of the size of the region's pixel-aligned bounding box (the smallest
+--  rectangle of pixels around the region, which a pixel region handle of
+--  AMV.Kernels.Regions stores): output pixel (X, Y) belongs to input pixel
+--  (X + X_Min, Y + Y_Min). RegionMode says which pixels of the box count as
+--  the region's: PixelAlignedBoundingBoxAdjustMask (0, the default) only
+--  those the region contains, PixelAlignedBoundingBox (1) all of them;
+--  AffineTransform (2) is not implemented (Bad_Parameter). A pixel of the
+--  region gets FillRegionValue when FillRegion is set and the input pixel
+--  otherwise; any other pixel of the box gets FillBoundingBoxValue when
+--  FillBoundingBox is set (the default) and the input pixel otherwise.
 --
 --  Coordinates. The output gets the input's coordinate space tree and
 --  selected space (the Ada API copies them) and the pixel-from-root
@@ -61,13 +55,13 @@ package AMV.Kernels.Copy_Region with SPARK_Mode, Preelaborate is
    use type KI.Ks_Image_8_Grey;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogCopyRegion; C: ks_copy_region)
+   --  Run parameters (C: ks_copy_region)
    ---------------------------------------------------------------------
 
    Region_Mode_Pixel_Aligned_Bounding_Box_Adjust_Mask : constant Int32 := 0;
    Region_Mode_Pixel_Aligned_Bounding_Box             : constant Int32 := 1;
    Region_Mode_Affine_Transform                       : constant Int32 := 2;
-   --  CogRegionModeConstants (C: KS_REGION_MODE_*).
+   --  The RegionMode codes (C: KS_REGION_MODE_*).
 
    type Ks_Copy_Region is record
       Fill_Bounding_Box       : Int32 := True_Value;
@@ -78,8 +72,8 @@ package AMV.Kernels.Copy_Region with SPARK_Mode, Preelaborate is
         Region_Mode_Pixel_Aligned_Bounding_Box_Adjust_Mask;
    end record
      with Convention => C;
-   --  C: ks_copy_region, with VisionPro's defaults (flags 0 or 1, values
-   --  in 0 .. 255).
+   --  C: ks_copy_region, with the defaults (flags 0 or 1, values in
+   --  0 .. 255).
 
    procedure Run_Params_Default (Params : out Ks_Copy_Region)
    with

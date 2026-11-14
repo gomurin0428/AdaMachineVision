@@ -1,15 +1,14 @@
 --  Kernel of AMV.Blob: connected-component analysis of the pixels of a
---  region of an 8-bit image (CogBlob, CogBlobResults, CogBlobResult). The
---  Ada API documents the behaviour for Ada users; this spec is the
---  reference for the C API (include/amv_blob.h).
+--  region of an 8-bit image. The Ada API documents the behaviour for Ada
+--  users; this spec is the reference for the C API (include/amv_blob.h).
 --
 --  A run (ks_blob_execute) takes the image (a pixel handle of
 --  AMV.Kernels.Images), the pixels to analyse (a pixel region of
 --  AMV.Kernels.Regions; the Ada API passes the whole image for an empty
---  Region holder), the run parameters (Ks_Blob_Run_Params, CogBlob) and
---  the transform Selected_From_Pixel from pixel space to the image's
---  selected space (the Ada API passes Image.Get_Transform (".", "#")). It
---  returns an owned results handle.
+--  Region holder), the run parameters (Ks_Blob_Run_Params) and the
+--  transform Selected_From_Pixel from pixel space to the image's selected
+--  space (the Ada API passes Image.Get_Transform (".", "#")). It returns
+--  an owned results handle.
 --
 --  1. Segmentation. Every pixel of the region is foreground or
 --     background by the rule Is_Foreground: with the threshold T, a light
@@ -40,12 +39,8 @@
 --       SoftRelativeThresholdLow / 100) and High = L + ceiling ((H - L)
 --       SoftRelativeThresholdHigh / 100), with L and H the tail levels
 --       of HardRelativeThreshold above (TailLow and TailHigh, the same
---       rounding). The level of a pixel of grey value g is Soft_Level,
---       a rule AMV chose (VisionPro states only that values below the
---       band are background, values from High on full foreground for
---       light blobs, the band split into Softness equal steps of
---       weights strictly between 0 and 1, and the reverse for dark
---       blobs). With S = Softness:
+--       rounding). The level of a pixel of grey value g is Soft_Level.
+--       With S = Softness:
 --       - light blobs: 0 for g < Low; S + 1 for g >= High; in the band,
 --         1 + floor ((g - Low) S / (High - Low));
 --       - dark blobs: S + 1 for g < Low; 0 for g >= High; in the band,
@@ -54,8 +49,7 @@
 --       - Low = High (possible in the relative mode): the band is empty
 --         and the rule is the hard threshold T = Low.
 --       A pixel is foreground when its level is above 0.
---     Map and SubtractionImage are not supported (Bad_Parameter); nor
---     is ScalingValue (CogBlobSegmentationParams has it for None). Then
+--     Map and SubtractionImage are not supported (Bad_Parameter). Then
 --     MorphologyOperations are applied to the foreground in order:
 --     erosion and dilation with a 3 x 1 (Horizontal), 1 x 3 (Vertical)
 --     or 3 x 3 (Square) structuring element, Close = dilation then
@@ -114,9 +108,7 @@
 --     (GetBlobs ()) lists them in ID order, or sorted by SortMeasure
 --     (ascending when SortAscending, ties in ID order) when SortEnabled.
 --
---  4. Soft segmentation (AMV's choices where VisionPro states only that
---     area, centre of mass and second moments are weighted and the
---     perimeter is not). The measures of a blob that come from its mass
+--  4. Soft segmentation. The measures of a blob that come from its mass
 --     weigh each pixel by level / (Softness + 1):
 --     * weighted: Area (the sum of the weights, times abs det),
 --       Center_Of_Mass_X / Y (the weighted mean of the pixel centres),
@@ -139,36 +131,31 @@
 --     whose weight as a blob becomes 0). The hard modes give the same
 --     results as before soft segmentation existed (every pixel weighs 1).
 --
---  5. Images of the results (CogBlobResults.CreateBlobImage and
---     CreateSegmentedImage). Both are 8-bit images of the input image's
---     size. VisionPro states the outline; the details marked below are
---     AMV's.
+--  5. Images of the results (CreateBlobImage and CreateSegmentedImage).
+--     Both are 8-bit images of the input image's size.
 --     * The segmented value of a pixel is its level: 0 or 1 for a hard
 --       segmentation (1 for foreground), 0 .. Softness + 1 for a soft
 --       one; Full is the value of full weight (1, or Softness + 1).
 --     * Segmented images (CreateSegmentedImage). The run keeps those of
 --       the stages its SaveSegmented* parameters ask for, over the
 --       region's bounding rectangle: BeforeMasking, every pixel of that
---       rectangle segmented, whether it lies in the region or not (AMV:
---       the mask is the region's shape within its bounding rectangle;
---       AMV has no InputImageMask); BeforeMorphology, the same with 0
---       outside the region; FinalImage, after the morphology (the
---       classes that connectivity used). The image holds these values (0
---       outside the rectangle) or, stretched, value * 255 / Full
---       (rounded down), so that full weight is 255. A stage that was not
---       saved gives no image (null).
+--       rectangle segmented, whether it lies in the region or not (the
+--       mask is the region's shape within its bounding rectangle);
+--       BeforeMorphology, the same with 0 outside the region; FinalImage,
+--       after the morphology (the classes that connectivity used). The
+--       image holds these values (0 outside the rectangle) or, stretched,
+--       value * 255 / Full (rounded down), so that full weight is 255. A
+--       stage that was not saved gives no image (null).
 --     * The blob image (CreateBlobImage) paints the features (all, or
---       those that passed the filter) onto a background. Viewable
---       (VisionPro's rule where stated): background 128, hole pixels 0,
---       blob pixels 255 for a hard segmentation, for a soft one 255 at
---       full weight and less by levels within 192 .. 255
---       (Viewable_Level, AMV's spacing), and in Labeled mode the labels
---       spread evenly over 96 .. 255 (Viewable_Label, AMV's spacing).
---       Not viewable: background Background (0 .. 255), hole pixels 0,
---       blob pixels their segmented value, or in Labeled mode their
---       Label (the grey value). A blob pixel of level 0 (one that the
---       cleanup's Fill gave to the blob) counts as full weight, as in the
---       measures.
+--       those that passed the filter) onto a background. Viewable:
+--       background 128, hole pixels 0, blob pixels 255 for a hard
+--       segmentation, for a soft one 255 at full weight and less by
+--       levels within 192 .. 255 (Viewable_Level), and in Labeled mode
+--       the labels spread evenly over 96 .. 255 (Viewable_Label). Not
+--       viewable: background Background (0 .. 255), hole pixels 0, blob
+--       pixels their segmented value, or in Labeled mode their Label (the
+--       grey value). A blob pixel of level 0 (one that the cleanup's Fill
+--       gave to the blob) counts as full weight, as in the measures.
 --
 --  Bounds. Selected_From_Pixel must have matrix entries within
 --  +/-Max_Scale (2**64, about 1.8E19) and a translation within
@@ -215,11 +202,10 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    use type KS.Ks_Polygon;
 
    ---------------------------------------------------------------------
-   --  Codes (the numeric values of the VisionPro enumerations;
-   --  C: KS_BLOB_*)
+   --  Codes (C: KS_BLOB_*)
    ---------------------------------------------------------------------
 
-   --  CogBlobSegmentationModeConstants
+   --  Segmentation modes
    Segmentation_None                    : constant Int32 := 0;
    Segmentation_Map                     : constant Int32 := 1;
    Segmentation_Hard_Fixed_Threshold    : constant Int32 := 2;
@@ -229,22 +215,21 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    Segmentation_Soft_Relative_Threshold : constant Int32 := 6;
    Segmentation_Subtraction_Image       : constant Int32 := 7;
 
-   --  CogBlobSegmentationPolarityConstants
+   --  Segmentation polarities
    Polarity_Dark_Blobs  : constant Int32 := 0;
    Polarity_Light_Blobs : constant Int32 := 1;
 
-   --  CogBlobConnectivityModeConstants
+   --  Connectivity modes
    Connectivity_Grey_Scale             : constant Int32 := 0;
    Connectivity_Labeled                : constant Int32 := 1;
    Connectivity_Whole_Image_Grey_Scale : constant Int32 := 2;
 
-   --  CogBlobConnectivityCleanupConstants
+   --  Connectivity cleanups
    Cleanup_None  : constant Int32 := 0;
    Cleanup_Prune : constant Int32 := 1;
    Cleanup_Fill  : constant Int32 := 2;
 
-   --  CogBlobMeasureConstants (all 43; Measure_Supported tells which ones
-   --  this kernel computes)
+   --  Measures (Measure_Supported tells which ones this kernel computes)
    Measure_Label                                     : constant Int32 := 0;
    Measure_Area                                      : constant Int32 := 1;
    Measure_Boundary_Pixel_Length                     : constant Int32 := 2;
@@ -301,23 +286,23 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    --  The measures a result holds. BoundaryPixelLength and AcircularityRms
    --  are not computed.
 
-   --  CogBlobMeasureModeConstants
+   --  Measure modes
    Measure_Mode_None        : constant Int32 := 0;
    Measure_Mode_Pre_Compute : constant Int32 := 1;
    Measure_Mode_Filter      : constant Int32 := 2;
 
-   --  CogBlobFilterModeConstants
+   --  Filter modes
    Filter_Exclude_Blobs_In_Range : constant Int32 := 0;
    Filter_Include_Blobs_In_Range : constant Int32 := 1;
 
-   --  CogBlobAxisConstants
+   --  Axes of the boxes and the medians
    Axis_Principal                : constant Int32 := 0;
    Axis_Selected_Space           : constant Int32 := 1;
    Axis_Extrema_Angle            : constant Int32 := 2;
    Axis_Pixel_Aligned            : constant Int32 := 3;
    Axis_Pixel_Aligned_No_Exclude : constant Int32 := 4;
 
-   --  CogBlobMorphologyConstants
+   --  Morphology operations
    Morphology_Erode_Horizontal  : constant Int32 := 0;
    Morphology_Erode_Vertical    : constant Int32 := 1;
    Morphology_Erode_Square      : constant Int32 := 2;
@@ -331,12 +316,11 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    Morphology_Open_Vertical     : constant Int32 := 10;
    Morphology_Open_Square       : constant Int32 := 11;
 
-   --  CogBlobLabelConstants (the Label of a feature in GreyScale mode)
+   --  The Label of a feature in GreyScale mode
    Label_Hole : constant Int32 := 0;
    Label_Blob : constant Int32 := 1;
 
-   --  CogBlobSegmentedImageConstants (the stage of a saved segmented
-   --  image, Create_Segmented_Image)
+   --  The stage of a saved segmented image (Create_Segmented_Image)
    Segmented_Final_Image       : constant Int32 := 0;
    Segmented_Before_Morphology : constant Int32 := 1;
    Segmented_Before_Masking    : constant Int32 := 2;
@@ -372,7 +356,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    --  and small enough that its cosine and sine keep their accuracy.
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogBlob; C: ks_blob_run_params)
+   --  Run parameters (C: ks_blob_run_params)
    ---------------------------------------------------------------------
 
    type Ks_Blob_Segmentation_Params is record
@@ -389,15 +373,14 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
       Softness                     : Int32 := 254;
    end record
      with Convention => C;
-   --  CogBlobSegmentationParams (C: ks_blob_segmentation_params). The
-   --  defaults are VisionPro's, except those of SoftFixedThresholdLow and
-   --  SoftFixedThresholdHigh, which VisionPro does not state: AMV's 102
-   --  and 153 are the relative defaults (40 and 60 percent) placed on the
-   --  whole grey range 0 .. 255 with the relative mode's rounding. Every
-   --  field must be valid whatever the mode (as for the hard fields):
-   --  Hard_Fixed_Threshold 0 .. 65535; Hard_Relative_Threshold, Tail_Low,
-   --  Tail_High, Soft_Relative_Threshold_Low and _High 0 .. 100, the low
-   --  soft relative threshold at most the high one;
+   --  The segmentation parameters (C: ks_blob_segmentation_params). The
+   --  defaults of SoftFixedThresholdLow and SoftFixedThresholdHigh, 102
+   --  and 153, are the relative defaults (40 and 60 percent) placed on
+   --  the whole grey range 0 .. 255 with the relative mode's rounding.
+   --  Every field must be valid whatever the mode (as for the hard
+   --  fields): Hard_Fixed_Threshold 0 .. 65535; Hard_Relative_Threshold,
+   --  Tail_Low, Tail_High, Soft_Relative_Threshold_Low and _High
+   --  0 .. 100, the low soft relative threshold at most the high one;
    --  Soft_Fixed_Threshold_Low 0 .. 65534 below Soft_Fixed_Threshold_High
    --  1 .. 65535; Softness 0 .. 254.
 
@@ -409,7 +392,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
       Filter_Range_High : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  CogBlobMeasure (C: ks_blob_measure).
+   --  A measure of RunTimeMeasures (C: ks_blob_measure).
 
    type Ks_Blob_Measure_Array is
      array (0 .. Max_Run_Time_Measures - 1) of Ks_Blob_Measure
@@ -420,7 +403,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
       Items : Ks_Blob_Measure_Array;
    end record
      with Convention => C;
-   --  CogBlobMeasureCollection: Items (0 .. Count - 1).
+   --  The run-time measures: Items (0 .. Count - 1).
 
    type Ks_Blob_Morphology_Array is
      array (0 .. Max_Morphology_Operations - 1) of Int32
@@ -431,8 +414,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
       Items : Ks_Blob_Morphology_Array := [others => 0];
    end record
      with Convention => C;
-   --  CogBlobMorphologyCollection: Items (0 .. Count - 1), codes of
-   --  CogBlobMorphologyConstants.
+   --  The morphology operations: Items (0 .. Count - 1), Morphology_* codes.
 
    type Ks_Blob_Run_Params is record
       Segmentation_Params     : Ks_Blob_Segmentation_Params;
@@ -450,11 +432,11 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
       Save_Segmented_Image_Before_Morphology : Int32 := False_Value;
    end record
      with Convention => C;
-   --  CogBlob (C: ks_blob_run_params), with VisionPro's defaults.
-   --  Extrema_Angle (ExtremaAngle, radians, finite and within
-   --  +/-Max_Extrema_Angle) is the direction, in the selected space, of
-   --  the axes of the extrema-angle measures (see Ks_Blob_Result).
-   --  SaveSegmentedImage, SaveSegmentedImageBeforeMasking and
+   --  The run parameters (C: ks_blob_run_params). Extrema_Angle
+   --  (ExtremaAngle, radians, finite and within +/-Max_Extrema_Angle) is
+   --  the direction, in the selected space, of the axes of the
+   --  extrema-angle measures (see Ks_Blob_Result). SaveSegmentedImage,
+   --  SaveSegmentedImageBeforeMasking and
    --  SaveSegmentedImageBeforeMorphology (0 or 1, default 0) keep the
    --  segmented images of the three stages in the results for
    --  Create_Segmented_Image (see "Images of the results" above).
@@ -521,17 +503,17 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
       Extrema_Angle_Box      : KS.Ks_Rectangle_Affine;
    end record
      with Convention => C;
-   --  CogBlobResult (C: ks_blob_result), in the selected space:
+   --  A feature (C: ks_blob_result), in the selected space:
    --
    --  * ID: the feature's number (see "Results"); Label: GreyScale 1 for a
-   --    blob and 0 for a hole (CogBlobLabelConstants), Labeled the grey
-   --    value, WholeImageGreyScale 1; Parent_ID the ID of the parent, -1
-   --    for none (CogBlobResults.GetParent); Num_Children the number of
-   --    children that passed the filter, Num_Unfiltered_Children of all
-   --    children; Filtered_Out 1 when the feature did not pass the
-   --    filter; Not_Clipped 1 when no pixel of the feature is next to a
-   --    pixel outside the region or the image (4-neighbours); Pixel_Count
-   --    the number of its pixels.
+   --    blob and 0 for a hole (Label_Blob and Label_Hole), Labeled the
+   --    grey value, WholeImageGreyScale 1; Parent_ID the ID of the
+   --    parent, -1 for none; Num_Children the number of children that
+   --    passed the filter, Num_Unfiltered_Children of all children;
+   --    Filtered_Out 1 when the feature did not pass the filter;
+   --    Not_Clipped 1 when no pixel of the feature is next to a pixel
+   --    outside the region or the image (4-neighbours); Pixel_Count the
+   --    number of its pixels.
    --  * Area: Pixel_Count * abs det (Selected_From_Pixel); for a blob of
    --    a soft segmentation, the sum of its pixels' weights * abs det.
    --  * Center_Of_Mass_X/Y: the mapped centroid of the pixel centres
@@ -551,8 +533,8 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    --  * Pixel_Aligned_*: the bounds, centre, size and Height / Width of
    --    Pixel_Aligned_Box, the box around the pixel squares of the feature
    --    in pixel space (from X_Min - 0.5 to X_Max + 0.5 and likewise in y)
-   --    mapped into the selected space (CogBlobAxisConstants.PixelAligned
-   --    and PixelAlignedNoExclude; the measures
+   --    mapped into the selected space (the axes PixelAligned and
+   --    PixelAlignedNoExclude; the measures
    --    BoundingBoxPixelAlignedNoExclude*).
    --  * Principal_Axis_Box: the smallest rectangle along the principal
    --    axes (Angle and Angle + Pi/2) around the mapped pixel squares;
@@ -560,26 +542,26 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
    --    those axes measured from the centre of mass, Width, Height and
    --    Aspect = Height / Width (BoundingBoxPrincipalAxis*).
    --  * Selected_Space_Box: the same along the axes of the selected space
-   --    (CogBlobAxisConstants.SelectedSpace).
+   --    (the axis SelectedSpace).
    --  * Extrema_Angle_Box: the same along the axes at ExtremaAngle (the
    --    run parameter Extrema_Angle, E below): the direction (cos E,
    --    sin E) of the selected space and the direction E + Pi/2; its
-   --    Rotation is E as given (CogBlobAxisConstants.ExtremaAngle). The
-   --    extrema-angle measures are coordinates in the frame of the
-   --    selected space turned by E about its origin, where a point (x, y)
-   --    has the coordinates u = x cos E + y sin E and v = -x sin E +
-   --    y cos E: Extrema_Angle_Min_X .. Max_X and Min_Y .. Max_Y the
-   --    extent of the box in u and v (unlike the principal-axis measures,
-   --    which are measured from the centre of mass, these are positions:
-   --    at E = 0 they are the bounds of Selected_Space_Box in the selected
-   --    space); Center_X / Center_Y the box's centre in u and v, Width and
-   --    Height its sides, Aspect = Height / Width
-   --    (BoundingBoxExtremaAngle*); Median_Extrema_Angle_X / Y the medians
-   --    of u and v over the mapped pixel centres of the feature
-   --    (MedianExtremaAngleX / Y), the middle value of the sorted
-   --    coordinates for an odd number of pixels and the mean of the two
-   --    middle ones for an even number, selected exactly from the
-   --    computed coordinates. Min_X <= Median_Extrema_Angle_X <= Max_X and
+   --    Rotation is E as given (the axis ExtremaAngle). The extrema-angle
+   --    measures are coordinates in the frame of the selected space
+   --    turned by E about its origin, where a point (x, y) has the
+   --    coordinates u = x cos E + y sin E and v = -x sin E + y cos E:
+   --    Extrema_Angle_Min_X .. Max_X and Min_Y .. Max_Y the extent of the
+   --    box in u and v (unlike the principal-axis measures, which are
+   --    measured from the centre of mass, these are positions: at E = 0
+   --    they are the bounds of Selected_Space_Box in the selected space);
+   --    Center_X / Center_Y the box's centre in u and v, Width and Height
+   --    its sides, Aspect = Height / Width (BoundingBoxExtremaAngle*);
+   --    Median_Extrema_Angle_X / Y the medians of u and v over the mapped
+   --    pixel centres of the feature (MedianExtremaAngleX / Y), the
+   --    middle value of the sorted coordinates for an odd number of
+   --    pixels and the mean of the two middle ones for an even number,
+   --    selected exactly from the computed coordinates.
+   --    Min_X <= Median_Extrema_Angle_X <= Max_X and
    --    Min_Y <= Median_Extrema_Angle_Y <= Max_Y (proved).
    --
    --  A ratio whose divisor is 0 (Aspect of a degenerate box, Elongation
@@ -779,23 +761,20 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
      Export, Convention => C,
      External_Name => "ks_blob_run_params_default",
      Post => Valid (Status) and then Succeeded (Status);
-   --  The default run parameters (VisionPro's): HardDynamicThreshold,
-   --  DarkBlobs, HardFixedThreshold 128, HardRelativeThreshold 50, no
-   --  tails, SoftFixedThresholdLow 102 and High 153 (AMV's),
-   --  SoftRelativeThresholdLow 40 and High 60, Softness 254, GreyScale,
-   --  Fill, ConnectivityMinPixels 10, sorted by Area descending, no
-   --  run-time measures, no morphology.
+   --  The default run parameters: HardDynamicThreshold, DarkBlobs,
+   --  HardFixedThreshold 128, HardRelativeThreshold 50, no tails,
+   --  SoftFixedThresholdLow 102 and High 153, SoftRelativeThresholdLow 40
+   --  and High 60, Softness 254, GreyScale, Fill, ConnectivityMinPixels
+   --  10, sorted by Area descending, no run-time measures, no morphology.
 
    function Valid_Polarity (Polarity : Int32) return Boolean is
      (Polarity in Polarity_Dark_Blobs | Polarity_Light_Blobs);
 
-   --  The setters of CogBlobSegmentationParams. Each checks its
+   --  The setters of the segmentation parameters. Each checks its
    --  arguments, then sets Mode and the fields it names (the others keep
-   --  their values); on a failure (Bad_Parameter, which stands for
-   --  VisionPro's ArgumentException; the message names the argument)
-   --  Params is unchanged. Polarity must be a code of
-   --  CogBlobSegmentationPolarityConstants and every percentage in
-   --  0 .. 100.
+   --  their values); on a failure (Bad_Parameter; the message names the
+   --  argument) Params is unchanged. Polarity must be Polarity_Dark_Blobs
+   --  or Polarity_Light_Blobs and every percentage in 0 .. 100.
 
    procedure Set_Hard_Fixed_Threshold
      (Params    : in out Ks_Blob_Segmentation_Params;
@@ -977,7 +956,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
              and then (if Succeeded (Status)
                        then Collection.Count = Collection.Count'Old + 1
                        else Collection = Collection'Old);
-   --  Appends Operation (a code of CogBlobMorphologyConstants, checked).
+   --  Appends Operation (a Morphology_* code, checked).
    --  Bad_Parameter for another code or a full collection.
 
    procedure Execute
@@ -999,14 +978,14 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
                             and then Valid_Saved (Results)
                             and then Sorted (Results, Params)
                        else Results = null);
-   --  CogBlob.Execute: runs the analysis described above. Region null is
-   --  the empty region: no features. Failures, in this order:
-   --  Image_No_Pixels for a null image ("InputImage has no pixels");
-   --  Bad_Parameter for an inconsistent image handle, run parameters that
-   --  are not valid (the message names the property, for example
+   --  Runs the analysis described above. Region null is the empty region:
+   --  no features. Failures, in this order: Image_No_Pixels for a null
+   --  image ("InputImage has no pixels"); Bad_Parameter for an
+   --  inconsistent image handle, run parameters that are not valid (the
+   --  message names the property, for example
    --  "RunParams.ConnectivityMinPixels must be >= 0"), a transform
-   --  outside its bounds, or a region that is not valid or does not lie in
-   --  the image; Out_Of_Memory.
+   --  outside its bounds, or a region that is not valid or does not lie
+   --  in the image; Out_Of_Memory.
 
    procedure Destroy
      (Results : in out Ks_Blob_Results;
@@ -1096,8 +1075,8 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
                        then Measure_Supported (Measure)
                             and then Value = Measure_Value (Result, Measure)
                        else Value = 0.0);
-   --  CogBlobResult.GetMeasure: the value of a supported measure, exactly
-   --  as stored in Result. Bad_Parameter for another code.
+   --  GetMeasure: the value of a supported measure, exactly as stored in
+   --  Result. Bad_Parameter for another code.
 
    procedure Get_Bounding_Box
      (Result : Ks_Blob_Result;
@@ -1109,7 +1088,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
      External_Name => "ks_blob_result_get_bounding_box",
      Post => Valid (Status)
              and then Status.Failure in Failure_None | Failure_Bad_Parameter;
-   --  CogBlobResult.GetBoundingBox: Principal_Axis_Box, Selected_Space_Box,
+   --  GetBoundingBox: Principal_Axis_Box, Selected_Space_Box,
    --  Extrema_Angle_Box or Pixel_Aligned_Box (for PixelAligned and
    --  PixelAlignedNoExclude). Bad_Parameter for another code.
 
@@ -1128,13 +1107,13 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
              and then (if Succeeded (Status)
                        then KS.Valid_Polygon (Boundary)
                        else Boundary = null);
-   --  CogBlobResult.GetBoundary: a new polygon, the outer boundary of the
-   --  feature's pixels traced along the pixel edges (a vertex at each
-   --  corner where the boundary turns, in pixel space at (X +/- 0.5,
-   --  Y +/- 0.5)), mapped into the selected space. The pixels are
-   --  followed with the feature's connectivity (8 for a blob, 4 for a
-   --  hole). Bad_Parameter for an ID that no feature has or a boundary of
-   --  more than AMV.Kernels.Shapes.Max_Vertices vertices; Out_Of_Memory.
+   --  GetBoundary: a new polygon, the outer boundary of the feature's
+   --  pixels traced along the pixel edges (a vertex at each corner where
+   --  the boundary turns, in pixel space at (X +/- 0.5, Y +/- 0.5)),
+   --  mapped into the selected space. The pixels are followed with the
+   --  feature's connectivity (8 for a blob, 4 for a hole). Bad_Parameter
+   --  for an ID that no feature has or a boundary of more than
+   --  AMV.Kernels.Shapes.Max_Vertices vertices; Out_Of_Memory.
 
    procedure Get_Bounding_Box_At_Angle
      (Results : access constant Ks_Blob_Results_Data;
@@ -1149,8 +1128,7 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
              and then Status.Failure in Failure_None | Failure_Bad_Parameter
              and then (if Succeeded (Status)
                        then KS.Valid_Rectangle_Affine (Box));
-   --  CogBlobResult.GetBoundingBoxAtAngle (on the results, since a result
-   --  record holds no pixels): the smallest rectangle around the mapped
+   --  GetBoundingBoxAtAngle: the smallest rectangle around the mapped
    --  pixel squares of feature ID whose sides run along the axes at Angle
    --  in the selected space (the directions (cos Angle, sin Angle) and
    --  Angle + Pi/2), with Rotation = Angle as given and Skew 0, computed
@@ -1174,20 +1152,19 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
              and then Status.Failure
                         in Failure_None | Failure_Bad_Parameter
                          | Failure_Out_Of_Memory;
-   --  CogBlobResult.GetMedianX (on the results): the median of the first
-   --  coordinates of the mapped pixel centres of feature ID in the frame
-   --  of the measures of GetBoundingBox (Axis) (the middle value of the
-   --  sorted coordinates, the mean of the two middle ones for an even
-   --  number of pixels, selected exactly from the computed coordinates,
-   --  without a sort). The frames: Principal, along the principal axes
-   --  measured from the centre of mass (as Principal_Axis_Min_X ..
-   --  Max_X); SelectedSpace, PixelAligned and PixelAlignedNoExclude, the
-   --  selected space itself (as Pixel_Aligned_Min_X .. Max_X); ExtremaAngle,
-   --  the selected space turned by ExtremaAngle (Median_Extrema_Angle_X).
-   --  The median lies within the box's extent in that frame (proved for
-   --  ExtremaAngle, tested for the others). Bad_Parameter for an ID that
-   --  no feature has or an Axis that is not a code of
-   --  CogBlobAxisConstants; Out_Of_Memory.
+   --  GetMedianX: the median of the first coordinates of the mapped pixel
+   --  centres of feature ID in the frame of the measures of
+   --  GetBoundingBox (Axis) (the middle value of the sorted coordinates,
+   --  the mean of the two middle ones for an even number of pixels,
+   --  selected exactly from the computed coordinates, without a sort).
+   --  The frames: Principal, along the principal axes measured from the
+   --  centre of mass (as Principal_Axis_Min_X .. Max_X); SelectedSpace,
+   --  PixelAligned and PixelAlignedNoExclude, the selected space itself
+   --  (as Pixel_Aligned_Min_X .. Max_X); ExtremaAngle, the selected space
+   --  turned by ExtremaAngle (Median_Extrema_Angle_X). The median lies
+   --  within the box's extent in that frame (proved for ExtremaAngle,
+   --  tested for the others). Bad_Parameter for an ID that no feature has
+   --  or an Axis that is not an Axis_* code; Out_Of_Memory.
 
    procedure Get_Median_Y
      (Results : access constant Ks_Blob_Results_Data;
@@ -1202,8 +1179,8 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
              and then Status.Failure
                         in Failure_None | Failure_Bad_Parameter
                          | Failure_Out_Of_Memory;
-   --  CogBlobResult.GetMedianY (on the results): the same for the second
-   --  coordinates (Principal_Axis_Min_Y .. Max_Y, the selected space's y,
+   --  GetMedianY: the same for the second coordinates
+   --  (Principal_Axis_Min_Y .. Max_Y, the selected space's y,
    --  Median_Extrema_Angle_Y).
 
    procedure Create_Blob_ID_Image
@@ -1392,12 +1369,11 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
                                    (Results, Filtered, Viewable, Background,
                                     X, Y)))
                 else Image = null);
-   --  CogBlobResults.CreateBlobImage (filtered, viewable, background): a
-   --  new 8-bit image of the input image's size (Gold: every pixel is
-   --  Blob_Image_Value). Image_No_Pixels for null results ("there are no
-   --  results"); Bad_Parameter for a results handle that is not valid,
-   --  Filtered or Viewable not 0 or 1, or (when Viewable = 0) Background
-   --  outside 0 .. 255; Out_Of_Memory.
+   --  CreateBlobImage: a new 8-bit image of the input image's size (Gold:
+   --  every pixel is Blob_Image_Value). Image_No_Pixels for null results
+   --  ("there are no results"); Bad_Parameter for a results handle that
+   --  is not valid, Filtered or Viewable not 0 or 1, or
+   --  (when Viewable = 0) Background outside 0 .. 255; Out_Of_Memory.
 
    procedure Create_Segmented_Image
      (Results : access constant Ks_Blob_Results_Data;
@@ -1433,14 +1409,12 @@ package AMV.Kernels.Blob with SPARK_Mode, Preelaborate is
                              Image.Pixels (Y, X)
                                = Segmented_Value
                                    (Results, Which, Stretch, X, Y))));
-   --  CogBlobResults.CreateSegmentedImage (whichImage, stretchIt): a new
-   --  8-bit image of the input image's size holding the segmented image
-   --  of stage Which (Gold: every pixel is Segmented_Value), or null
-   --  (with success) when the run did not save that stage (VisionPro
-   --  returns null then). Image_No_Pixels for null results;
-   --  Bad_Parameter for a results handle that is not valid, Which not a
-   --  CogBlobSegmentedImageConstants value or Stretch not 0 or 1;
-   --  Out_Of_Memory.
+   --  CreateSegmentedImage: a new 8-bit image of the input image's size
+   --  holding the segmented image of stage Which (Gold: every pixel is
+   --  Segmented_Value), or null (with success) when the run did not save
+   --  that stage. Image_No_Pixels for null results; Bad_Parameter for a
+   --  results handle that is not valid, Which not a Segmented_* code or
+   --  Stretch not 0 or 1; Out_Of_Memory.
 
    ---------------------------------------------------------------------
    --  For the Ada API only (not exported)

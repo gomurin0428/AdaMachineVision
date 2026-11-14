@@ -1,4 +1,4 @@
---  Small numeric helpers (the counterpart of the CogMisc class).
+--  Small numeric helpers.
 --
 --  The computations are done by the SPARK kernel AMV.Kernels.Misc (the C
 --  functions ks_misc_*). Every argument must be finite: a NaN or an

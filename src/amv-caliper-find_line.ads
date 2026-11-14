@@ -1,5 +1,5 @@
---  Find line: the counterpart of CogFindLineTool (run parameters
---  CogFindLine, results CogFindLineResults and CogFindLineResult).
+--  The find line tool, Ks_Find_Line_Tool, with its run parameters
+--  (Ks_Find_Line) and results (Ks_Find_Line_Results, Ks_Find_Line_Result).
 --
 --  NumCalipers calipers are placed along the expected line segment, from
 --  its start point to its end point (the first and the last on the end
@@ -52,11 +52,11 @@ package AMV.Caliper.Find_Line is
       Decrement_Num_To_Ignore   : Boolean := False;
       Caliper_Run_Params        : AMV.Caliper.Ks_Caliper;
    end record;
-   --  CogFindLine. Expected_Line_Segment is taken in its own selected
-   --  space (default "."; default segment from (0, 0) to (100, 0)).
-   --  Defaults: 6 calipers, search length 30, projection length 10,
-   --  search direction Pi / 2, NumToIgnore 0, DecrementNumToIgnore False
-   --  (when set, NumToIgnore is lowered as far as needed to keep 2
+   --  The run parameters. Expected_Line_Segment is taken in its own
+   --  selected space (default "."; default segment from (0, 0) to
+   --  (100, 0)). Defaults: 6 calipers, search length 30, projection length
+   --  10, search direction Pi / 2, NumToIgnore 0, DecrementNumToIgnore
+   --  False (when set, NumToIgnore is lowered as far as needed to keep 2
    --  points), and the default caliper parameters. Checked when the tool
    --  runs: NumCalipers in 2 .. 1000, NumToIgnore in 0 .. NumCalipers - 2,
    --  lengths > 0, a segment of length > 0 (Ks_Bad_Parameter_Exception).
@@ -64,9 +64,9 @@ package AMV.Caliper.Find_Line is
    function Get_Caliper_Region
      (Params : Ks_Find_Line;
       Index  : Natural) return AMV.Shapes.Ks_Rectangle_Affine;
-   --  (AMV name) The region of caliper Index (0-based), in the expected
-   --  segment's selected space (for display; VisionPro draws them as a
-   --  record graphic). Constraint_Error unless Index < NumCalipers.
+   --  The region of caliper Index (0-based), in the expected segment's
+   --  selected space (for display). Constraint_Error unless
+   --  Index < NumCalipers.
 
    ---------------------------------------------------------------------
    --  Results
@@ -80,12 +80,12 @@ package AMV.Caliper.Find_Line is
       Distance_To_Line : Real := 0.0;
       Caliper_Results  : AMV.Caliper.Ks_Caliper_Results;
    end record;
-   --  CogFindLineResult: whether the caliper found an edge, whether its
-   --  point was used in the fit, the point (0 when not found), its
-   --  distance from the fitted line (>= 0) and the caliper's own results.
+   --  The result of one caliper: whether it found an edge, whether its
+   --  point was used in the fit, the point (0 when not found), its distance
+   --  from the fitted line (>= 0) and the caliper's own results.
 
    type Ks_Find_Line_Results is tagged private;
-   --  CogFindLineResults: one item per caliper, in the order of the
+   --  The results of a run: one item per caliper, in the order of the
    --  calipers; empty before the first successful run.
 
    function Count (Results : Ks_Find_Line_Results) return Natural;
@@ -111,7 +111,7 @@ package AMV.Caliper.Find_Line is
    --  0 before a successful run.
 
    ---------------------------------------------------------------------
-   --  The tool (CogFindLineTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Find_Line_Tool is new AMV.Tools.Ks_Tool with record

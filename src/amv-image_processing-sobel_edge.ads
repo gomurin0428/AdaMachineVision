@@ -1,6 +1,5 @@
---  The Sobel edge tool: the counterpart of CogSobelEdgeTool, its run
---  parameters CogSobelEdge and its result CogSobelEdgeResult
---  (Cognex.VisionPro.ImageProcessing).
+--  The Sobel edge tool, Ks_Sobel_Edge_Tool, its run parameters,
+--  Ks_Sobel_Edge, and its result, Ks_Sobel_Edge_Result.
 --
 --     Tool.Input_Image := Image;
 --     Tool.Run_Params.Post_Process_Mode := Peak_Detect;
@@ -8,19 +7,19 @@
 --     Edges := Tool.Result.Final_Magnitude_Image;
 --
 --  The result holds three images of the size of Input_Image, each with its
---  coordinate space tree, selected space and pixel-from-root transform:
---  the edge magnitude (MagnitudeScale times the grey level difference
---  across the edge, clamped to 255), the edge angle (the gradient
---  direction as a binary angle, 256 steps per turn, 0 along +x, 64 along
---  +y) and the final magnitude (the magnitude after the post-processing
---  PostProcessMode selects). An empty Region holder means the whole
---  image. Otherwise Run_Params.Region_Mode (CogSobelEdge.RegionMode)
---  selects the part of the image processed, and the three images are that
---  part only (AMV.Kernels.Sobel_Edge.Region_Modes describes it in detail):
---  * Pixel_Aligned_Bounding_Box (the default, as in VisionPro): the
---    bounding box of the pixels AMV.Regions.Rasterize gives for Region,
---    whatever its shape; every pixel of the box is processed, as if the
---    box were the input image.
+--  coordinate space tree, selected space and pixel-from-root transform: the
+--  edge magnitude (MagnitudeScale times the grey level difference across
+--  the edge, clamped to 255), the edge angle (the gradient direction as a
+--  binary angle, 256 steps per turn, 0 along +x, 64 along +y) and the final
+--  magnitude (the magnitude after the post-processing PostProcessMode
+--  selects). An empty Region holder means the whole image. Otherwise
+--  Run_Params.Region_Mode selects the part of the image processed, and the
+--  three images are that part only (AMV.Kernels.Sobel_Edge.Region_Modes
+--  describes it in detail):
+--  * Pixel_Aligned_Bounding_Box (the default): the bounding box of the
+--    pixels AMV.Regions.Rasterize gives for Region, whatever its shape;
+--    every pixel of the box is processed, as if the box were the input
+--    image.
 --  * Affine_Transform: Region must be a Ks_Rectangle_Affine; it is
 --    resampled into an upright image (one output pixel per input pixel
 --    along each side, as AMV.Image_Processing.Affine_Transform does with
@@ -55,14 +54,13 @@ with AMV.Tools;
 package AMV.Image_Processing.Sobel_Edge is
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogSobelEdge)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_Sobel_Edge_Post_Process_Mode_Constants is
      AMV.Kernels.Int32 range 0 .. 2;
-   --  CogSobelEdgePostProcessModeConstants, with VisionPro's values. The
-   --  run parameter record is the kernel's C record, so its
-   --  Post_Process_Mode holds one of these codes.
+   --  The codes of Post_Process_Mode. The run parameter record is the
+   --  kernel's C record, so its Post_Process_Mode holds one of these codes.
 
    None : constant Ks_Sobel_Edge_Post_Process_Mode_Constants :=
      AMV.Kernels.Sobel_Edge.Post_Process_None;
@@ -75,8 +73,7 @@ package AMV.Image_Processing.Sobel_Edge is
    --  Hysteresis thresholding with 8-connectivity.
 
    subtype Ks_Region_Mode_Constants is AMV.Kernels.Int32 range 0 .. 2;
-   --  CogRegionModeConstants (Cognex.VisionPro), with VisionPro's values;
-   --  the Sobel edge tool accepts the two below.
+   --  The codes of Region_Mode; the Sobel edge tool accepts the two below.
 
    Pixel_Aligned_Bounding_Box : constant Ks_Region_Mode_Constants :=
      AMV.Kernels.Sobel_Edge.Region_Mode_Pixel_Aligned_Bounding_Box;
@@ -86,24 +83,22 @@ package AMV.Image_Processing.Sobel_Edge is
    --  The affine rectangle Region resampled into an upright image.
 
    subtype Ks_Sobel_Edge is AMV.Kernels.Sobel_Edge.Ks_Sobel_Edge;
-   --  The run parameters (CogSobelEdge), a record with VisionPro's
-   --  defaults: Magnitude_Scale (1.0, 0 .. 50), Post_Process_Mode (None),
-   --  Peak_Detect_Threshold (20), Hysteresis_Threshold_Low (10),
-   --  Hysteresis_Threshold_High (20), Hysteresis_Survivor_Pel_Value (255)
-   --  and Hysteresis_Non_Survivor_Pel_Value (0), the integers in 0 .. 255,
-   --  and Region_Mode (Pixel_Aligned_Bounding_Box).
-   --  Unlike VisionPro's coupled properties, the two thresholds are
+   --  The run parameters, with their defaults: Magnitude_Scale (1.0,
+   --  0 .. 50), Post_Process_Mode (None), Peak_Detect_Threshold (20),
+   --  Hysteresis_Threshold_Low (10), Hysteresis_Threshold_High (20),
+   --  Hysteresis_Survivor_Pel_Value (255) and
+   --  Hysteresis_Non_Survivor_Pel_Value (0), the integers in 0 .. 255, and
+   --  Region_Mode (Pixel_Aligned_Bounding_Box). The two thresholds are
    --  independent components; Run requires High >= Low.
 
    procedure Set_Hysteresis_Thresholds
      (Params                    : in out Ks_Sobel_Edge;
       Hysteresis_Threshold_Low  : Integer;
       Hysteresis_Threshold_High : Integer);
-   --  Sets both thresholds (VisionPro: SetHysteresisThresholds). They are
-   --  checked when the tool runs.
+   --  Sets both thresholds. They are checked when the tool runs.
 
    ---------------------------------------------------------------------
-   --  The result (CogSobelEdgeResult)
+   --  The result
    ---------------------------------------------------------------------
 
    type Ks_Sobel_Edge_Result is tagged private;
@@ -118,7 +113,7 @@ package AMV.Image_Processing.Sobel_Edge is
      (Result : Ks_Sobel_Edge_Result) return AMV.Images.Ks_Image_8_Grey;
 
    ---------------------------------------------------------------------
-   --  The tool (CogSobelEdgeTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Sobel_Edge_Tool is new AMV.Tools.Ks_Tool with record

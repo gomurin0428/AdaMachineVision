@@ -1,9 +1,9 @@
---  Kernel of AMV.Shapes: the geometry of CogRectangle, CogRectangleAffine,
---  CogCircle, CogEllipse, CogPolygon, CogCircularAnnulusSection, CogLine,
---  CogLineSegment, CogPointMarker and CogCircularArc (ICogShape and
---  ICogRegion). The meaning of every property and operation, the boundary
---  slack of Contains_Point included, is documented in AMV.Shapes; the
---  selected space name stays in the Ada API.
+--  Kernel of AMV.Shapes: the geometry of Ks_Rectangle,
+--  Ks_Rectangle_Affine, Ks_Circle, Ks_Ellipse, Ks_Polygon,
+--  Ks_Circular_Annulus_Section, Ks_Line, Ks_Line_Segment, Ks_Point_Marker
+--  and Ks_Circular_Arc. The meaning of every property and operation, the
+--  boundary slack of Contains_Point included, is documented in AMV.Shapes;
+--  the selected space name stays in the Ada API.
 --
 --  Values. Every fixed-size shape is a record with Convention C (C: the
 --  ks_<shape> structs of include/amv.h), passed by reference. A polygon
@@ -315,7 +315,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  contracts.
 
    ---------------------------------------------------------------------
-   --  CogRectangle
+   --  Ks_Rectangle
    ---------------------------------------------------------------------
 
    procedure Set_XY_Width_Height
@@ -493,7 +493,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  (Valid_Box).
 
    ---------------------------------------------------------------------
-   --  CogRectangleAffine
+   --  Ks_Rectangle_Affine
    ---------------------------------------------------------------------
 
    procedure Set_Center_Lengths_Rotation_Skew
@@ -642,7 +642,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  The image of the three corners, as by Set_Origin_Corner_X_Corner_Y.
 
    ---------------------------------------------------------------------
-   --  CogCircle
+   --  Ks_Circle
    ---------------------------------------------------------------------
 
    procedure Set_Center_Radius
@@ -725,7 +725,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  otherwise the image ellipse (Shape_Ellipse); see AMV.Shapes.
 
    ---------------------------------------------------------------------
-   --  CogEllipse
+   --  Ks_Ellipse
    ---------------------------------------------------------------------
 
    procedure Set_Center_XY_Radius_XY_Rotation
@@ -804,7 +804,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  The image ellipse; see AMV.Shapes.
 
    ---------------------------------------------------------------------
-   --  CogPolygon
+   --  Ks_Polygon
    ---------------------------------------------------------------------
 
    procedure Create
@@ -1088,7 +1088,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  Bad_Parameter when a mapped vertex would exceed Max_Value.
 
    ---------------------------------------------------------------------
-   --  CogCircularAnnulusSection
+   --  Ks_Circular_Annulus_Section
    ---------------------------------------------------------------------
 
    procedure Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
@@ -1172,7 +1172,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  Similarities only (possibly reflecting); Bad_Parameter otherwise.
 
    ---------------------------------------------------------------------
-   --  CogLine
+   --  Ks_Line
    ---------------------------------------------------------------------
 
    procedure Set_XY_Rotation
@@ -1271,7 +1271,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  to zero).
 
    ---------------------------------------------------------------------
-   --  CogLineSegment
+   --  Ks_Line_Segment
    ---------------------------------------------------------------------
 
    procedure Set_Start_End
@@ -1346,7 +1346,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  Both end points mapped.
 
    ---------------------------------------------------------------------
-   --  CogPointMarker
+   --  Ks_Point_Marker
    ---------------------------------------------------------------------
 
    procedure Set_XY_Rotation
@@ -1379,7 +1379,7 @@ package AMV.Kernels.Shapes with SPARK_Mode, Preelaborate is
    --  As for a line.
 
    ---------------------------------------------------------------------
-   --  CogCircularArc
+   --  Ks_Circular_Arc
    ---------------------------------------------------------------------
 
    procedure Set_Center_Radius_Angle_Start_Angle_Span

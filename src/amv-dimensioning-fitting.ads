@@ -1,8 +1,7 @@
---  The fitting tools: the counterparts of CogFitLineTool, CogFitCircleTool
---  and CogFitEllipseTool, their run parameters CogFitLine, CogFitCircle
---  and CogFitEllipse, and their results CogFitLineResult,
---  CogFitCircleResult and CogFitEllipseResult (VisionPro keeps them in
---  the core namespace Cognex.VisionPro).
+--  The fitting tools: Ks_Fit_Line_Tool, Ks_Fit_Circle_Tool and
+--  Ks_Fit_Ellipse_Tool, their run parameters Ks_Fit_Line, Ks_Fit_Circle
+--  and Ks_Fit_Ellipse, and their results Ks_Fit_Line_Result,
+--  Ks_Fit_Circle_Result and Ks_Fit_Ellipse_Result.
 --
 --     Tool.Run_Params.Add_Point (10.0, 20.0);
 --     ...
@@ -27,13 +26,12 @@
 --    axes along Rotation_Constraint.
 --
 --  Num_To_Ignore points are left out one at a time, each time the point
---  whose removal gives the best fit (VisionPro searches all subsets; see
---  AMV.Kernels.Dimensioning.Fitting for the details). The results give
---  for each point whether the final fit used it and its distance to the
---  fitted shape (>= 0), the RMS error of the used points and the shape.
---  Everything is in the space of the points; the shape's selected space
---  is the name given to Execute ("." for the tool). The tool's
---  Input_Image is only where VisionPro draws its graphics; it is not used.
+--  whose removal gives the best fit (see AMV.Kernels.Dimensioning.Fitting
+--  for the details). The results give for each point whether the final
+--  fit used it and its distance to the fitted shape (>= 0), the RMS error
+--  of the used points and the shape. Everything is in the space of the
+--  points; the shape's selected space is the name given to Execute ("."
+--  for the tool). The tool's Input_Image is not used.
 --
 --  Failures (Run_Status Error, or raised by Execute): Ks_Bad_Parameter_
 --  Exception for fewer points than the fit needs after Num_To_Ignore (2,
@@ -75,9 +73,8 @@ package AMV.Dimensioning.Fitting is
    ---------------------------------------------------------------------
 
    type Ks_Fit_Points is tagged private;
-   --  (AMV name) What CogFitLine, CogFitCircle and CogFitEllipse have in
-   --  common: the points and NumToIgnore. Default: no points,
-   --  NumToIgnore 0.
+   --  What Ks_Fit_Line, Ks_Fit_Circle and Ks_Fit_Ellipse have in common:
+   --  the points and NumToIgnore. Default: no points, NumToIgnore 0.
 
    function Num_Points (Params : Ks_Fit_Points) return Natural;
    procedure Set_Num_Points (Params : in out Ks_Fit_Points; Value : Natural);
@@ -118,11 +115,11 @@ package AMV.Dimensioning.Fitting is
    --  NumToIgnore (checked against Num_Points when the fit runs).
 
    type Ks_Fit_Line is new Ks_Fit_Points with private;
-   --  CogFitLine.
+   --  The run parameters of the line fit.
 
    type Ks_Fit_Circle is new Ks_Fit_Points with private;
-   --  CogFitCircle. Default: Radius_Constraint_Enabled False,
-   --  Radius_Constraint 100.0 (AMV defaults).
+   --  The run parameters of the circle fit. Default:
+   --  Radius_Constraint_Enabled False, Radius_Constraint 100.0.
 
    function Radius_Constraint_Enabled (Params : Ks_Fit_Circle) return Boolean;
    procedure Set_Radius_Constraint_Enabled
@@ -136,8 +133,8 @@ package AMV.Dimensioning.Fitting is
    --  must then be in (0, 1.0E150] (checked when the fit runs).
 
    type Ks_Fit_Ellipse is new Ks_Fit_Points with private;
-   --  CogFitEllipse. Default: Rotation_Constraint_Enabled False,
-   --  Rotation_Constraint 0.0.
+   --  The run parameters of the ellipse fit. Default:
+   --  Rotation_Constraint_Enabled False, Rotation_Constraint 0.0.
 
    function Rotation_Constraint_Enabled
      (Params : Ks_Fit_Ellipse) return Boolean;
@@ -159,8 +156,8 @@ package AMV.Dimensioning.Fitting is
    ---------------------------------------------------------------------
 
    type Ks_Fit_Result is tagged private;
-   --  (AMV name) What the three results have in common. Empty before a
-   --  fit: Num_Points 0, RMS_Error 0.
+   --  What the three results have in common. Empty before a fit:
+   --  Num_Points 0, RMS_Error 0.
 
    function Num_Points (Result : Ks_Fit_Result) return Natural;
    --  NumPoints: the number of points given to the fit.
@@ -169,7 +166,7 @@ package AMV.Dimensioning.Fitting is
    --  RMSError: the root mean square of the distances of the used points.
 
    function Num_Points_Used (Result : Ks_Fit_Result) return Natural;
-   --  (AMV name) The number of points the fit used.
+   --  The number of points the fit used.
 
    procedure Get_XY_Used_Distance
      (Result   : Ks_Fit_Result;
@@ -188,7 +185,7 @@ package AMV.Dimensioning.Fitting is
    --  shape (>= 0, for unused points too).
 
    type Ks_Fit_Line_Result is new Ks_Fit_Result with private;
-   --  CogFitLineResult.
+   --  The result of a line fit.
 
    function Get_Line (Result : Ks_Fit_Line_Result) return AMV.Shapes.Ks_Line;
    --  GetLine: the fitted line, through the centroid of the used points,
@@ -196,7 +193,7 @@ package AMV.Dimensioning.Fitting is
    --  a fit.
 
    type Ks_Fit_Circle_Result is new Ks_Fit_Result with private;
-   --  CogFitCircleResult.
+   --  The result of a circle fit.
 
    function Get_Circle
      (Result : Ks_Fit_Circle_Result) return AMV.Shapes.Ks_Circle;
@@ -204,7 +201,7 @@ package AMV.Dimensioning.Fitting is
    --  fit.
 
    type Ks_Fit_Ellipse_Result is new Ks_Fit_Result with private;
-   --  CogFitEllipseResult.
+   --  The result of an ellipse fit.
 
    function Get_Ellipse
      (Result : Ks_Fit_Ellipse_Result) return AMV.Shapes.Ks_Ellipse;
@@ -220,9 +217,8 @@ package AMV.Dimensioning.Fitting is
    function Execute
      (Params              : Ks_Fit_Ellipse'Class;
       Selected_Space_Name : String := ".") return Ks_Fit_Ellipse_Result;
-   --  CogFitLine.Execute, CogFitCircle.Execute, CogFitEllipse.Execute: the
-   --  fit of the points; Selected_Space_Name becomes the selected space of
-   --  the fitted shape. Raises the exceptions listed above.
+   --  The fit of the points; Selected_Space_Name becomes the selected
+   --  space of the fitted shape. Raises the exceptions listed above.
 
    ---------------------------------------------------------------------
    --  The tools
@@ -233,7 +229,7 @@ package AMV.Dimensioning.Fitting is
       Run_Params  : Ks_Fit_Line;
       Result      : Ks_Fit_Line_Result;
    end record;
-   --  CogFitLineTool.
+   --  The line fitting tool.
 
    overriding procedure Execute (Tool : in out Ks_Fit_Line_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Fit_Line_Tool);
@@ -243,7 +239,7 @@ package AMV.Dimensioning.Fitting is
       Run_Params  : Ks_Fit_Circle;
       Result      : Ks_Fit_Circle_Result;
    end record;
-   --  CogFitCircleTool.
+   --  The circle fitting tool.
 
    overriding procedure Execute (Tool : in out Ks_Fit_Circle_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Fit_Circle_Tool);
@@ -253,7 +249,7 @@ package AMV.Dimensioning.Fitting is
       Run_Params  : Ks_Fit_Ellipse;
       Result      : Ks_Fit_Ellipse_Result;
    end record;
-   --  CogFitEllipseTool.
+   --  The ellipse fitting tool.
 
    overriding procedure Execute (Tool : in out Ks_Fit_Ellipse_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Fit_Ellipse_Tool);

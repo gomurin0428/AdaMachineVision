@@ -1,8 +1,5 @@
---  The IP one-image tool: the counterpart of VisionPro's CogIPOneImageTool
---  and its operators (CogIPOneImageOperators, ICogIPOneImageOperator and
---  the operator classes CogIPOneImageGreyMorphologyNxM,
---  CogIPOneImageFlipRotate, CogIPOneImageGaussSampler, ...). The tool runs
---  a list of operators one after the other on Input_Image and produces
+--  The IP one-image tool, Ks_IP_One_Image_Tool, and its operators. The tool
+--  runs a list of operators one after the other on Input_Image and produces
 --  Output_Image:
 --
 --     Op : Ks_IP_One_Image_Operator := New_Operator (Median_NxM);
@@ -14,13 +11,12 @@
 --     Out := Tool.Output_Image;
 --
 --  Operators. An operator is one record, Ks_IP_One_Image_Operator: its
---  Kind (one per VisionPro operator class), Enabled, and one component per
---  class holding that class's properties under their VisionPro names
---  (Op.Grey_Morphology_NxM.Operation, Op.Flip_Rotate.
---  Operation_In_Pixel_Space, ...); only the component of the operator's
---  own kind is used. New_Operator (Kind) is the class's constructor.
---  Enumerated properties are Int32 codes with VisionPro's values; the Code
---  functions below give them:
+--  Kind (one per operator class), Enabled, and one component per class
+--  holding that class's properties (Op.Grey_Morphology_NxM.Operation,
+--  Op.Flip_Rotate.Operation_In_Pixel_Space, ...); only the component of
+--  the operator's own kind is used. New_Operator (Kind) is the class's
+--  constructor. Enumerated properties are Int32 codes; the Code functions
+--  below give them:
 --
 --     Op.Grey_Morphology_NxM.Operation := Code (Open);
 --
@@ -34,14 +30,13 @@
 --  erosion and dilation and the flips and rotations.
 --
 --  Region: each operator changes only the pixels the Region covers
---  (AMV.Regions.Rasterize; an empty holder means the whole image), and
---  the others keep their input values; neighbourhood operators read every
---  pixel of the image. This differs from VisionPro, whose RegionMode crops
---  the output to the region's bounding box. The operators that change the
---  pixel grid (a FlipRotate other than None, a SubSampler or an Expand
---  with a factor above 1, a GaussSampler with SampleX or SampleY above 1)
---  need the whole image: Run fails with Ks_Bad_Parameter_Exception when
---  Region is not empty (or covers less than the whole image).
+--  (AMV.Regions.Rasterize; an empty holder means the whole image), and the
+--  others keep their input values; neighbourhood operators read every pixel
+--  of the image. The operators that change the pixel grid (a FlipRotate
+--  other than None, a SubSampler or an Expand with a factor above 1, a
+--  GaussSampler with SampleX or SampleY above 1) need the whole image: Run
+--  fails with Ks_Bad_Parameter_Exception when Region is not empty (or
+--  covers less than the whole image).
 --
 --  Output_Image has the coordinate space tree and the selected space of
 --  Input_Image. Its pixel-from-root transform is the input's, composed
@@ -91,9 +86,7 @@ package AMV.Image_Processing.IP_One_Image is
       Median_NxM, Multiply_Constant, Pixel_Map, Quantize, Box_Filter,
       Threshold, Unsharp_Mask, Expand, High_Pass_Filter, Sub_Sampler,
       Pel_Set);
-   --  (AMV name) One kind per operator class: Add_Subtract_Constant stands
-   --  for CogIPOneImageAddSubtractConstant, and so on; Box_Filter,
-   --  Threshold and Unsharp_Mask are operators of our own (AMV names).
+   --  One kind per operator class.
 
    type Ks_IP_One_Image_Morphology_Operation_Constants is
      (Erode, Dilate, Open, Close, Dilate_Minus_Erode, Close_Minus_Original,
@@ -112,15 +105,14 @@ package AMV.Image_Processing.IP_One_Image is
 
    type Ks_IP_One_Image_Quantize_Level_Constants is
      (S_2, S_4, S_8, S_16, S_32, S_64, S_128);
-   --  VisionPro's s2 .. s128: the number of grey levels kept.
+   --  The number of grey levels kept.
 
    type Ks_IP_One_Image_Add_Subtract_Constant_Overflow_Mode_Constants is
      (Bounded, Wrap);
    subtype Ks_IP_One_Image_Multiply_Constant_Overflow_Mode_Constants is
      Ks_IP_One_Image_Add_Subtract_Constant_Overflow_Mode_Constants;
-   --  VisionPro has two enumerations with the same values; here the second
-   --  is a subtype of the first, so that Bounded and Wrap need no
-   --  qualification.
+   --  The second is a subtype of the first, so that Bounded and Wrap need
+   --  no qualification.
 
    type Ks_IP_One_Image_Boundary_Mode_Constants is (Clipped, Reflected);
    for Ks_IP_One_Image_Boundary_Mode_Constants use
@@ -143,8 +135,7 @@ package AMV.Image_Processing.IP_One_Image is
       South_East);
 
    subtype Ks_Region_Mode_Constants is Int32 range 0 .. 2;
-   --  CogRegionModeConstants (Cognex.VisionPro), with VisionPro's values:
-   --  the codes of the tool's Region_Mode.
+   --  The codes of the tool's Region_Mode.
 
    Pixel_Aligned_Bounding_Box_Adjust_Mask :
      constant Ks_Region_Mode_Constants :=
@@ -226,7 +217,7 @@ package AMV.Image_Processing.IP_One_Image is
    --  is not one).
 
    ---------------------------------------------------------------------
-   --  Operators (ICogIPOneImageOperator and the operator classes)
+   --  Operators
    ---------------------------------------------------------------------
 
    subtype Ks_IP_One_Image_Add_Subtract_Constant is
@@ -258,11 +249,11 @@ package AMV.Image_Processing.IP_One_Image is
    subtype Ks_IP_One_Image_Quantize is KO.Ks_IP_One_Image_Quantize;
    --  Levels (S_2).
    subtype Ks_IP_One_Image_Box_Filter is KO.Ks_IP_One_Image_Box_Filter;
-   --  (AMV name) Kernel_Width (3), Kernel_Height (3).
+   --  Kernel_Width (3), Kernel_Height (3).
    subtype Ks_IP_One_Image_Threshold is KO.Ks_IP_One_Image_Threshold;
-   --  (AMV name) Threshold (128), Low_Value (0), High_Value (255).
+   --  Threshold (128), Low_Value (0), High_Value (255).
    subtype Ks_IP_One_Image_Unsharp_Mask is KO.Ks_IP_One_Image_Unsharp_Mask;
-   --  (AMV name) Amount (1.0), Smoothness_X (2), Smoothness_Y (2).
+   --  Amount (1.0), Smoothness_X (2), Smoothness_Y (2).
    subtype Ks_IP_One_Image_Expand is KO.Ks_IP_One_Image_Expand;
    --  Expansion_X (2), Expansion_Y (2).
    subtype Ks_IP_One_Image_High_Pass_Filter is
@@ -308,7 +299,7 @@ package AMV.Image_Processing.IP_One_Image is
    procedure Set_Enabled
      (Operator : in out Ks_IP_One_Image_Operator;
       Value    : Boolean);
-   --  ICogIPOneImageOperatorParams.Enabled: a disabled operator is skipped.
+   --  A disabled operator is skipped.
 
    function Get_Kernel_Value
      (Params   : Ks_IP_One_Image_Convolve_NxM;
@@ -317,7 +308,7 @@ package AMV.Image_Processing.IP_One_Image is
      (Params    : in out Ks_IP_One_Image_Convolve_NxM;
       Col, Row  : Natural;
       New_Value : Real);
-   --  GetKernelValue / SetKernelValue of CogIPOneImageConvolveNxM:
+   --  GetKernelValue / SetKernelValue of ConvolveNxM:
    --  Ks_Bad_Parameter_Exception unless Col < Kernel_Width and Row <
    --  Kernel_Height (and, for Set, New_Value is finite and within
    --  +/-1.0E6).
@@ -331,8 +322,8 @@ package AMV.Image_Processing.IP_One_Image is
    procedure Set_Kernel
      (Params : in out Ks_IP_One_Image_Convolve_3x3;
       Kernel : Convolve_3x3_Kernel);
-   --  GetKernel / SetKernel of CogIPOneImageConvolve3x3 (the values are
-   --  checked when the tool runs).
+   --  The whole kernel of Convolve3x3 (the values are checked when the
+   --  tool runs).
 
    function Get_Kernel_Value
      (Params   : Ks_IP_One_Image_Convolve_3x3;
@@ -342,12 +333,12 @@ package AMV.Image_Processing.IP_One_Image is
      (Params   : in out Ks_IP_One_Image_Convolve_3x3;
       Position : Ks_IP_One_Image_Convolve_3x3_Position_Constants;
       Value    : Real);
-   --  GetKernelValue / SetKernelValue (position) of
-   --  CogIPOneImageConvolve3x3 (Set: Ks_Bad_Parameter_Exception unless
-   --  Value is finite and within +/-1.0E6).
+   --  GetKernelValue / SetKernelValue (position) of Convolve3x3 (Set:
+   --  Ks_Bad_Parameter_Exception unless Value is finite and within
+   --  +/-1.0E6).
 
    ---------------------------------------------------------------------
-   --  The operator list (CogIPOneImageOperators)
+   --  The operator list
    ---------------------------------------------------------------------
 
    subtype Ks_IP_One_Image_Operators is KO.Ks_IP_One_Image_Operators;
@@ -396,14 +387,14 @@ package AMV.Image_Processing.IP_One_Image is
    --  Removes every operator.
 
    ---------------------------------------------------------------------
-   --  The tool (CogIPOneImageTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_IP_One_Image_Masks is
      array (0 .. KO.Max_Operators - 1) of AMV.Images.Ks_Image_8_Grey;
-   --  (AMV name) The InputImageMask of each operator of a list, by the
-   --  operator's index (unallocated: none). A mask stays at its index
-   --  when operators are inserted, removed or moved.
+   --  The InputImageMask of each operator of a list, by the operator's
+   --  index (unallocated: none). A mask stays at its index when operators
+   --  are inserted, removed or moved.
 
    type Ks_IP_One_Image_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image       : AMV.Images.Ks_Image_8_Grey;

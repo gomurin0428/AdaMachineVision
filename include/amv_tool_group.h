@@ -1,8 +1,7 @@
 /*
  * AdaMachineVision (AMV) C API: the tool group and the terminals of a tool
- * block (AMV.Kernels.Tool_Group, the counterpart of CogToolGroup and of
- * the CogToolBlockTerminalCollection of a CogToolBlock). Included by
- * amv.h; the conventions of amv.h apply (ks_status, adainit).
+ * block (AMV.Kernels.Tool_Group). Included by amv.h; the conventions of
+ * amv.h apply (ks_status, adainit).
  *
  * A group does not run tools itself: it holds every decision of a run
  * (which member runs next, when the run stops, its result and message)
@@ -11,12 +10,12 @@
  * Groups. A ks_tool_group * is an owned handle (NULL is an empty group:
  * own key 0, AbortRunOnToolFailure 0). Its members are 64-bit keys chosen
  * by the caller (the Ada API uses the tools' addresses), each with a
- * disabled flag (VisionPro's DisabledTools: a disabled member stays in
- * the group and is skipped by a run). A key is a member at most once and
- * never equals the group's own key (KS_FAILURE_BAD_PARAMETER for a
- * duplicate, for the own key and beyond KS_TOOL_GROUP_MAX_MEMBERS). The
- * functions taking ks_tool_group ** create the group when *group is NULL.
- * Indices are 0-based (KS_FAILURE_INDEX_OUT_OF_RANGE outside).
+ * disabled flag (DisabledTools: a disabled member stays in the group and
+ * is skipped by a run). A key is a member at most once and never equals
+ * the group's own key (KS_FAILURE_BAD_PARAMETER for a duplicate, for the
+ * own key and beyond KS_TOOL_GROUP_MAX_MEMBERS). The functions taking
+ * ks_tool_group ** create the group when *group is NULL. Indices are
+ * 0-based (KS_FAILURE_INDEX_OUT_OF_RANGE outside).
  *
  * Runs. A run goes through a cursor that the caller owns and passes back
  * unchanged:
@@ -35,19 +34,19 @@
  *
  * script_result and script_message start the run's result and message
  * (KS_TOOL_RESULT_ACCEPT and an empty text without a script); run_tools 0
- * runs no member (a script's GroupRun returned false). run_next offers
- * the enabled members in order, each once; with AbortRunOnToolFailure set
- * it offers none after a member reported KS_TOOL_RESULT_ERROR (only Error
- * stops a run). run_end returns the worst result (Error > Reject > Warning
- * > Accept), the first member that did not accept (KS_TOOL_GROUP_NO_INDEX
- * for none) and the message: the script's message, then "<name>: <the
- * member's message>" for that member ("tool <index>" without a name, its
- * result without a message), joined by "; ", cut at
- * KS_TOOL_TEXT_MAX_LENGTH characters. A run of a group that is running
- * already, a cursor of another run, a call out of order and any change of
- * the group during the run give KS_FAILURE_BAD_PARAMETER; after a failed
- * run_next or run_report, more is 0 and run_end reports the failure.
- * run_end always ends the run its cursor belongs to.
+ * runs no member (the script's choice). run_next offers the enabled
+ * members in order, each once; with AbortRunOnToolFailure set it offers
+ * none after a member reported KS_TOOL_RESULT_ERROR (only Error stops a
+ * run). run_end returns the worst result
+ * (Error > Reject > Warning > Accept), the first member that did not
+ * accept (KS_TOOL_GROUP_NO_INDEX for none) and the message: the script's
+ * message, then "<name>: <the member's message>" for that member ("tool
+ * <index>" without a name, its result without a message), joined by "; ",
+ * cut at KS_TOOL_TEXT_MAX_LENGTH characters. A run of a group that is
+ * running already, a cursor of another run, a call out of order and any
+ * change of the group during the run give KS_FAILURE_BAD_PARAMETER; after
+ * a failed run_next or run_report, more is 0 and run_end reports the
+ * failure. run_end always ends the run its cursor belongs to.
  *
  * Terminals. A ks_tool_block_terminals * is an owned handle (NULL is the
  * empty collection) of up to KS_TOOL_BLOCK_MAX_TERMINALS named terminals:
@@ -71,9 +70,6 @@
  * The meaning of every field and operation is documented in
  * src/amv-kernels-tool_group.ads, src/amv-tool_group.ads and
  * src/amv-tool_block.ads.
- *
- * AMV is not affiliated with or endorsed by Cognex Corporation; "Cognex"
- * and "VisionPro" are trademarks of Cognex Corporation.
  */
 
 #ifndef AMV_TOOL_GROUP_H
@@ -91,13 +87,13 @@ extern "C" {
 #define KS_TOOL_TEXT_MAX_LENGTH       1024
 #define KS_TOOL_GROUP_NO_INDEX        (-1)
 
-/* CogToolResultConstants (VisionPro's values). */
+/* The results of a tool. */
 #define KS_TOOL_RESULT_ERROR   (-1)
 #define KS_TOOL_RESULT_ACCEPT  0
 #define KS_TOOL_RESULT_WARNING 1
 #define KS_TOOL_RESULT_REJECT  2
 
-/* Terminal value types (AMV codes). */
+/* Terminal value types. */
 #define KS_TOOL_BLOCK_TYPE_REAL          0 /* double */
 #define KS_TOOL_BLOCK_TYPE_INTEGER       1 /* int64_t */
 #define KS_TOOL_BLOCK_TYPE_BOOLEAN       2 /* int32_t 0 or 1 */
@@ -240,16 +236,15 @@ void ks_tool_group_run_end(ks_tool_group *group,
                            int32_t *first_failure, ks_tool_text *message,
                            ks_status *status);
 
-/* CogToolGroup.RunTool, the decisions (a script runs one tool):
-   run_tool_begin sets *run to 0 when key is a member of the group in
-   DisabledTools (the tool does not run), 1 otherwise (also for a tool
-   that is not a member). After the tool ran with sub_result,
-   run_tool_end makes *result the worse of *result and sub_result
-   (Error > Reject > Warning > Accept), sets *replace to 1 when
-   sub_result is strictly worse (take the tool's message too) and
-   *abort_run to 1 when sub_result is KS_TOOL_RESULT_ERROR and the group
-   has AbortRunOnToolFailure (RunTool then fails). Bad parameter for a
-   result code outside -1 .. 2. */
+/* RunTool, the decisions (a script runs one tool): run_tool_begin sets
+   *run to 0 when key is a member of the group in DisabledTools (the tool
+   does not run), 1 otherwise (also for a tool that is not a member).
+   After the tool ran with sub_result, run_tool_end makes *result the
+   worse of *result and sub_result (Error > Reject > Warning > Accept),
+   sets *replace to 1 when sub_result is strictly worse (take the tool's
+   message too) and *abort_run to 1 when sub_result is
+   KS_TOOL_RESULT_ERROR and the group has AbortRunOnToolFailure (RunTool
+   then fails). Bad parameter for a result code outside -1 .. 2. */
 void ks_tool_group_run_tool_begin(const ks_tool_group *group, int64_t key,
                                   int32_t *run, ks_status *status);
 void ks_tool_group_run_tool_end(const ks_tool_group *group,
@@ -258,7 +253,7 @@ void ks_tool_group_run_tool_end(const ks_tool_group *group,
                                 ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Terminals (CogToolBlockTerminalCollection)                          */
+/* Terminals                                                           */
 /* ------------------------------------------------------------------ */
 
 void ks_tool_block_terminals_create(ks_tool_block_terminals **terminals,

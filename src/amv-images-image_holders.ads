@@ -1,6 +1,5 @@
---  An optional image of any type, as used for a tool's input that
---  VisionPro declares as ICogImage (CogImageConvertTool.InputImage): an
---  empty holder means "no image" (VisionPro's null), which the tools
+--  An optional image of any type, as used for a tool's input that takes
+--  every image type: an empty holder means "no image", which the tools
 --  treat as an image without pixels.
 --
 --     Tool.Input_Image := AMV.Images.Image_Holders.To_Holder (Colour);

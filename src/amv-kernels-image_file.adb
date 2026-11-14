@@ -3341,7 +3341,7 @@ package body AMV.Kernels.Image_File with SPARK_Mode is
    end Count_For_Update;
 
    ---------------------------------------------------------------------
-   --  The state rules of CogImageFile and CogImageFileTool
+   --  The state rules of an image file and of the image file tool
    ---------------------------------------------------------------------
 
    procedure Check_Open_Mode

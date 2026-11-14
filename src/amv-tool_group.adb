@@ -29,8 +29,7 @@ package body AMV.Tool_Group is
       Warning       => KG.Result_Warning,
       Reject        => KG.Result_Reject,
       Error         => KG.Result_Error];
-   --  CogToolResultConstants as the kernel codes them (VisionPro's
-   --  values).
+   --  Ks_Tool_Result_Constants as the kernel codes them.
 
    Results : constant array (KG.Result_Code) of Ks_Tool_Result_Constants :=
      [KG.Result_Error   => Error,

@@ -1,9 +1,8 @@
 --  The pixel map tool: a lookup table applied to the pixels of a region.
---  VisionPro offers this operation as CogIPOneImagePixelMap, an operator of
---  CogIPOneImageTool; AMV also offers it as a tool of its own,
---  Ks_Pixel_Map_Tool (an AMV name: VisionPro 9.23 has no CogPixelMapTool),
---  whose run parameters are the operator's (Ks_IP_One_Image_Pixel_Map:
---  GetMap / SetMap).
+--  The IP one-image tool has this operation as its Pixel_Map operator
+--  (AMV.Image_Processing.IP_One_Image); Ks_Pixel_Map_Tool offers it as a
+--  tool of its own, whose run parameters are the operator's
+--  (Ks_IP_One_Image_Pixel_Map, with Get_Map and Set_Map).
 --
 --     Tool.Input_Image := Image;
 --     Tool.Run_Params.Map (0) := 255;    --  or Set_Map (Tool.Run_Params, M)
@@ -46,17 +45,17 @@ package AMV.Image_Processing.Pixel_Map is
 
    subtype Ks_IP_One_Image_Pixel_Map is
      AMV.Kernels.Pixel_Map.Ks_IP_One_Image_Pixel_Map;
-   --  The run parameters (CogIPOneImagePixelMap): a record with the one
-   --  component Map (default Identity_Map).
+   --  The run parameters: a record with the one component Map (default
+   --  Identity_Map).
 
    function Get_Map (Params : Ks_IP_One_Image_Pixel_Map)
       return Pixel_Map_Table;
-   --  A copy of the map (VisionPro: GetMap).
+   --  A copy of the map.
 
    procedure Set_Map
      (Params : in out Ks_IP_One_Image_Pixel_Map;
       Map    : Pixel_Map_Table);
-   --  Replaces the map (VisionPro: SetMap).
+   --  Replaces the map.
 
    type Ks_Pixel_Map_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image  : AMV.Images.Ks_Image_8_Grey;

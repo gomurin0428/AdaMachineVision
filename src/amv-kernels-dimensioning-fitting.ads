@@ -1,17 +1,13 @@
---  Kernel of AMV.Dimensioning.Fitting: the fitting tools CogFitLineTool,
---  CogFitCircleTool and CogFitEllipseTool, with their run parameters
---  (CogFitLine, CogFitCircle, CogFitEllipse) and results
---  (CogFitLineResult, CogFitCircleResult, CogFitEllipseResult). In
---  VisionPro these live in the core namespace Cognex.VisionPro; AMV keeps
---  them with the dimensioning tools. C API: include/amv_dimensioning.h,
---  names ks_fit_*.
+--  Kernel of AMV.Dimensioning.Fitting: the tools that fit a line, a circle
+--  or an ellipse to points, with their run parameters and their results.
+--  C API: include/amv_dimensioning.h, names ks_fit_*.
 --
 --  The points. The list of points a fit uses (AddPoint, DeletePoint,
 --  NumPoints, ...) is variable-sized, so it lives behind an owned handle:
 --  the polygon handle of AMV.Kernels.Shapes, whose vertices are the points
 --  (C: ks_fit_points, the same type as ks_polygon; NULL is an empty list).
---  The ks_fit_points_* entry points below manage it with the VisionPro
---  names; at most Max_Points points (2**20), each within 1.0E150.
+--  The ks_fit_points_* entry points below manage it; at most Max_Points
+--  points (2**20), each within 1.0E150.
 --
 --  What a fit does. Line: the orthogonal least squares line of
 --  ks_geometry_fit_line_robust. Circle: the geometric least squares circle
@@ -33,16 +29,15 @@
 --  in (-Pi/2, Pi/2] (the major axis), or, with the rotation constraint,
 --  exactly the given rotation, with Radius_X along it.
 --
---  NumToIgnore. VisionPro considers every subset of NumPoints -
---  NumToIgnore points. Here points are discarded one at a time, greedily
---  (as ks_find_line_execute and ks_find_circle_execute do): each step tries
---  the fit without each point still in use and drops the point whose
---  removal gives the best fit (the lowest RMS error of the remaining
---  points: radial residuals for circles; for ellipses the distance along
---  the ray from the centre, which is exact on the ellipse and finite at
---  its centre and costs no iteration; ties drop the lowest index). This
---  finds a single gross outlier (it is the exhaustive search for
---  NumToIgnore = 1) and costs NumToIgnore * NumPoints fits.
+--  NumToIgnore. Points are discarded one at a time, greedily (as
+--  ks_find_line_execute and ks_find_circle_execute do): each step tries the
+--  fit without each point still in use and drops the point whose removal
+--  gives the best fit (the lowest RMS error of the remaining points: radial
+--  residuals for circles; for ellipses the distance along the ray from the
+--  centre, which is exact on the ellipse and finite at its centre and costs
+--  no iteration; ties drop the lowest index). This finds a single gross
+--  outlier (it is the exhaustive search for NumToIgnore = 1) and costs
+--  NumToIgnore * NumPoints fits.
 --
 --  Results. A new owned handle (C: ks_fit_result *, one type for the three
 --  fits): NumPoints (the number of points given), for each point its
@@ -51,9 +46,9 @@
 --  line, |distance to centre - radius| for the circle, the distance to the
 --  nearest point of the ellipse, found as for
 --  ks_distance_point_ellipse_execute), RMSError (the root mean square of
---  the distances of the used points), NumPointsUsed (AMV's: the number of
---  used points) and the fitted shape (GetLine, GetCircle or GetEllipse).
---  The shape and the distances are in the space of the points.
+--  the distances of the used points), NumPointsUsed (the number of used
+--  points) and the fitted shape (GetLine, GetCircle or GetEllipse). The
+--  shape and the distances are in the space of the points.
 --
 --  Failures. Bad_Parameter for an inconsistent points handle, for run
 --  parameters out of range ("RunParams.NumToIgnore must be >= 0"), for
@@ -272,7 +267,7 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
      Post => Valid (Status)
              and then Status.Failure in Failure_None | Failure_Bad_Parameter
              and then (if Succeeded (Status) then KS.Count_Of (Points) = 0);
-   --  Removes every point (AMV name; VisionPro sets NumPoints to 0).
+   --  Removes every point.
 
    procedure Points_Duplicate
      (Points : access constant KS.Ks_Polygon_Data;
@@ -303,7 +298,7 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
       Num_To_Ignore : Int32 := 0;
    end record
      with Convention => C;
-   --  CogFitLine without its points (C: ks_fit_line_run_params).
+   --  The run parameters of a line fit (C: ks_fit_line_run_params).
    --  NumToIgnore >= 0.
 
    type Ks_Fit_Circle_Run_Params is record
@@ -312,7 +307,7 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
       Radius_Constraint         : Long_Float := 100.0;
    end record
      with Convention => C;
-   --  CogFitCircle without its points (C: ks_fit_circle_run_params).
+   --  The run parameters of a circle fit (C: ks_fit_circle_run_params).
    --  NumToIgnore >= 0; RadiusConstraintEnabled 0 or 1; RadiusConstraint
    --  in (0, 1.0E150] when it is enabled (finite in any case).
 
@@ -322,7 +317,7 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
       Rotation_Constraint         : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  CogFitEllipse without its points (C: ks_fit_ellipse_run_params).
+   --  The run parameters of an ellipse fit (C: ks_fit_ellipse_run_params).
    --  NumToIgnore >= 0; RotationConstraintEnabled 0 or 1;
    --  RotationConstraint (radians) within 1.0E150.
 
@@ -479,8 +474,8 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
                             and then Result.Kind = Fit_Line
                             and then Result.Count = KS.Count_Of (Points)
                        else Result = null);
-   --  CogFitLine.Execute: fits a line to the points (see above). Returns
-   --  a new result handle (null on failure).
+   --  Fits a line to the points (see above). Returns a new result handle
+   --  (null on failure).
 
    procedure Circle_Execute
      (Points : access constant KS.Ks_Polygon_Data;
@@ -504,8 +499,8 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
                                then Result.Circle.Radius
                                       = Params.Radius_Constraint)
                        else Result = null);
-   --  CogFitCircle.Execute. With RadiusConstraintEnabled the radius is
-   --  exactly RadiusConstraint.
+   --  Fits a circle to the points. With RadiusConstraintEnabled the
+   --  radius is exactly RadiusConstraint.
 
    procedure Ellipse_Execute
      (Points : access constant KS.Ks_Polygon_Data;
@@ -534,8 +529,8 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
                                then Result.Ellipse.Rotation
                                       = Params.Rotation_Constraint)
                        else Result = null);
-   --  CogFitEllipse.Execute. With RotationConstraintEnabled the rotation
-   --  is exactly RotationConstraint.
+   --  Fits an ellipse to the points. With RotationConstraintEnabled the
+   --  rotation is exactly RotationConstraint.
 
    procedure Result_Destroy (Result : in out Ks_Fit_Result)
    with
@@ -582,7 +577,7 @@ package AMV.Kernels.Dimensioning.Fitting with SPARK_Mode, Preelaborate is
              and then Count in 0 .. Max_Points
              and then (if Succeeded (Status) and then Result /= null
                        then Count = Int32 (Result.Num_Points_Used));
-   --  The number of points the fit used (AMV name; 0 for null).
+   --  The number of points the fit used (0 for null).
 
    procedure Result_RMS_Error
      (Result    : access constant Ks_Fit_Result_Data;

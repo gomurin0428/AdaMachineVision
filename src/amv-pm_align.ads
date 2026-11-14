@@ -1,7 +1,7 @@
---  Geometric pattern location: the counterpart of Cognex.VisionPro.PMAlign
---  (CogPMAlignTool, CogPMAlignPattern, CogPMAlignRunParams with its zones
---  CogPMAlignZoneAngle and CogPMAlignZoneScale, CogPMAlignResults and
---  CogPMAlignResult).
+--  Geometric pattern location: Ks_PM_Align_Tool, its pattern
+--  Ks_PM_Align_Pattern, the run parameters Ks_PM_Align_Run_Params with the
+--  zones Ks_PM_Align_Zone_Angle and Ks_PM_Align_Zone_Scale, and the results
+--  Ks_PM_Align_Results and Ks_PM_Align_Result.
 --
 --  A pattern is trained once on an image and then located, turned and
 --  scaled, in other images:
@@ -16,19 +16,17 @@
 --     if Tool.Results.Count > 0 then
 --        Pose := Get_Pose (Tool.Results.Item (0));
 --
---  The method is our own (VisionPro's PatMax and PatQuick are Cognex's
---  algorithms, which we do not reproduce): gradient-direction shape
---  matching (Steger's similarity measure) on a coarse-to-fine pyramid,
---  followed (PatMax) by a least squares refinement on sub-pixel edge
---  points. AMV.Kernels.PM_Align, the SPARK kernel that does all the work
---  (C API: include/amv_pm_align.h), describes it, every measure (Score,
---  Coverage, Clutter, FitError, Contrast) and every limit. Its proofs
---  cover, besides the absence of run-time errors, that an untrained
---  pattern never yields results and, of every run, that there are at
---  most ApproximateNumberToFind results, sorted by score, each with a
---  Score in [AcceptThreshold, 1], Coverage and Clutter in [0, 1],
---  FitError >= 0, its rotation and scaling in the zones and its
---  translation within 1.0E150.
+--  The method is our own: gradient-direction shape matching (Steger's
+--  similarity measure) on a coarse-to-fine pyramid, followed (PatMax) by a
+--  least squares refinement on sub-pixel edge points. AMV.Kernels.PM_Align,
+--  the SPARK kernel that does all the work (C API: include/amv_pm_align.h),
+--  describes it, every measure (Score, Coverage, Clutter, FitError,
+--  Contrast) and every limit. Its proofs cover, besides the absence of
+--  run-time errors, that an untrained pattern never yields results and, of
+--  every run, that there are at most ApproximateNumberToFind results,
+--  sorted by score, each with a Score in [AcceptThreshold, 1], Coverage and
+--  Clutter in [0, 1], FitError >= 0, its rotation and scaling in the zones
+--  and its translation within 1.0E150.
 --
 --  Coordinates. The pattern's coordinates are the train image's selected
 --  space mapped by the inverse of Origin (the transform from pattern
@@ -42,9 +40,9 @@
 --  results.
 --
 --  Run parameters: Ks_PM_Align_Run_Params is the kernel's C-compatible
---  record, so enumerations are Int32 codes (VisionPro's numeric values)
---  and Booleans 0 or 1; the Code functions give the codes. Two enumeration
---  types share literal names (Pat_Max, Pat_Quick), so qualify them:
+--  record, so enumerations are Int32 codes and Booleans 0 or 1; the Code
+--  functions give the codes. Two enumeration types share literal names
+--  (Pat_Max, Pat_Quick), so qualify them:
 --
 --     Tool.Run_Params.Run_Algorithm :=
 --       Code (Ks_PM_Align_Run_Algorithm_Constants'(Pat_Quick));
@@ -79,19 +77,18 @@ package AMV.PM_Align is
    type Ks_PM_Align_Train_Algorithm_Constants is
      (Pat_Max, Pat_Quick, Pat_Max_And_Pat_Quick, Pat_Flex,
       Pat_Max_High_Sensitivity, Pat_Max_Perspective);
-   --  CogPMAlignTrainAlgorithmConstants. The first three train the same
-   --  model here; the others are not supported (Train raises
-   --  Ks_Bad_Parameter_Exception).
+   --  The train algorithms. The first three train the same model; the
+   --  others are not supported (Train raises Ks_Bad_Parameter_Exception).
 
    type Ks_PM_Align_Run_Algorithm_Constants is
      (Pat_Max, Pat_Quick, Best_Trained, Pat_Flex, Pat_Max_Perspective);
-   --  CogPMAlignRunAlgorithmConstants. Pat_Quick: the grid search alone;
-   --  Pat_Max: with the least squares refinement and the edge-based
-   --  measures; Best_Trained: Pat_Max unless the pattern was trained with
-   --  Pat_Quick only. Pat_Flex and Pat_Max_Perspective are not supported.
+   --  The run algorithms. Pat_Quick: the grid search alone; Pat_Max: with
+   --  the least squares refinement and the edge-based measures;
+   --  Best_Trained: Pat_Max unless the pattern was trained with Pat_Quick
+   --  only. Pat_Flex and Pat_Max_Perspective are not supported.
 
    type Ks_PM_Align_Zone_Constants is (Nominal, Low_High);
-   --  CogPMAlignZoneConstants.
+   --  The configurations of a zone.
 
    function Code (Value : Ks_PM_Align_Train_Algorithm_Constants) return Int32
    is (Ks_PM_Align_Train_Algorithm_Constants'Pos (Value));
@@ -113,19 +110,19 @@ package AMV.PM_Align is
    --  is not one).
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogPMAlignRunParams)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_PM_Align_Zone_Angle is KP.Ks_PM_Align_Zone_Angle;
-   --  CogPMAlignZoneAngle: Configuration (Nominal), Low (-Pi), High (Pi),
+   --  The angle zone: Configuration (Nominal), Low (-Pi), High (Pi),
    --  Nominal (0.0), radians.
 
    subtype Ks_PM_Align_Zone_Scale is KP.Ks_PM_Align_Zone_Scale;
-   --  CogPMAlignZoneScale: Configuration (Nominal), Low (0.9), High (1.1),
+   --  The scale zone: Configuration (Nominal), Low (0.9), High (1.1),
    --  Nominal (1.0).
 
    subtype Ks_PM_Align_Run_Params is KP.Ks_PM_Align_Run_Params;
-   --  The components and AMV defaults of CogPMAlignRunParams:
+   --  The components and their defaults:
    --  Accept_Threshold (0.5), Coarse_Accept_Threshold (0.3) with
    --  Coarse_Accept_Threshold_Enabled (0), Contrast_Threshold (10.0, a
    --  gradient magnitude in grey levels per pixel), Outside_Region_
@@ -140,7 +137,7 @@ package AMV.PM_Align is
    --  "RunParams.AcceptThreshold must be in [0, 1]").
 
    ---------------------------------------------------------------------
-   --  The pattern (CogPMAlignPattern)
+   --  The pattern
    ---------------------------------------------------------------------
 
    type Ks_PM_Align_Pattern is tagged private;
@@ -268,18 +265,16 @@ package AMV.PM_Align is
    function Get_Trained_Features
      (Pattern : Ks_PM_Align_Pattern;
       Fine    : Boolean := True) return Ks_PM_Align_Feature_Array;
-   --  (AMV name) The trained features of the finest level (Fine) or of the
-   --  coarsest, each a point and its unit normal in pattern coordinates
-   --  (VisionPro draws them with CreateGraphicsFine and
-   --  CreateGraphicsCoarse). Ks_Operator_Not_Trained_Exception for an
-   --  untrained pattern.
+   --  The trained features of the finest level (Fine) or of the coarsest,
+   --  each a point and its unit normal in pattern coordinates.
+   --  Ks_Operator_Not_Trained_Exception for an untrained pattern.
 
    ---------------------------------------------------------------------
-   --  Results (CogPMAlignResults, CogPMAlignResult)
+   --  Results
    ---------------------------------------------------------------------
 
    subtype Ks_PM_Align_Result is KP.Ks_PM_Align_Result;
-   --  CogPMAlignResult: Score, Coverage, Clutter, Fit_Error, Contrast,
+   --  A result: Score, Coverage, Clutter, Fit_Error, Contrast,
    --  Outside_Region_Feature_Proportion, ID (its index), Fine_Stage (1 for
    --  PatMax) and the pose (Translation_X, Translation_Y, Rotation,
    --  Scaling).
@@ -303,7 +298,7 @@ package AMV.PM_Align is
    --  Count - 1.
 
    ---------------------------------------------------------------------
-   --  The tool (CogPMAlignTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_PM_Align_Tool is new AMV.Tools.Ks_Tool with record
@@ -316,18 +311,16 @@ package AMV.PM_Align is
       Search_Image_Mask_Offset_X : Integer := 0;
       Search_Image_Mask_Offset_Y : Integer := 0;
    end record;
-   --  CogPMAlignTool. Search_Image_Mask and its offsets stand for
-   --  CogPMAlignRunParams.SearchImageMask, SearchImageMaskOffsetX and
-   --  SearchImageMaskOffsetY (components of the tool here, since the run
-   --  parameters are the kernel's C record). AMV's meaning: mask pixel
-   --  (U, V) covers input pixel (U + Offset_X, V + Offset_Y); the pixels
-   --  under mask pixels of value 0 are left out of the search region
+   --  Search_Image_Mask and its offsets are components of the tool, since
+   --  the run parameters are the kernel's C record. Mask pixel (U, V)
+   --  covers input pixel (U + Offset_X, V + Offset_Y); the pixels under
+   --  mask pixels of value 0 are left out of the search region
    --  (AMV.Regions.Restrict_To_Mask), so they count as outside it: no
    --  feature matches there, a feature over them counts towards
    --  Outside_Region_Threshold (raise it when the mask covers much of an
    --  instance) and Clutter does not count edges there. Default: no mask
-   --  (an unallocated image) and offsets 0. Run fails (Run_Status Error) with
-   --  Ks_Operator_Not_Trained_Exception for an untrained pattern,
+   --  (an unallocated image) and offsets 0. Run fails (Run_Status Error)
+   --  with Ks_Operator_Not_Trained_Exception for an untrained pattern,
    --  Ks_Bad_Parameter_Exception for bad run parameters,
    --  Ks_Image_No_Pixels_Exception for an unallocated input image.
 

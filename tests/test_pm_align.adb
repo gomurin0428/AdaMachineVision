@@ -1,5 +1,4 @@
---  Tests for AMV.PM_Align (CogPMAlignTool) and its kernel
---  AMV.Kernels.PM_Align.
+--  Tests for AMV.PM_Align and its kernel AMV.Kernels.PM_Align.
 --
 --  The pattern is an asymmetric shape drawn with AMV_Test_Images: an L
 --  (a polygon) with a dark round hole in its long arm and a separate disc
@@ -287,7 +286,7 @@ procedure Test_PM_Align is
              and then Code (Ks_PM_Align_Train_Algorithm_Constants'
                               (Pat_Max_And_Pat_Quick)) = 2
              and then Code (Low_High) = 1,
-             "VisionPro's enumeration values");
+             "the enumeration values");
    end Test_Defaults;
 
    procedure Test_Features is

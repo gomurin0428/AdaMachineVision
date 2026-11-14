@@ -1,11 +1,11 @@
---  Kernel of AMV.Caliper: the caliper (CogCaliperTool, run parameters
---  CogCaliper, results CogCaliperResults) and the scorers that rank its
---  candidates (CogCaliperScorerContrast, CogCaliperScorerPosition, ...).
---  Its entry points are the C API of the caliper (include/amv_caliper.h,
---  names ks_caliper_*); AMV.Kernels.Find_Line and AMV.Kernels.Find_Circle
---  run it once per caliper.
+--  Kernel of AMV.Caliper: the caliper, whose run parameters are a
+--  Ks_Caliper_Run_Params and whose results are a Ks_Caliper_Results, and
+--  the scorers that rank its candidates. Its entry points are the C API of
+--  the caliper (include/amv_caliper.h, names ks_caliper_*);
+--  AMV.Kernels.Find_Line and AMV.Kernels.Find_Circle run it once per
+--  caliper.
 --
---  What a run does. The region is a CogRectangleAffine: side X is the
+--  What a run does. The region is a Ks_Rectangle_Affine: side X is the
 --  search direction, side Y the projection direction. The kernel maps the
 --  region into pixel space (Pixel_From_Region, from the region's space to
 --  pixel space) and lays a grid of Nx x Ny samples over it, Nx = the pixel
@@ -40,17 +40,15 @@
 --  the stronger edge first, then the earlier one along the search
 --  direction).
 --
---  Scorers (our own design; VisionPro sets a scorer with SetXYParameters
---  (x0, x1, xc, y0, y1), but what the numbers mean here is defined here).
---  A scorer measures one value M of a candidate and maps it through a
---  tent: the score is Y1 at M = XC, changes linearly to Y0 at XC - X0 and
---  at XC + X1, and is Y0 beyond (X0, X1 >= 0 are the half widths below and
---  above XC; a zero half width makes that side Y0 at once). Y0 and Y1 lie
---  in [0, 1], so every score does. The measures (Kind codes, in the order
---  of the VisionPro class names; P is a position along the search
---  direction from the region's centre in selected-space units, H half the
---  search length in the same units, W the width of a pair, Wx =
---  Edge1Position - Edge0Position the expected width):
+--  Scorers. A scorer measures one value M of a candidate and maps it
+--  through a tent: the score is Y1 at M = XC, changes linearly to Y0 at
+--  XC - X0 and at XC + X1, and is Y0 beyond (X0, X1 >= 0 are the half
+--  widths below and above XC; a zero half width makes that side Y0 at
+--  once). Y0 and Y1 lie in [0, 1], so every score does. The measures (Kind
+--  codes; P is a position along the search direction from the region's
+--  centre in selected-space units, H half the search length in the same
+--  units, W the width of a pair, Wx = Edge1Position - Edge0Position the
+--  expected width):
 --
 --    Scorer_Contrast (0)          the contrast magnitude (a pair: the mean
 --                                 of both);                 default: XC =
@@ -147,22 +145,21 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
    --  Codes (C: KS_CALIPER_*)
    ---------------------------------------------------------------------
 
-   --  CogCaliperEdgeModeConstants (VisionPro's values).
+   --  The EdgeMode codes (C: KS_CALIPER_EDGE_MODE_*).
    Edge_Mode_Single_Edge : constant Int32 := 1;
    Edge_Mode_Pair        : constant Int32 := 2;
 
-   --  CogCaliperPolarityConstants (VisionPro's values).
+   --  The Edge0Polarity and Edge1Polarity codes (C: KS_CALIPER_POLARITY_*).
    Polarity_Dark_To_Light : constant Int32 := 1;
    Polarity_Light_To_Dark : constant Int32 := 2;
    Polarity_Dont_Care     : constant Int32 := 3;
 
-   --  CogCaliperSamplingModeConstants (VisionPro's values). Both sample
-   --  bilinearly in this implementation.
+   --  The SamplingMode codes (C: KS_CALIPER_SAMPLING_MODE_*). Both sample
+   --  bilinearly.
    Sampling_Mode_Bilinear_Interpolation : constant Int32 := 2;
    Sampling_Mode_Bilinear_Accurate      : constant Int32 := 4;
 
-   --  Scorer kinds, one per CogCaliperScorer* class (AMV codes, in the
-   --  order of the class names).
+   --  The scorer Kind codes (C: KS_CALIPER_SCORER_*).
    Scorer_Contrast            : constant Int32 := 0;
    Scorer_Position            : constant Int32 := 1;
    Scorer_Position_Neg        : constant Int32 := 2;
@@ -199,7 +196,7 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
    --  The most edges a run keeps (the strongest).
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogCaliper; C: ks_caliper_run_params)
+   --  Run parameters (C: ks_caliper_run_params)
    ---------------------------------------------------------------------
 
    type Ks_Caliper_Scorer is record
@@ -224,7 +221,7 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
       Items : Ks_Caliper_Scorer_Array;
    end record
      with Convention => C;
-   --  C: ks_caliper_scorers (CogCaliperScorers): Items (0 .. Count - 1).
+   --  C: ks_caliper_scorers: Items (0 .. Count - 1).
 
    Default_Size_Diff_Norm_Scorer : constant Ks_Caliper_Scorer :=
      (Kind => Scorer_Size_Diff_Norm, Enabled => True_Value,
@@ -258,16 +255,16 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
         Default_Two_Edge_Scorers;
    end record
      with Convention => C;
-   --  C: ks_caliper_run_params; the defaults of CogCaliper. Limits:
-   --  EdgeMode and the polarities are codes above; FilterHalfSizeInPixels
-   --  in 1 .. Max_Filter_Half_Size; MaxResults in 1 .. Max_Results_Limit;
+   --  C: ks_caliper_run_params, with the defaults. Limits: EdgeMode and the
+   --  polarities are codes above; FilterHalfSizeInPixels in
+   --  1 .. Max_Filter_Half_Size; MaxResults in 1 .. Max_Results_Limit;
    --  Edge0Position and Edge1Position finite and within Max_Value;
-   --  ContrastThreshold in [0, Max_Value]; each scorer list holds 0 ..
-   --  Max_Scorers valid scorers (a known Kind, Enabled 0 or 1, X0 and X1
-   --  in [0, Max_Value], XC within Max_Value, Y0 and Y1 in [0, 1]).
+   --  ContrastThreshold in [0, Max_Value]; each scorer list holds
+   --  0 .. Max_Scorers valid scorers (a known Kind, Enabled 0 or 1, X0 and
+   --  X1 in [0, Max_Value], XC within Max_Value, Y0 and Y1 in [0, 1]).
 
    ---------------------------------------------------------------------
-   --  Results (CogCaliperResults; C: ks_caliper_results *, opaque)
+   --  Results (C: ks_caliper_results *, opaque)
    ---------------------------------------------------------------------
 
    type Ks_Caliper_Edge is record
@@ -277,8 +274,8 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
       Contrast   : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_caliper_edge (CogCaliperEdge). Contrast is signed: positive
-   --  for a dark to light edge.
+   --  C: ks_caliper_edge. Contrast is signed: positive for a dark to light
+   --  edge.
 
    type Ks_Caliper_Result is record
       Score      : Long_Float := 0.0;
@@ -290,7 +287,7 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
       Edge_1     : Ks_Caliper_Edge;
    end record
      with Convention => C;
-   --  C: ks_caliper_result (CogCaliperResult).
+   --  C: ks_caliper_result.
 
    type Result_Array is array (Natural range <>) of Ks_Caliper_Result;
    type Result_Array_Access is access Result_Array;
@@ -380,7 +377,7 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
      Export, Convention => C,
      External_Name => "ks_caliper_run_params_default",
      Post => Valid (Status) and then Succeeded (Status);
-   --  The defaults of CogCaliper (the record's default values).
+   --  The default run parameters (the record's default values).
 
    procedure Scorer_Default
      (Kind   : Int32;
@@ -533,15 +530,14 @@ package AMV.Kernels.Caliper with SPARK_Mode, Preelaborate is
                             and then Results.Count
                                        <= Natural (Params.Max_Results)
                        else Results = null);
-   --  Runs the caliper (CogCaliper.Execute) on Image within Region, the
-   --  region in the space that Pixel_From_Region maps to pixel space; the
-   --  results are reported in the space that Selected_From_Pixel maps
-   --  pixel space to. Returns a new results handle (null on failure).
-   --  Image_No_Pixels for a null image ("InputImage has no pixels");
-   --  Bad_Parameter for an inconsistent image handle, a region or
-   --  transform beyond its bounds, a side length of 0 ("Region.SideXLength
-   --  must be > 0"), a region too large (see above), bad run parameters,
-   --  and a result point beyond 1.0E150; Out_Of_Memory.
+   --  Runs the caliper on Image within Region, the region in the space that
+   --  Pixel_From_Region maps to pixel space; the results are reported in
+   --  the space that Selected_From_Pixel maps pixel space to. Returns a new
+   --  results handle (null on failure). Image_No_Pixels for a null image
+   --  ("InputImage has no pixels"); Bad_Parameter for an inconsistent image
+   --  handle, a region or transform beyond its bounds, a side length of 0
+   --  ("Region.SideXLength must be > 0"), a region too large (see above),
+   --  bad run parameters, and a result point beyond 1.0E150; Out_Of_Memory.
 
    procedure Results_Destroy (Results : in out Ks_Caliper_Results)
    with

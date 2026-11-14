@@ -1,7 +1,7 @@
---  Tests for AMV.Dimensioning (the measuring tools of
---  Cognex.VisionPro.Dimensioning), AMV.Dimensioning.Fitting (CogFitLine,
---  CogFitCircle, CogFitEllipse and their tools) and their kernels
---  AMV.Kernels.Dimensioning and AMV.Kernels.Dimensioning.Fitting.
+--  Tests for AMV.Dimensioning (the measuring tools),
+--  AMV.Dimensioning.Fitting (the fits of lines, circles and ellipses, and
+--  their tools) and their kernels AMV.Kernels.Dimensioning and
+--  AMV.Kernels.Dimensioning.Fitting.
 --
 --  The expected values are worked out by hand in the comments; the
 --  ellipse distances are compared with a dense sampling of the ellipse,
@@ -307,7 +307,7 @@ procedure Test_Dimensioning is
       PC.X := 3.0;
       PC.Run;
       Check (PC.Distance = -2.0 and then PC.Circle_X = 5.0,
-             "inside: negative (VisionPro)");
+             "inside: negative");
       PC.X := 3.0;
       PC.Y := 4.0;
       PC.Run;
@@ -318,7 +318,7 @@ procedure Test_Dimensioning is
       PC.Run;
       Check (PC.Distance = 5.0 and then PC.Circle_X = 5.0
              and then PC.Circle_Y = 0.0,
-             "at the centre: +Radius and the point at angle 0 (VisionPro)");
+             "at the centre: +Radius and the point at angle 0");
    end Test_Point_Distances;
 
    procedure Test_Ellipse_Distances is
@@ -362,7 +362,7 @@ procedure Test_Dimensioning is
       PE.Y := 0.0;
       PE.Run;
       Check (PE.Distance = 4.0,
-             "the centre of a circular ellipse: +Radius (VisionPro)");
+             "the centre of a circular ellipse: +Radius");
 
       --  Generic points against dense sampling.
       for Trial in 1 .. 40 loop
@@ -483,7 +483,7 @@ procedure Test_Dimensioning is
       SC.Run;
       Check (SC.Distance = -3.0 and then SC.Segment_X = 2.0
              and then SC.Circle_X = 5.0,
-             "inside: the farther end point, negative (VisionPro)");
+             "inside: the farther end point, negative");
       SC.Segment := New_Segment (0.0, 0.0, 10.0, 0.0);
       SC.Run;
       Check (SC.Distance = 0.0 and then SC.Segment_X = 0.0,
@@ -608,7 +608,7 @@ procedure Test_Dimensioning is
       LL.Run;
       Check (LL.Intersects and then LL.Num_Points = -1
              and then LL.X = 0.0 and then LL.Y = 0.0,
-             "coincident lines: -1, no point (VisionPro)");
+             "coincident lines: -1, no point");
 
       SL.Segment := New_Segment (3.0, -1.0, 3.0, 2.0);
       SL.Run;
@@ -697,7 +697,7 @@ procedure Test_Dimensioning is
       CC.Circle_B := New_Circle (0.0, 0.0, 5.0);
       CC.Run;
       Check (CC.Intersects and then CC.Num_Points = -1 and then CC.X0 = 0.0,
-             "identical: -1 (VisionPro)");
+             "identical: -1");
       CC.Circle_B := New_Circle (0.0, 0.0, 3.0);
       CC.Run;
       Check (not CC.Intersects and then CC.Num_Points = 0, "concentric");

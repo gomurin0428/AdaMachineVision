@@ -61,7 +61,7 @@ package body AMV.Dimensioning is
    is (AMV.Shapes.Kernel_Shapes.Kernel_Ellipse (Ellipse));
 
    ---------------------------------------------------------------------
-   --  CogDistancePointPointTool
+   --  Ks_Distance_Point_Point_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -89,7 +89,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Angle);
 
    ---------------------------------------------------------------------
-   --  CogAnglePointPointTool
+   --  Ks_Angle_Point_Point_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -114,7 +114,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data);
 
    ---------------------------------------------------------------------
-   --  CogAngleLineLineTool
+   --  Ks_Angle_Line_Line_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -141,7 +141,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data);
 
    ---------------------------------------------------------------------
-   --  CogDistancePointLineTool
+   --  Ks_Distance_Point_Line_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -173,7 +173,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Line_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistancePointSegmentTool
+   --  Ks_Distance_Point_Segment_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -205,7 +205,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Segment_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistancePointCircleTool
+   --  Ks_Distance_Point_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -237,7 +237,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Circle_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistancePointEllipseTool
+   --  Ks_Distance_Point_Ellipse_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -269,7 +269,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Ellipse_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceSegmentSegmentTool
+   --  Ks_Distance_Segment_Segment_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -312,7 +312,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Segment_B_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceSegmentLineTool
+   --  Ks_Distance_Segment_Line_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -351,7 +351,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Line_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceLineCircleTool
+   --  Ks_Distance_Line_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -390,7 +390,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Circle_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceSegmentCircleTool
+   --  Ks_Distance_Segment_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -429,7 +429,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Circle_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceCircleCircleTool
+   --  Ks_Distance_Circle_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -468,7 +468,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Circle_B_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceLineEllipseTool
+   --  Ks_Distance_Line_Ellipse_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -507,7 +507,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Ellipse_Y);
 
    ---------------------------------------------------------------------
-   --  CogDistanceSegmentEllipseTool
+   --  Ks_Distance_Segment_Ellipse_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -546,7 +546,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Ellipse_Y);
 
    ---------------------------------------------------------------------
-   --  CogIntersectLineLineTool
+   --  Ks_Intersect_Line_Line_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -585,7 +585,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Angle);
 
    ---------------------------------------------------------------------
-   --  CogIntersectSegmentLineTool
+   --  Ks_Intersect_Segment_Line_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -623,7 +623,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Y);
 
    ---------------------------------------------------------------------
-   --  CogIntersectSegmentSegmentTool
+   --  Ks_Intersect_Segment_Segment_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -661,7 +661,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Y);
 
    ---------------------------------------------------------------------
-   --  CogIntersectLineCircleTool
+   --  Ks_Intersect_Line_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -703,7 +703,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Y1);
 
    ---------------------------------------------------------------------
-   --  CogIntersectSegmentCircleTool
+   --  Ks_Intersect_Segment_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -747,7 +747,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Y1);
 
    ---------------------------------------------------------------------
-   --  CogIntersectCircleCircleTool
+   --  Ks_Intersect_Circle_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -803,7 +803,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Y3);
 
    ---------------------------------------------------------------------
-   --  CogIntersectLineEllipseTool
+   --  Ks_Intersect_Line_Ellipse_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -847,7 +847,7 @@ package body AMV.Dimensioning is
      (Tool.Outputs.Data.Y1);
 
    ---------------------------------------------------------------------
-   --  CogIntersectSegmentEllipseTool
+   --  Ks_Intersect_Segment_Ellipse_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute

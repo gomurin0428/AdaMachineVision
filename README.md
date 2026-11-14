@@ -1,18 +1,15 @@
 # AdaMachineVision
 
 AdaMachineVision (AMV) is a machine vision library written in Ada 2022.
-Its public interface follows the object model and naming of the Cognex
-VisionPro .NET API — images with coordinate space trees, shapes and
-regions, tools with `RunParams` / `Run` / `Results` / `RunStatus` —
-mapped to Ada conventions, so that VisionPro applications can be ported
-with a mostly mechanical translation (`CogBlobTool` becomes `Ks_Blob_Tool`).
+It has images with coordinate space trees, shapes and regions, and
+vision tools: blob analysis, calipers, line and circle finding,
+measuring and fitting, image processing, correlation search, geometric
+pattern location, fixtures and calibration. A tool (`Ks_Blob_Tool`, for
+example) holds its input image and run parameters; `Run` leaves its
+results and a run status in it.
 
-Everything behind that interface is an independent, clean-room
-implementation. No Cognex code, binaries, headers or documentation text
-are used.
-
-> AMV is not affiliated with or endorsed by Cognex Corporation.
-> "Cognex" and "VisionPro" are trademarks of Cognex Corporation.
+The logic is written in SPARK and proved free of run-time errors, and
+the same kernels are the C API. AMV uses no other library.
 
 ## What it finds
 
@@ -60,11 +57,10 @@ what it contains and every change since.
   Dimensioning measuring, fitting and shape creation tools, the Image
   Processing filter, one-image and geometry tools, CNL Search, PMAlign,
   CalibFix (fixtures, N-point and checkerboard calibration) and
-  ToolGroup / ToolBlock are implemented and tested. Their names follow
-  the VisionPro 9.23 reference; `docs/API_MAPPING.md` lists every
-  counterpart and every departure, including what is not provided yet.
-  PMAlign's search is AMV's own method from the public literature, not
-  Cognex's PatMax or PatQuick.
+  ToolGroup / ToolBlock are implemented and tested. The spec of each
+  package (`src/amv-blob.ads`, ...) documents the tool, its defaults and
+  what it does not support. PMAlign's search is AMV's own method from
+  the public literature (`src/amv-kernels-pm_align.ads` describes it).
 * **Proofs:** all logic lives in SPARK kernels, and every kernel is
   proved free of run-time errors for any input (and, for the facts listed
   in `docs/PROOF.md`, functionally correct): 34514 checks, all proved,
@@ -149,7 +145,7 @@ include/amv.h    the C API
 tests/           Ada tests (test_suite runs them all) and tests/c (C API)
 examples/        example programs; examples/real_images runs on photographs
 tools/           development tools (the thin-API check)
-docs/            DESIGN.md (binding rules), PROOF.md, API_MAPPING.md,
+docs/            DESIGN.md (binding rules), PROOF.md,
                  images/ (the result pictures the READMEs show),
                  handoff/ (plans and notes, in Japanese)
 ```
@@ -159,7 +155,6 @@ docs/            DESIGN.md (binding rules), PROOF.md, API_MAPPING.md,
 * `docs/DESIGN.md`: the design rules every package follows, including the
   SPARK kernel and C API rules (section 9).
 * `docs/PROOF.md`: what is proved, what is trusted, and the limits.
-* `docs/API_MAPPING.md`: VisionPro names and their AMV counterparts.
 * `CHANGELOG.md`: what each release contains and changes.
 * `examples/README.md` and `examples/real_images/README.md`: the
   examples, with pictures of what they find.

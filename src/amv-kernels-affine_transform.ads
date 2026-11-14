@@ -1,33 +1,31 @@
 --  Kernel of AMV.Image_Processing.Affine_Transform: the affine transform
---  tool (CogAffineTransformTool, whose run parameters are a
---  CogAffineTransform). The C API is declared in include/amv_ip_geometry.h.
+--  tool, whose run parameters are a Ks_Affine_Transform. The C API is
+--  declared in include/amv_ip_geometry.h.
 --
---  Execute resamples the parallelogram Region (a CogRectangleAffine) of an
---  8-bit image into a new upright image: output x runs along the region's
---  side X (from its corner origin to its corner X), output y along side Y.
---  The output size follows from the lengths of the two sides measured in
---  input pixels and the scalings: Width = round (ScalingX * L_X) and
---  Height = round (ScalingY * L_Y) (halves away from zero), where L_X is
---  the length of side X after it is mapped into pixel space by
+--  Execute resamples the parallelogram Region (a Ks_Rectangle_Affine) of
+--  an 8-bit image into a new upright image: output x runs along the
+--  region's side X (from its corner origin to its corner X), output y
+--  along side Y. The output size follows from the lengths of the two sides
+--  measured in input pixels and the scalings: Width = round (ScalingX *
+--  L_X) and Height = round (ScalingY * L_Y) (halves away from zero), where
+--  L_X is the length of side X after it is mapped into pixel space by
 --  Pixel_From_Region (and L_Y that of side Y). A size below 1 or above
---  Max_Output_Side (32767) fails with Bad_Parameter, as VisionPro rejects
---  such outputs. The output pixels tile the region: output pixel (I, J)
---  covers the part of the region whose child coordinates (see
+--  Max_Output_Side (32767) fails with Bad_Parameter. The output pixels
+--  tile the region: output pixel (I, J) covers the part of the region
+--  whose child coordinates (see
 --  ks_rectangle_affine_get_parent_from_child_transform) lie in
 --  [I, I + 1] * Side_X_Length / Width by [J, J + 1] * Side_Y_Length /
 --  Height, and samples the input at the centre of that part.
 --
---  Sampling (SamplingMode, CogAffineTransformSamplingModeConstants with
---  VisionPro's values): BilinearInterpolation (2) and BilinearAccurate (4,
---  the default) both interpolate bilinearly between the four nearest pixel
---  centres; NearestNeighbor (1) is an AMV addition (VisionPro has no such
---  mode for this tool) that copies the nearest input pixel; HighPrecision
---  (3) is not implemented (Bad_Parameter). A sample point outside the area
---  the input pixels cover ([-0.5, Width - 0.5] x [-0.5, Height - 0.5]) is
---  clipped (ClipMode, CogAffineTransformClipModeConstants): Zeroes (0, the
---  default) gives 0, Fill (1) gives ClipFillValue, and Error (2) fails the
---  run with Bad_Parameter when any output pixel is clipped. Within the
---  outer half pixel the border pixels are repeated (the sampling rules of
+--  Sampling (SamplingMode): BilinearInterpolation (2) and BilinearAccurate
+--  (4, the default) both interpolate bilinearly between the four nearest
+--  pixel centres; NearestNeighbor (1) copies the nearest input pixel;
+--  HighPrecision (3) is not implemented (Bad_Parameter). A sample point
+--  outside the area the input pixels cover ([-0.5, Width - 0.5] x
+--  [-0.5, Height - 0.5]) is clipped (ClipMode): Zeroes (0, the default)
+--  gives 0, Fill (1) gives ClipFillValue, and Error (2) fails the run with
+--  Bad_Parameter when any output pixel is clipped. Within the outer half
+--  pixel the border pixels are repeated (the sampling rules of
 --  AMV.Kernels.Image_Sampling).
 --
 --  Coordinates. The output gets the input's coordinate space tree and
@@ -45,7 +43,7 @@
 --
 --  Bounds: the region and the transforms as in AMV.Kernels.Shapes and
 --  AMV.Kernels.Transforms (1.0E150), ScalingX and ScalingY in
---  0.001 .. 1000 (VisionPro's range), ClipFillValue in 0 .. 255.
+--  0.001 .. 1000, ClipFillValue in 0 .. 255.
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any image
 --  handle that is null or came from the image kernel and any region,
@@ -80,21 +78,19 @@ package AMV.Kernels.Affine_Transform with SPARK_Mode, Preelaborate is
    use type KI.Ks_Image_8_Grey;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogAffineTransform; C: ks_affine_transform)
+   --  Run parameters (C: ks_affine_transform)
    ---------------------------------------------------------------------
 
    Sampling_Mode_Nearest_Neighbor       : constant Int32 := 1;
    Sampling_Mode_Bilinear_Interpolation : constant Int32 := 2;
    Sampling_Mode_High_Precision         : constant Int32 := 3;
    Sampling_Mode_Bilinear_Accurate      : constant Int32 := 4;
-   --  CogAffineTransformSamplingModeConstants (C:
-   --  KS_AFFINE_TRANSFORM_SAMPLING_MODE_*); NearestNeighbor is AMV's.
+   --  The SamplingMode codes (C: KS_AFFINE_TRANSFORM_SAMPLING_MODE_*).
 
    Clip_Mode_Zeroes : constant Int32 := 0;
    Clip_Mode_Fill   : constant Int32 := 1;
    Clip_Mode_Error  : constant Int32 := 2;
-   --  CogAffineTransformClipModeConstants (C:
-   --  KS_AFFINE_TRANSFORM_CLIP_MODE_*).
+   --  The ClipMode codes (C: KS_AFFINE_TRANSFORM_CLIP_MODE_*).
 
    Min_Scaling : constant := 0.001;
    Max_Scaling : constant := 1000.0;
@@ -113,7 +109,7 @@ package AMV.Kernels.Affine_Transform with SPARK_Mode, Preelaborate is
       Clip_Fill_Value : Int32 := 0;
    end record
      with Convention => C;
-   --  C: ks_affine_transform, with VisionPro's defaults.
+   --  C: ks_affine_transform, with the defaults.
 
    for Ks_Affine_Transform use record
       Scaling_X       at 0 range 0 .. 63;

@@ -1,8 +1,8 @@
---  The ellipse fit of AMV.Kernels.Dimensioning.Fitting (CogFitEllipse):
---  the direct least squares fit of Fitzgibbon, Pilu and Fisher in the form
---  of Halir and Flusser, with an optional fixed rotation and the greedy
---  removal of NumToIgnore points. Internal: a precondition and a status
---  whose only failure is Bad_Parameter (with the message of the reason).
+--  The ellipse fit of AMV.Kernels.Dimensioning.Fitting: the direct least
+--  squares fit of Fitzgibbon, Pilu and Fisher in the form of Halir and
+--  Flusser, with an optional fixed rotation and the greedy removal of
+--  NumToIgnore points. Internal: a precondition and a status whose only
+--  failure is Bad_Parameter (with the message of the reason).
 --
 --  The method (public literature; our own implementation). The points in
 --  use are moved to their centroid, turned by minus the rotation

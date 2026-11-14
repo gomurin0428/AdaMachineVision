@@ -1,8 +1,7 @@
 --  Kernel of AMV.Image_Math: floating-point images (Real_Image) and the
 --  operations the tools build on: conversion from and to 8-bit images,
 --  bilinear sampling, resampling through a transform, Gaussian and box
---  smoothing, Sobel gradients, 2 x 2 downsampling and statistics. No
---  VisionPro counterpart.
+--  smoothing, Sobel gradients, 2 x 2 downsampling and statistics.
 --
 --  Handles. The pixels of a Real_Image live behind an owned handle
 --  (Ks_Real_Image; C: ks_real_image *, opaque) that ks_real_image_create,

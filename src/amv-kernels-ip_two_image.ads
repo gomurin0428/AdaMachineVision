@@ -1,28 +1,24 @@
---  Kernel of AMV.Image_Processing.IP_Two_Image: the two-image tools
---  CogIPTwoImageAddTool, CogIPTwoImageSubtractTool and
---  CogIPTwoImageMinMaxTool (run parameters CogIPTwoImageAdd,
---  CogIPTwoImageSubtract and CogIPTwoImageMinMax). The C API is declared
---  in include/amv_ip_geometry.h.
+--  Kernel of AMV.Image_Processing.IP_Two_Image: the two-image tools that
+--  add two images, subtract one from the other and take their minimum or
+--  maximum (run parameters Ks_IP_Two_Image_Add, Ks_IP_Two_Image_Subtract
+--  and Ks_IP_Two_Image_Min_Max). The C API is declared in
+--  include/amv_ip_geometry.h.
 --
 --  Each execute entry point combines two 8-bit images of the same size
 --  pixel by pixel into a new image of that size: output pixel (X, Y) is
 --  the formula of the tool applied to pixel (X, Y) of InputImageA and of
---  InputImageB. VisionPro also accepts images of different sizes, regions
---  and an alignment of the two images, and works on their overlap; AMV
---  requires two images of one size and combines them whole (a size
---  mismatch fails with Bad_Parameter naming InputImageB). The formulas
---  (A and B the two grey levels, the codes VisionPro's values):
+--  InputImageB. The two images are combined whole (a size mismatch fails
+--  with Bad_Parameter naming InputImageB). The formulas (A and B the two
+--  grey levels):
 --
---  * Add, OverflowMode (CogIPTwoImageAddOverflowModeConstants): Bounded
---    (0, the default) min (A + B, 255); Wrap (1) (A + B) mod 256; Shift
---    (2) (A + B) / 2, rounded down.
---  * Subtract (A - B), OverflowMode
---    (CogIPTwoImageSubtractOverflowModeConstants): Bounded (0, the
---    default) max (A - B, 0); Wrap (1) (A - B) mod 256; Shift (2)
---    (A - B + 256) / 2 rounded down, so that A - B = 0 gives 128 (AMV's
---    choice of offset); Absolute (3) abs (A - B).
---  * MinMax, Operation (CogIPTwoImageMinMaxOperationConstants): Min (0,
---    the default) min (A, B); Max (1) max (A, B).
+--  * Add, OverflowMode: Bounded (0, the default) min (A + B, 255); Wrap
+--    (1) (A + B) mod 256; Shift (2) (A + B) / 2, rounded down.
+--  * Subtract (A - B), OverflowMode: Bounded (0, the default)
+--    max (A - B, 0); Wrap (1) (A - B) mod 256; Shift (2)
+--    (A - B + 256) / 2 rounded down, so that A - B = 0 gives 128;
+--    Absolute (3) abs (A - B).
+--  * MinMax, Operation: Min (0, the default) min (A, B); Max (1)
+--    max (A, B).
 --
 --  The same handle may be passed as both images (the output is new).
 --
@@ -57,38 +53,38 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    Add_Overflow_Mode_Bounded : constant Int32 := 0;
    Add_Overflow_Mode_Wrap    : constant Int32 := 1;
    Add_Overflow_Mode_Shift   : constant Int32 := 2;
-   --  CogIPTwoImageAddOverflowModeConstants (C:
+   --  The OverflowMode of the add tool (C:
    --  KS_IP_TWO_IMAGE_ADD_OVERFLOW_MODE_*).
 
    Subtract_Overflow_Mode_Bounded  : constant Int32 := 0;
    Subtract_Overflow_Mode_Wrap     : constant Int32 := 1;
    Subtract_Overflow_Mode_Shift    : constant Int32 := 2;
    Subtract_Overflow_Mode_Absolute : constant Int32 := 3;
-   --  CogIPTwoImageSubtractOverflowModeConstants (C:
+   --  The OverflowMode of the subtract tool (C:
    --  KS_IP_TWO_IMAGE_SUBTRACT_OVERFLOW_MODE_*).
 
    Min_Max_Operation_Min : constant Int32 := 0;
    Min_Max_Operation_Max : constant Int32 := 1;
-   --  CogIPTwoImageMinMaxOperationConstants (C:
+   --  The Operation of the min/max tool (C:
    --  KS_IP_TWO_IMAGE_MIN_MAX_OPERATION_*).
 
    type Ks_IP_Two_Image_Add is record
       Overflow_Mode : Int32 := Add_Overflow_Mode_Bounded;
    end record
      with Convention => C;
-   --  C: ks_ip_two_image_add (CogIPTwoImageAdd.OverflowMode).
+   --  C: ks_ip_two_image_add.
 
    type Ks_IP_Two_Image_Subtract is record
       Overflow_Mode : Int32 := Subtract_Overflow_Mode_Bounded;
    end record
      with Convention => C;
-   --  C: ks_ip_two_image_subtract (CogIPTwoImageSubtract.OverflowMode).
+   --  C: ks_ip_two_image_subtract.
 
    type Ks_IP_Two_Image_Min_Max is record
       Operation : Int32 := Min_Max_Operation_Min;
    end record
      with Convention => C;
-   --  C: ks_ip_two_image_min_max (CogIPTwoImageMinMax.Operation).
+   --  C: ks_ip_two_image_min_max.
 
    procedure Add_Run_Params_Default (Params : out Ks_IP_Two_Image_Add)
    with
@@ -109,7 +105,7 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
      Export, Convention => C,
      External_Name => "ks_ip_two_image_min_max_run_params_default",
      Post => Params = (others => <>);
-   --  The default run parameters (VisionPro's). Cannot fail.
+   --  The default run parameters. Cannot fail.
 
    ---------------------------------------------------------------------
    --  The formulas (Gold)

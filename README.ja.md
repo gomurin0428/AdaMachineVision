@@ -2,18 +2,15 @@
 
 AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブラリです。
 
-公開 API は、Cognex VisionPro .NET API のオブジェクトモデルと命名に倣い、Ada の流儀に置き換えています。対象は次のとおりです。
+次のものを備えています。
 
 - 座標空間ツリーを持つ画像
 - 図形と領域
-- `RunParams` / `Run` / `Results` / `RunStatus` を持つツール
+- ビジョンツール:ブロブ解析、キャリパ、直線と円の検出、寸法測定とフィット、画像処理、相関サーチ、幾何パターンの位置決め、フィクスチャとキャリブレーション
 
-VisionPro のアプリケーションを、ほぼ機械的な書き換えで移植できることを目指しています(例:`CogBlobTool` → `Ks_Blob_Tool`)。
+ツール(たとえば `Ks_Blob_Tool`)は、入力画像と実行パラメータを持ちます。`Run` を呼ぶと、結果と実行状態がツールに残ります。
 
-この API の裏側は、すべて独立したクリーンルーム実装です。Cognex のコード、バイナリ、ヘッダ、ドキュメントの文章は使っていません。
-
-> AMV は Cognex Corporation と提携しておらず、同社の承認も受けていません。
-> 「Cognex」と「VisionPro」は Cognex Corporation の商標です。
+ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。ほかのライブラリは使っていません。
 
 ## 検出例
 
@@ -60,7 +57,7 @@ VisionPro のアプリケーションを、ほぼ機械的な書き換えで移�
   - CalibFix(Fixture、N 点キャリブレーション、チェッカーボード・キャリブレーション)
   - ToolGroup / ToolBlock
 
-  名前は VisionPro 9.23 のリファレンスに合わせています。対応と相違点(未提供のものを含む)は、すべて `docs/API_MAPPING.md` に載せています。PMAlign の探索は公開文献に基づく AMV 独自の手法で、Cognex の PatMax や PatQuick ではありません。
+  各ツールの内容、既定値、対応していない機能は、それぞれのパッケージの仕様(`src/amv-blob.ads` など)に書いています。PMAlign の探索は、公開文献に基づく AMV 独自の手法です(`src/amv-kernels-pm_align.ads` に説明があります)。
 - **証明:** ロジックはすべて SPARK のカーネルにあります。どのカーネルも、任意の入力で実行時エラーが起きないことを gnatprove で証明しています。`docs/PROOF.md` に挙げた性質については、機能的な正しさも証明しています。チェックは 34514 項目で、すべて証明済みです。`pragma Assume` も、正当化で済ませたチェックもありません。証明していない部分(薄い Ada API、画素の共有の参照カウント、確保・C のメモリとのコピー・ストリームの変換を行う小さな補助)は、同じファイルに列挙しています。
 - **v0.1 の対象外:** バーコード(ID)と OCR。
 
@@ -137,7 +134,7 @@ include/amv.h    C API
 tests/           Ada のテスト(test_suite が全部を実行)と tests/c(C API)
 examples/        サンプルプログラム。examples/real_images は写真を使うもの
 tools/           開発用のツール(API の薄さの検査)
-docs/            DESIGN.md(拘束力のある規則)、PROOF.md、API_MAPPING.md、
+docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
                  images/(README に載せている結果画像)、
                  handoff/(計画とメモ。日本語)
 ```
@@ -146,7 +143,6 @@ docs/            DESIGN.md(拘束力のある規則)、PROOF.md、API_MAPPING.md
 
 - `docs/DESIGN.md`:すべてのパッケージが従う設計規則。9 節は SPARK のカーネルと C API の規則です。
 - `docs/PROOF.md`:何を証明し、何を信頼していて、どこに限界があるか。
-- `docs/API_MAPPING.md`:VisionPro の名前と、それに対応する AMV の名前。
 - `CHANGELOG.md`:各リリースの内容と変更点(英語)。
 - `examples/README.md` と `examples/real_images/README.md`:サンプルと、その検出結果の画像(英語)。
 - `tests/real_images/README.md`:実画像テストの画像とライセンス、調整用と評価用を分ける手順。

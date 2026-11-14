@@ -3,51 +3,45 @@
 This file is the contract for every package in the library. Read it before
 adding or changing a public unit.
 
-## 1. Goal and the clean-room rule
+## 1. Goal
 
-AMV mirrors the *interface* of the Cognex VisionPro .NET API: the same
-concepts (images with a coordinate space tree, shapes and regions, tools
-with `InputImage` / `Region` / `RunParams` / `Run` / `Results` /
-`RunStatus`), the same class, property, method and enumeration names mapped
-to Ada naming, and the same coordinate and result conventions where the
-public VisionPro documentation states them.
+AMV is a machine vision library with one object model for all of its
+tools: images with a coordinate space tree, shapes and regions, and tools
+with `Input_Image` / `Region` / `Run_Params` / `Run` / `Results` /
+`Run_Status`. Every tool follows the same naming (section 3), object
+model (section 4) and coordinate and result conventions (section 5).
 
 Everything behind the interface is our own implementation:
 
-* Never copy Cognex source code, headers, binaries, sample code or
-  documentation text. Write all comments and docs in our own words.
+* Never copy the source code, headers, binaries, sample code or
+  documentation text of another product. Write all comments and docs in
+  our own words.
 * Algorithms come from public literature (connected components, Gaussian
   and Sobel filters, normalized cross-correlation, gradient-orientation
   shape matching, least squares fitting, ...) or are our own.
-* Where VisionPro behaviour is unknown or undocumented, choose a sensible
-  behaviour and document it in the package spec. Fidelity of the *interface*
-  matters more than bit-exact results.
-* "Cognex" and "VisionPro" appear only in documentation that explains the
-  mapping and in the trademark notice. The root package is `AMV`. Type and
-  exception names replace VisionPro's `Cog` prefix with `Ks`
-  (`CogBlobTool` -> `Ks_Blob_Tool`), so code ports mechanically while AMV
-  does not reuse the Cognex prefix. Original VisionPro names such as
-  `CogBlobTool` appear only in comments and mapping documents, as
-  references.
+* Document a tool's behaviour in its package spec: the defaults, the
+  ranges, the degenerate cases and what is not supported.
+* The root package is `AMV`. Type and exception names start with `Ks`
+  (`Ks_Blob_Tool`).
 
 ## 2. Package layout
 
-VisionPro namespaces map to child packages of `AMV`:
+The child packages of `AMV`, by area:
 
-| VisionPro namespace                 | Ada package                    |
+| Area                                | Ada package                    |
 |-------------------------------------|--------------------------------|
-| `Cognex.VisionPro` (core)           | `AMV`, `AMV.Misc`, `AMV.Transforms`, `AMV.Coordinate_Spaces`, `AMV.Images`, `AMV.Shapes`, `AMV.Tools` |
-| `Cognex.VisionPro.ImageFile`        | `AMV.Image_File`               |
-| `Cognex.VisionPro.Blob`             | `AMV.Blob`                     |
-| `Cognex.VisionPro.Caliper`          | `AMV.Caliper`, `AMV.Caliper.Find_Line`, `AMV.Caliper.Find_Circle` |
-| `Cognex.VisionPro.Dimensioning`     | `AMV.Dimensioning`             |
-| `Cognex.VisionPro.ImageProcessing`  | `AMV.Image_Processing` (+ children) |
-| `Cognex.VisionPro.CNLSearch`        | `AMV.CNL_Search`               |
-| `Cognex.VisionPro.PMAlign`          | `AMV.PM_Align`                 |
-| `Cognex.VisionPro.CalibFix`         | `AMV.Cal_Fix`                  |
-| `Cognex.VisionPro.ToolGroup`        | `AMV.Tool_Group`               |
+| Core                                | `AMV`, `AMV.Misc`, `AMV.Transforms`, `AMV.Coordinate_Spaces`, `AMV.Images`, `AMV.Shapes`, `AMV.Tools` |
+| Image files                         | `AMV.Image_File`               |
+| Blob analysis                       | `AMV.Blob`                     |
+| Calipers, line and circle finding   | `AMV.Caliper`, `AMV.Caliper.Find_Line`, `AMV.Caliper.Find_Circle` |
+| Measuring, fitting, shape creation  | `AMV.Dimensioning` (+ children) |
+| Image processing                    | `AMV.Image_Processing` (+ children) |
+| Correlation search                  | `AMV.CNL_Search`               |
+| Geometric pattern location          | `AMV.PM_Align`                 |
+| Fixtures and calibration            | `AMV.Calib_Fix`                |
+| Tool groups and tool blocks         | `AMV.Tool_Group`, `AMV.Tool_Block` |
 
-Support packages that have no VisionPro counterpart: `AMV.Regions`
+Support packages: `AMV.Regions`
 (rasterising a region into image pixels), `AMV.Image_Math` (floating point
 images, sampling, filters, pyramids), `AMV.Geometry` (lines, circles and
 least squares fitting). Tools reuse these instead of re-implementing them.
@@ -57,29 +51,23 @@ packages; their entry points form the C API (section 9).
 
 ## 3. Naming
 
-* `CogBlobTool` -> `Ks_Blob_Tool`; `CogImage8Grey` -> `Ks_Image_8_Grey`;
-  `CogPMAlignTool` -> `Ks_PM_Align_Tool`; `CogCNLSearchTool` ->
-  `Ks_CNL_Search_Tool`; `CogIPOneImageTool` -> `Ks_IP_One_Image_Tool`.
-  Replace the leading `Cog` (or `ICog` for interfaces) by `Ks`, then insert
-  `_` at every lower-to-upper case boundary and between letters and digits;
-  keep known acronyms (PM, CNL, IP, ID, RMS) together. `XY` naming a
+* Type and exception names start with `Ks_`, with `_` between words and
+  between letters and digits: `Ks_Blob_Tool`, `Ks_Image_8_Grey`,
+  `Ks_PM_Align_Tool`, `Ks_CNL_Search_Tool`, `Ks_IP_One_Image_Tool`. The
+  acronyms PM, CNL, IP, ID and RMS stay together. `XY` naming a
   coordinate pair also stays one word, set off by `_`:
-  `SetCenterXYRadiusXYRotation` -> `Set_Center_XY_Radius_XY_Rotation`,
-  `SetFromStartXYEndXY` -> `Set_From_Start_XY_End_XY`.
+  `Set_Center_XY_Radius_XY_Rotation`, `Set_From_Start_XY_End_XY`.
 * Properties: a read-only property `Foo` is a function `Foo (Obj)`. A
   read-write property on a *private* type is a function `Foo (Obj)` plus a
   procedure `Set_Foo (Obj, Value)`. On a *public record* (see 4) it is a
   record component.
-* Methods keep their name: `Run`, `Train`, `MapPoint` -> `Map_Point`,
-  `GetPose` -> `Get_Pose`, `SetCenterLengthsRotationSkew` ->
-  `Set_Center_Lengths_Rotation_Skew`.
-* .NET `out` parameters stay `out` parameters, in the same order.
-* Enumerations keep the VisionPro type name (`Ks_Blob_Segmentation_Polarity_Constants`)
-  and literal names (`Dark_Blobs`, `Light_Blobs`). A literal that is an Ada
-  reserved word gets `_` plus the last noun of the type name appended:
-  `CogToolResultConstants.Accept` -> `Accept_Result`. Record every such
-  rename in `docs/API_MAPPING.md`.
-* Collections are 0-based like .NET: `Results.Count` and
+* Operations are named the same way: `Run`, `Train`, `Map_Point`,
+  `Get_Pose`, `Set_Center_Lengths_Rotation_Skew`.
+* Enumerations are named like `Ks_Blob_Segmentation_Polarity_Constants`,
+  with the literals `Dark_Blobs` and `Light_Blobs`. A literal that would
+  be an Ada reserved word gets `_` plus the last noun of the type name
+  appended: `Accept_Result` in `Ks_Tool_Result_Constants`.
+* Collections are 0-based: `Results.Count` and
   `Results.Item (0 .. Count - 1)`.
 
 ## 4. Object model
@@ -87,9 +75,9 @@ packages; their entry points form the C API (section 9).
 * **Value objects with invariants** (transforms, shapes, images, coordinate
   space trees, run status, results, trained patterns, calibrations) are
   tagged private types with getter functions and `Set_` procedures, so
-  prefix notation reads like VisionPro: `Rect.Set_Center_Width_Height (...)`,
+  prefix notation works: `Rect.Set_Center_Width_Height (...)`,
   `Pose.Translation_X`.
-* **Parameter bags** (RunParams objects such as `CogBlob`, `CogCaliper`,
+* **Parameter bags** (run parameters such as `Ks_Blob` and `Ks_Caliper`,
   segmentation parameters) are public records with default values for every
   component, so `Tool.Run_Params.Contrast_Threshold := 5.0;` works.
 * **Tools** are public record extensions of the private
@@ -110,14 +98,14 @@ packages; their entry points form the C API (section 9).
   so user code reads `Tool.Input_Image := Img; Tool.Run;
   N := Tool.Results.Count;`. `Results` is read-only by convention: only the
   tool writes it. Result items (one blob, one edge, one match) are public
-  records; methods VisionPro offers on them (`GetPose`, `GetMeasure`) are
-  functions in the same package.
+  records; their operations (`Get_Pose`, `Get_Measure`) are functions in
+  the same package.
 * `Run` (class-wide, in `AMV.Tools`) clears the results via the
   `Reset_Results` primitive, times the run, calls the `Execute` primitive
   and turns any exception into `Run_Status.Result = Error` with the
   exception message. Tools never let an exception escape `Run`. `Execute`
   may call `Set_Result (Tool, Warning | Reject, "why")`.
-* Images have .NET reference semantics for pixels: assignment shares the
+* Images have reference semantics for pixels: assignment shares the
   pixel buffer (reference counted); `Copy` makes an independent image
   (`Copy (Image, No_Pixels)` an unallocated one with the same coordinate
   space state). The coordinate space tree and selected space name are
@@ -137,7 +125,7 @@ packages; their entry points form the C API (section 9).
   space" and `"#"` means pixel space wherever a space name is accepted.
 * Every space of a tree other than the root stores its
   `Parent_From_Child` transform, which maps coordinates in the space to
-  coordinates in its parent, exactly as given. As in VisionPro, it is
+  coordinates in its parent, exactly as given. It is
   given to `Add_Space` as `Parent_From_New` (and to `Change_Transform` as
   `New_Parent_From_Child`): a space added with a translation (10, 0) has
   its origin at (10, 0) in the parent. `Tree.Get_Transform (To, From)`
@@ -146,7 +134,7 @@ packages; their entry points form the C API (section 9).
   region into pixel space with
   `Image.Get_Transform ("#", Region.Selected_Space_Name)`.
 * Tools report positions, poses and lengths in the input image's selected
-  space `"."` unless the VisionPro equivalent documents otherwise. Internally
+  space `"."` unless the tool's spec says otherwise. Internally
   they work in pixel space and map results with
   `Image.Get_Transform (".", "#")`.
 * `Ks_Transform_2D_Linear` maps (x, y) to (A x + B y + Tx, C x + D y + Ty).
@@ -163,15 +151,12 @@ packages; their entry points form the C API (section 9).
   `Ks_Image_No_Pixels_Exception`, `Ks_Image_Bad_Selected_Space_Name_Exception`,
   `Ks_Operator_Not_Trained_Exception`, `Ks_Transform_Singular_Exception`,
   `Ks_Image_File_Exception`, `Ks_Bad_Parameter_Exception`).
-  `Ks_Operator_Not_Trained_Exception` is VisionPro's
-  `CogOperatorNotTrainedException`; `Ks_Bad_Parameter_Exception` stands
-  for .NET's `System.ArgumentException`, which VisionPro raises for a bad
-  argument (it has no Cog exception of its own for that); the mapping is
-  in `docs/API_MAPPING.md`. Raise them with a message that names the
+  `Ks_Bad_Parameter_Exception` is the one for a bad argument or
+  parameter value. Raise them with a message that names the
   offending property, e.g.
   `raise Ks_Bad_Parameter_Exception with "RunParams.ContrastThreshold must be >= 0";`
 * Pixel index errors in `Get_Pixel` / `Set_Pixel` raise `Constraint_Error`.
-* Validate parameters at `Run` / `Train` time, as VisionPro does.
+* Validate parameters at `Run` / `Train` time.
 * The kernels (section 9) never raise: they return a `Ks_Status` whose
   failure code corresponds one to one to the exceptions above
   (`Failure_Operator_Not_Trained` to `Ks_Operator_Not_Trained_Exception`,
@@ -254,9 +239,9 @@ The library has three layers (the full rationale is in
 
 | Layer | Packages | SPARK_Mode | Contents |
 |---|---|---|---|
-| Kernel entry points | visible part of `AMV.Kernels.*` | On | A VisionPro-like API with C-compatible types; **this is the C API** (`include/amv.h`). Validates every input, returns a `Ks_Status`. |
+| Kernel entry points | visible part of `AMV.Kernels.*` | On | An API with C-compatible types; **this is the C API** (`include/amv.h`). Validates every input, returns a `Ks_Status`. |
 | Kernel internals | private parts, bodies, private children of `AMV.Kernels.*` | On | All the logic, written with whatever Ada types prove best. |
-| Ada API | `AMV.Misc`, `AMV.Transforms`, ... | Off | VisionPro-style objects (controlled types, exceptions, class-wide types) that only call entry points. |
+| Ada API | `AMV.Misc`, `AMV.Transforms`, ... | Off | Objects (controlled types, exceptions, class-wide types) that only call entry points. |
 
 Every file of the Ada API starts with `pragma SPARK_Mode (Off);`, so that
 gnatprove leaves it alone (gnatprove 16.1 crashed on an Ada API unit that
@@ -284,8 +269,7 @@ SPARK kernels").
 * No precondition. Every input is checked inside: finiteness and the
   documented bounds of every `Long_Float` (each kernel states its bounds
   and why), codes, sizes, null handles. Failures are reported in an
-  `out Ks_Status` whose message names the property or argument at fault,
-  VisionPro style.
+  `out Ks_Status` whose message names the property or argument at fault.
 * A null handle stands for an object without contents (an image without
   pixels): queries of its size give 0, operations that need the contents
   fail with the matching code (`Image_No_Pixels`). SPARK cannot compare
@@ -314,7 +298,7 @@ SPARK kernels").
   `CHANGELOG.md` lists such a change. Removing or renaming a public Ada
   or C name is listed in `CHANGELOG.md` as well.
 * Images: the kernels never share a pixel buffer (`SPARK_PLAN.md` 3.6,
-  plan A). Sharing by assignment, as in VisionPro, is done only by the
+  plan A). Sharing by assignment is done only by the
   Ada API, which keeps the kernel's pixel handle in a reference-counted
   box; the coordinate space state is passed separately. Other handles
   the Ada API only reads (the results of a tool run) are shared the same

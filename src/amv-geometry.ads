@@ -1,6 +1,5 @@
 --  Plane geometry and least squares fitting shared by the caliper-based
---  tools, the dimensioning tools and calibration. This package has no
---  VisionPro counterpart; tools wrap it with VisionPro-style interfaces.
+--  tools, the dimensioning tools and calibration.
 --
 --  All quantities are in whatever coordinate space the caller uses; angles
 --  are radians. Degenerate input (too few points, coincident or collinear

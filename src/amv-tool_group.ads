@@ -1,5 +1,4 @@
---  The tool group: the counterpart of Cognex.VisionPro.ToolGroup.
---  CogToolGroup, a tool that runs other tools in order.
+--  The tool group: a tool that runs other tools in order.
 --
 --     Group : AMV.Tool_Group.Ks_Tool_Group;
 --     ...
@@ -12,26 +11,23 @@
 --  Members. The group refers to its member tools, it does not own them:
 --  the user declares them aliased, keeps them alive while they are
 --  members, and sets their inputs; a tool may belong to several groups.
---  VisionPro's Tools collection (CogToolCollection) becomes operations on
---  the group itself: Tools.Count -> Count, Tools.Item (I) -> Item, Add,
---  Insert, Remove, Remove_At, Move, Clear, IndexOf -> Index_Of and
---  Contains (members are given by access; the collection's lookups by
---  name are not provided). Indices are 0-based. A tool cannot be a member
---  twice, and a group cannot be a member of itself (Ks_Bad_Parameter_
---  Exception); a group may hold up to Max_Members tools. VisionPro's
---  DisabledTools collection becomes a flag per member (Disabled,
---  Set_Disabled): a disabled member stays in the group and is skipped by
---  Run; the flag moves with the member.
+--  The members (Tools in the messages) are handled by operations on the
+--  group itself: Count, Item, Add, Insert, Remove, Remove_At, Move, Clear,
+--  Index_Of and Contains (members are given by access; Item, Index_Of,
+--  Contains and Remove also take a name). Indices are 0-based. A tool
+--  cannot be a member twice, and a group cannot be a member of itself
+--  (Ks_Bad_Parameter_Exception); a group may hold up to Max_Members tools.
+--  Each member has a disabled flag (Disabled, Set_Disabled; DisabledTools
+--  in the messages): a disabled member stays in the group and is skipped
+--  by Run; the flag moves with the member.
 --
 --  Run. Execute, called by Run, first calls the Script when one is set,
---  then (unless the script said not to) runs every enabled member in
---  order with its own Run. Each member's Run turns its exceptions into
---  an Error status, so the group sees statuses, never exceptions. With
+--  then (unless the script said not to) runs every enabled member in order
+--  with its own Run. Each member's Run turns its exceptions into an Error
+--  status, so the group sees statuses, never exceptions. With
 --  Abort_Run_On_Tool_Failure set, the run stops after the first member
---  whose Run_Status is Error; Warning and Reject do not stop it (AMV's
---  choice: VisionPro does not document which results count as a
---  failure). AbortRunOnToolFailure is False by default (an AMV choice as
---  well).
+--  whose Run_Status is Error; Warning and Reject do not stop it.
+--  AbortRunOnToolFailure is False by default.
 --
 --  Run_Status. The result is the worst of the script's result and those
 --  of the members that ran (Error > Reject > Warning > Accept_Result).
@@ -48,18 +44,16 @@
 --  The kernel AMV.Kernels.Tool_Group makes every one of these decisions;
 --  Execute only dispatches the members' Run.
 --
---  Script (the analogue of a CogToolBlockAdvancedScript or
---  CogToolGroup script that overrides GroupRun). A script is a procedure
---  that receives the group (for a tool block, the block: view it with
---  Ks_Tool_Block (Group)), a message and a result, both in out, starting
---  as "" and Accept_Result, and an out flag Run_Tools, GroupRun's return
---  value: True lets the members run after the script as they would
+--  Script. A script is a procedure that receives the group (for a tool
+--  block, the block: view it with Ks_Tool_Block (Group)), a message and a
+--  result, both in out, starting as "" and Accept_Result, and an out flag
+--  Run_Tools: True lets the members run after the script as they would
 --  without one, False skips them (the script ran what it wanted itself,
 --  for example a member's Run). The script's result and message are
 --  combined with the members' as described above. An exception raised by
 --  the script makes the group's Run report Error, as for any tool. A
---  script that is not declared at library level needs 'Unrestricted_
---  Access (GNAT) to be stored.
+--  script that is not declared at library level needs 'Unrestricted_Access
+--  (GNAT) to be stored.
 --
 --  Copies. Assigning a group copies the member list (the members are
 --  shared, as they are references), the flags, the settings and the
@@ -94,10 +88,10 @@ package AMV.Tool_Group is
       Message   : in out Ada.Strings.Unbounded.Unbounded_String;
       Result    : in out AMV.Tools.Ks_Tool_Result_Constants;
       Run_Tools : out Boolean);
-   --  A script's GroupRun (see above).
+   --  A script (see above).
 
    ---------------------------------------------------------------------
-   --  Tools (CogToolCollection)
+   --  The members (Tools)
    ---------------------------------------------------------------------
 
    function Count (Group : Ks_Tool_Group) return Natural;
@@ -207,17 +201,16 @@ package AMV.Tool_Group is
       Sub_Tool : not null access AMV.Tools.Ks_Tool'Class;
       Message  : in out Ada.Strings.Unbounded.Unbounded_String;
       Result   : in out AMV.Tools.Ks_Tool_Result_Constants);
-   --  CogToolGroup.RunTool (subTool, ref message, ref result), for a
-   --  script: runs Sub_Tool with its Run unless it is a member of Group
-   --  in DisabledTools (then nothing happens). Result and Message carry
-   --  the worst result of the script so far: when Sub_Tool's result is
-   --  worse (Error > Reject > Warning > Accept_Result), Result becomes it
-   --  and Message becomes Sub_Tool's message; otherwise both are left as
-   --  they are. When Sub_Tool reports Error and the group has
+   --  RunTool, for a script: runs Sub_Tool with its Run unless it is a
+   --  member of Group in DisabledTools (then nothing happens). Result and
+   --  Message carry the worst result of the script so far: when Sub_Tool's
+   --  result is worse (Error > Reject > Warning > Accept_Result), Result
+   --  becomes it and Message becomes Sub_Tool's message; otherwise both
+   --  are left as they are. When Sub_Tool reports Error and the group has
    --  Abort_Run_On_Tool_Failure, Run_Tool raises Ks_Exception with
-   --  Sub_Tool's message (the group's Run then reports Error). A tool
-   --  that is not a member runs too (AMV's choice). Usually the script
-   --  passes its own Message and Result:
+   --  Sub_Tool's message (the group's Run then reports Error). A tool that
+   --  is not a member runs too. Usually the script passes its own Message
+   --  and Result:
    --
    --     procedure My_Script (Group : in out Ks_Tool_Group'Class;
    --                          Message : in out Unbounded_String;
@@ -229,7 +222,7 @@ package AMV.Tool_Group is
    --     end My_Script;
 
    ---------------------------------------------------------------------
-   --  ICogTool
+   --  Ks_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute (Group : in out Ks_Tool_Group);

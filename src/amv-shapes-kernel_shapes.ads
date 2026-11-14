@@ -1,7 +1,7 @@
 --  The kernel values behind the regions of AMV.Shapes, for the packages of
 --  the Ada API that pass regions to other kernels (AMV.Regions hands them
 --  to the rasteriser of AMV.Kernels.Regions) and for programs that mix the
---  Ada API with the C API. Not part of the VisionPro-like API.
+--  Ada API with the C API.
 
 pragma SPARK_Mode (Off);
 pragma Validity_Checks ("F");

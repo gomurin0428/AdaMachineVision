@@ -1,24 +1,21 @@
---  The region modes of the Sobel edge tool (CogSobelEdge.RegionMode,
---  CogRegionModeConstants): the Sobel edge images of the part of the
---  input image that the region selects; the three output images are that
---  part only.
+--  The region modes of the Sobel edge tool (RegionMode): the Sobel edge
+--  images of the part of the input image that the region selects; the three
+--  output images are that part only.
 --
---  * Pixel_Aligned_Bounding_Box (VisionPro's default; Execute_In_Box): the
---    part is the pixel-aligned bounding box of the region (the rectangle
---    of its pixel region), whatever the region's shape. Every pixel of the
---    box is processed, as AMV.Kernels.Sobel_Edge.Execute processes a whole
---    image: the derivatives at the box's border replicate the box's
---    border pixels, so no pixel outside the box is read (AMV's choice;
---    VisionPro does not say).
+--  * Pixel_Aligned_Bounding_Box (the default; Execute_In_Box): the part is
+--    the pixel-aligned bounding box of the region (the rectangle of its
+--    pixel region), whatever the region's shape. Every pixel of the box is
+--    processed, as AMV.Kernels.Sobel_Edge.Execute processes a whole image:
+--    the derivatives at the box's border replicate the box's border pixels,
+--    so no pixel outside the box is read.
 --  * Affine_Transform (Execute_Affine): the part is an affine rectangle,
 --    resampled into an upright image by AMV.Kernels.Affine_Transform with
---    that kernel's default run parameters (one output pixel per input
---    pixel along each side; samples outside the image are 0); every
---    pixel of that image is processed. VisionPro accepts only an affine
---    rectangle in this mode; the Ada API rejects other shapes.
+--    that kernel's default run parameters (one output pixel per input pixel
+--    along each side; samples outside the image are 0); every pixel of that
+--    image is processed. The Ada API rejects other shapes.
 --
 --  PixelAlignedBoundingBoxAdjustMask is not a region mode of the Sobel
---  edge tool (Bad_Parameter, as VisionPro rejects it).
+--  edge tool (Bad_Parameter).
 --
 --  The outputs keep the physical places of the input: Output_From_Input
 --  (Execute_In_Box) is the shift from the input's pixel coordinates to the

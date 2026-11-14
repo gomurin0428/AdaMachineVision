@@ -1,14 +1,8 @@
---  The shape creation tools: the counterparts of the CogCreate*Tool classes
---  of Cognex.VisionPro.Dimensioning (CogCreateCircleTool,
---  CogCreateEllipseTool, CogCreateLineTool, CogCreateSegmentTool,
---  CogCreateLineBisectPointsTool, CogCreateLineParallelTool,
---  CogCreateLinePerpendicularTool, CogCreateSegmentAvgSegsTool). The
---  graphics-only CogCreateGraphicLabelTool is not provided.
+--  The shape creation tools (Ks_Create_*_Tool).
 --
 --  Each tool builds one shape from its inputs; Run creates it and
---  Get_Output_<Shape> returns a copy (the value of VisionPro's
---  GetOutput<Shape>). Reset_Results (called by Run first) and a failed
---  run leave the default shape of AMV.Shapes there.
+--  Get_Output_<Shape> returns a copy. Reset_Results (called by Run first)
+--  and a failed run leave the default shape of AMV.Shapes there.
 --
 --     Tool.Line.Set_XY_Rotation (0.0, 0.0, 0.3);
 --     Tool.X := 10.0;
@@ -20,9 +14,9 @@
 --  its own selected space into the selected space of Input_Image
 --  (Input_Image.Get_Transform (".", Shape.Selected_Space_Name)), plain
 --  coordinates (X, Y, Start_X, ...) are taken in that space, and the
---  created shape is expressed in it. Following the VisionPro reference,
---  the created shape's Selected_Space_Name is the image's selected space
---  as Input_Image.Selected_Space_Name reads it (a full name such as
+--  created shape is expressed in it. The created shape's
+--  Selected_Space_Name is the image's selected space as
+--  Input_Image.Selected_Space_Name reads it (a full name such as
 --  "@\Fixture", or "@" for an image whose selection was never changed),
 --  not ".": so the shape keeps its meaning when the image's selection
 --  changes later, and it is in "." for that image. Only the coordinate
@@ -75,7 +69,7 @@ with AMV.Tools;
 package AMV.Dimensioning.Create_Shapes is
 
    ---------------------------------------------------------------------
-   --  CogCreateCircleTool
+   --  Ks_Create_Circle_Tool
    ---------------------------------------------------------------------
 
    type Create_Circle_Outputs is private;
@@ -86,7 +80,7 @@ package AMV.Dimensioning.Create_Shapes is
       Input_Circle : AMV.Shapes.Ks_Circle;
       Outputs      : Create_Circle_Outputs;
    end record;
-   --  CogCreateCircleTool. Input_Circle in the image's selected space.
+   --  Input_Circle in the image's selected space.
 
    overriding procedure Execute (Tool : in out Ks_Create_Circle_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Create_Circle_Tool);
@@ -95,7 +89,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Circle_Tool) return AMV.Shapes.Ks_Circle;
 
    ---------------------------------------------------------------------
-   --  CogCreateEllipseTool
+   --  Ks_Create_Ellipse_Tool
    ---------------------------------------------------------------------
 
    type Create_Ellipse_Outputs is private;
@@ -106,8 +100,7 @@ package AMV.Dimensioning.Create_Shapes is
       Ellipse     : AMV.Shapes.Ks_Ellipse;
       Outputs     : Create_Ellipse_Outputs;
    end record;
-   --  CogCreateEllipseTool. Ellipse in the image's selected space (both
-   --  radii must be > 0).
+   --  Ellipse in the image's selected space (both radii must be > 0).
 
    overriding procedure Execute (Tool : in out Ks_Create_Ellipse_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Create_Ellipse_Tool);
@@ -116,7 +109,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Ellipse_Tool) return AMV.Shapes.Ks_Ellipse;
 
    ---------------------------------------------------------------------
-   --  CogCreateLineTool
+   --  Ks_Create_Line_Tool
    ---------------------------------------------------------------------
 
    type Create_Line_Outputs is private;
@@ -127,8 +120,7 @@ package AMV.Dimensioning.Create_Shapes is
       Line        : AMV.Shapes.Ks_Line;
       Outputs     : Create_Line_Outputs;
    end record;
-   --  CogCreateLineTool. Line in the image's selected space, its rotation
-   --  in (-Pi, Pi].
+   --  Line in the image's selected space, its rotation in (-Pi, Pi].
 
    overriding procedure Execute (Tool : in out Ks_Create_Line_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Create_Line_Tool);
@@ -137,7 +129,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Line_Tool) return AMV.Shapes.Ks_Line;
 
    ---------------------------------------------------------------------
-   --  CogCreateSegmentTool
+   --  Ks_Create_Segment_Tool
    ---------------------------------------------------------------------
 
    type Create_Segment_Outputs is private;
@@ -148,7 +140,7 @@ package AMV.Dimensioning.Create_Shapes is
       Segment     : AMV.Shapes.Ks_Line_Segment;
       Outputs     : Create_Segment_Outputs;
    end record;
-   --  CogCreateSegmentTool. Segment in the image's selected space.
+   --  Segment in the image's selected space.
 
    overriding procedure Execute (Tool : in out Ks_Create_Segment_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Create_Segment_Tool);
@@ -157,7 +149,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Segment_Tool) return AMV.Shapes.Ks_Line_Segment;
 
    ---------------------------------------------------------------------
-   --  CogCreateLineBisectPointsTool
+   --  Ks_Create_Line_Bisect_Points_Tool
    ---------------------------------------------------------------------
 
    type Create_Line_Bisect_Points_Outputs is private;
@@ -172,8 +164,7 @@ package AMV.Dimensioning.Create_Shapes is
       End_Y       : Real := 0.0;
       Outputs     : Create_Line_Bisect_Points_Outputs;
    end record;
-   --  CogCreateLineBisectPointsTool. The perpendicular bisector of the two
-   --  points (which must differ).
+   --  The perpendicular bisector of the two points (which must differ).
 
    overriding procedure Execute
      (Tool : in out Ks_Create_Line_Bisect_Points_Tool);
@@ -184,7 +175,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Line_Bisect_Points_Tool) return AMV.Shapes.Ks_Line;
 
    ---------------------------------------------------------------------
-   --  CogCreateLineParallelTool
+   --  Ks_Create_Line_Parallel_Tool
    ---------------------------------------------------------------------
 
    type Create_Line_Parallel_Outputs is private;
@@ -197,7 +188,7 @@ package AMV.Dimensioning.Create_Shapes is
       Line        : AMV.Shapes.Ks_Line;
       Outputs     : Create_Line_Parallel_Outputs;
    end record;
-   --  CogCreateLineParallelTool. The line through (X, Y) parallel to Line.
+   --  The line through (X, Y) parallel to Line.
 
    overriding procedure Execute (Tool : in out Ks_Create_Line_Parallel_Tool);
    overriding procedure Reset_Results
@@ -207,7 +198,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Line_Parallel_Tool) return AMV.Shapes.Ks_Line;
 
    ---------------------------------------------------------------------
-   --  CogCreateLinePerpendicularTool
+   --  Ks_Create_Line_Perpendicular_Tool
    ---------------------------------------------------------------------
 
    type Create_Line_Perpendicular_Outputs is private;
@@ -221,8 +212,7 @@ package AMV.Dimensioning.Create_Shapes is
       Line        : AMV.Shapes.Ks_Line;
       Outputs     : Create_Line_Perpendicular_Outputs;
    end record;
-   --  CogCreateLinePerpendicularTool. The line through (X, Y) perpendicular
-   --  to Line.
+   --  The line through (X, Y) perpendicular to Line.
 
    overriding procedure Execute
      (Tool : in out Ks_Create_Line_Perpendicular_Tool);
@@ -233,7 +223,7 @@ package AMV.Dimensioning.Create_Shapes is
      (Tool : Ks_Create_Line_Perpendicular_Tool) return AMV.Shapes.Ks_Line;
 
    ---------------------------------------------------------------------
-   --  CogCreateSegmentAvgSegsTool
+   --  Ks_Create_Segment_Avg_Segs_Tool
    ---------------------------------------------------------------------
 
    type Create_Segment_Avg_Segs_Outputs is private;
@@ -245,7 +235,7 @@ package AMV.Dimensioning.Create_Shapes is
       Segment_B   : AMV.Shapes.Ks_Line_Segment;
       Outputs     : Create_Segment_Avg_Segs_Outputs;
    end record;
-   --  CogCreateSegmentAvgSegsTool. The average of Segment_A and Segment_B.
+   --  The average of Segment_A and Segment_B.
 
    overriding procedure Execute
      (Tool : in out Ks_Create_Segment_Avg_Segs_Tool);

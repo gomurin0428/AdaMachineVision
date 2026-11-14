@@ -2,7 +2,7 @@
 --  of the Ada API that pass a tree to kernel entry points (AMV.Images
 --  passes an image's tree to the ks_image_* entry points of
 --  AMV.Kernels.Images) and for programs that mix the Ada API with the C
---  API. Not part of the VisionPro-like API.
+--  API.
 
 pragma SPARK_Mode (Off);
 pragma Validity_Checks ("F");

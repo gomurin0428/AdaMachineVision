@@ -1,21 +1,17 @@
---  Kernel of AMV.Image_Processing.IP_One_Image: the counterpart of
---  VisionPro's CogIPOneImageTool, which runs a list of image operators
---  (CogIPOneImageOperators) one after the other on an 8-bit image. The C
---  API is declared in include/amv_ip_one_image.h.
+--  Kernel of AMV.Image_Processing.IP_One_Image, which runs a list of image
+--  operators one after the other on an 8-bit image. The C API is declared
+--  in include/amv_ip_one_image.h.
 --
 --  Operators. An operator is one record, Ks_IP_One_Image_Operator: a kind
---  code (one per operator class), Enabled (VisionPro's
---  ICogIPOneImageOperatorParams.Enabled; a disabled operator is skipped)
+--  code (one per operator class), Enabled (a disabled operator is skipped)
 --  and one component per operator class holding the properties of that
---  class under their VisionPro names. Only the component of the record's
---  own kind is used (and checked); the others keep whatever they hold. The
---  operators of a run are a fixed-capacity list, Ks_IP_One_Image_Operators
---  (CogIPOneImageOperators: Count, then Items (0 .. Count - 1)), applied in
---  the order of the list, each to the image the previous one produced.
+--  class. Only the component of the record's own kind is used (and
+--  checked); the others keep whatever they hold. The operators of a run
+--  are a fixed-capacity list, Ks_IP_One_Image_Operators (Count, then Items
+--  (0 .. Count - 1)), applied in the order of the list, each to the image
+--  the previous one produced.
 --
---  The kinds, with their codes (AMV codes: VisionPro's classes in the
---  order of their names, then three operators of our own, then the
---  VisionPro classes added later, in the order they were added):
+--  The kinds, with their codes:
 --
 --     0  AddSubtractConstant  value + ConstantValue (an integer);
 --                             Bounded clamps to 0 .. 255, Wrap keeps the
@@ -42,11 +38,11 @@
 --                             rounded; Bounded or Wrap as above.
 --    10  PixelMap             a lookup table (as AMV.Kernels.Pixel_Map).
 --    11  Quantize             keeps the Levels code + 1 highest bits.
---    12  BoxFilter (AMV)      the mean of a KernelWidth x KernelHeight
+--    12  BoxFilter            the mean of a KernelWidth x KernelHeight
 --                             neighbourhood.
---    13  Threshold (AMV)      HighValue for a value >= Threshold, LowValue
+--    13  Threshold            HighValue for a value >= Threshold, LowValue
 --                             otherwise.
---    14  UnsharpMask (AMV)    value + Amount * (value - smoothed value),
+--    14  UnsharpMask          value + Amount * (value - smoothed value),
 --                             smoothed as by GaussSampler.
 --    15  Expand               each pixel repeated ExpansionX times along
 --                             x and ExpansionY times along y.
@@ -75,18 +71,17 @@
 --  again for a neighbourhood larger than the image). They read every pixel
 --  of the image, also those outside the region.
 --
---  GaussSampler and UnsharpMask (our own definition; VisionPro does not
---  publish its kernel): along x the image is convolved with the binomial
---  weights C (2 Sx, k) / 4**Sx, k = 0 .. 2 Sx, centred on the pixel (Sx =
---  SmoothnessX; the standard deviation is Sqrt (Sx / 2) pixels, so the
---  default 2 gives 1), the result rounded to a grey level; then the same
---  along y with SmoothnessY. GaussSampler then shifts the smoothed value
---  left by MagnitudeShift bits (limited to 255) or, for a negative shift,
---  right. GaussSampler's SampleX and SampleY then keep every SampleX-th
---  pixel along x and every SampleY-th along y, as SubSampler without
---  SpatialAverage (1 and 1, the defaults, keep every pixel). BoxFilter
---  likewise: the mean along x (rounded), then the mean of those along y
---  (rounded).
+--  GaussSampler and UnsharpMask (our own definition): along x the image is
+--  convolved with the binomial weights C (2 Sx, k) / 4**Sx, k = 0 .. 2 Sx,
+--  centred on the pixel (Sx = SmoothnessX; the standard deviation is Sqrt
+--  (Sx / 2) pixels, so the default 2 gives 1), the result rounded to a grey
+--  level; then the same along y with SmoothnessY. GaussSampler then shifts
+--  the smoothed value left by MagnitudeShift bits (limited to 255) or, for
+--  a negative shift, right. GaussSampler's SampleX and SampleY then keep
+--  every SampleX-th pixel along x and every SampleY-th along y, as
+--  SubSampler without SpatialAverage (1 and 1, the defaults, keep every
+--  pixel). BoxFilter likewise: the mean along x (rounded), then the mean of
+--  those along y (rounded).
 --
 --  HighPassFilter (our own definition of the output): value - S + 128,
 --  limited to 0 .. 255, S being the smoothed value of the pixel, so that
@@ -124,12 +119,12 @@
 --  (the empty region) gives an unchanged copy of the image. Equalize uses
 --  the histogram of the region's pixels.
 --
---  FlipRotate. VisionPro's OperationInPixelSpace codes: 0 None, 1
---  Rotate90Deg, 2 Rotate180Deg, 3 Rotate270Deg (quarter turns clockwise
---  as the image is displayed, y down), 4 Flip (left-right mirror), 5
---  FlipAndRotate90Deg, 6 FlipAndRotate180Deg (top-bottom mirror), 7
---  FlipAndRotate270Deg (a transpose): the mirror first, then the turn.
---  Rotate90Deg, Rotate270Deg, 5 and 7 swap Width and Height.
+--  FlipRotate. The OperationInPixelSpace codes: 0 None, 1 Rotate90Deg, 2
+--  Rotate180Deg, 3 Rotate270Deg (quarter turns clockwise as the image is
+--  displayed, y down), 4 Flip (left-right mirror), 5 FlipAndRotate90Deg, 6
+--  FlipAndRotate180Deg (top-bottom mirror), 7 FlipAndRotate270Deg (a
+--  transpose): the mirror first, then the turn. Rotate90Deg, Rotate270Deg,
+--  5 and 7 swap Width and Height.
 --
 --  PelSet (AMV's meaning of the mask, as for the other tools' masks).
 --  The mask is an 8-bit image given with the operator list (Execute_Masked:
@@ -158,12 +153,6 @@
 --  centre is the centre of its ExpansionX x ExpansionY block). The Ada
 --  API composes it with the input's Pixel_From_Root transform so that
 --  root coordinates keep their physical meaning in the output image.
---
---  Not offered (VisionPro classes): CogIPOneImageGreyMorphology (3 x 3
---  elements), CogIPOneImageSampleConvolve, CogIPOneImageMissingPixel;
---  the image masks of the operators other than PelSet, the
---  non-flat kernel of CogIPOneImageGreyMorphologyNxM (KernelEnabled) and
---  the Clipped boundary mode.
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any image or
 --  region handle that is null or came from the kernels, any operator list
@@ -236,17 +225,16 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
    subtype Operator_Kind is Int32
      range Kind_Add_Subtract_Constant .. Kind_Pel_Set;
 
-   --  CogIPOneImageAddSubtractConstantOverflowModeConstants and
-   --  CogIPOneImageMultiplyConstantOverflowModeConstants.
+   --  The OverflowMode of AddSubtractConstant and MultiplyConstant.
    Overflow_Mode_Bounded : constant Int32 := 0;
    Overflow_Mode_Wrap    : constant Int32 := 1;
 
-   --  CogIPOneImageBoundaryModeConstants (only Reflected is supported).
+   --  The BoundaryMode of ConvolveNxM (only Reflected is supported).
    Boundary_Mode_Clipped   : constant Int32 := 1;
    Boundary_Mode_Reflected : constant Int32 := 2;
 
-   --  CogIPOneImageConvolve3x3PositionConstants: the cells of a 3 x 3
-   --  kernel, row by row (also their index in the kernel array).
+   --  The cells of a 3 x 3 kernel, row by row (also their index in the
+   --  kernel array).
    Position_North_West : constant Int32 := 0;
    Position_North      : constant Int32 := 1;
    Position_North_East : constant Int32 := 2;
@@ -257,7 +245,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
    Position_South      : constant Int32 := 7;
    Position_South_East : constant Int32 := 8;
 
-   --  CogIPOneImageFlipRotateOperationConstants.
+   --  The OperationInPixelSpace of FlipRotate.
    Flip_Rotate_None                    : constant Int32 := 0;
    Flip_Rotate_Rotate_90_Deg           : constant Int32 := 1;
    Flip_Rotate_Rotate_180_Deg          : constant Int32 := 2;
@@ -270,7 +258,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
    subtype Flip_Rotate_Code is Int32
      range Flip_Rotate_None .. Flip_Rotate_Flip_And_Rotate_270_Deg;
 
-   --  CogIPOneImageMorphologyOperationConstants.
+   --  The Operation of GreyMorphologyNxM.
    Morphology_Erode                : constant Int32 := 1;
    Morphology_Dilate               : constant Int32 := 2;
    Morphology_Open                 : constant Int32 := 3;
@@ -282,17 +270,16 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
    subtype Morphology_Code is Int32
      range Morphology_Erode .. Morphology_Original_Minus_Open;
 
-   --  CogIPOneImageQuantizeLevelConstants (s2 .. s128): 2**(code + 1)
-   --  grey levels.
+   --  The Levels of Quantize (s2 .. s128): 2**(code + 1) grey levels.
    Quantize_Level_S2   : constant Int32 := 0;
    Quantize_Level_S128 : constant Int32 := 6;
 
-   --  CogIPOneImageHighPassFilterProcessingModeConstants.
+   --  The ProcessingMode of HighPassFilter.
    High_Pass_Gauss  : constant Int32 := 0;
    High_Pass_Mean   : constant Int32 := 1;
    High_Pass_Median : constant Int32 := 2;
 
-   --  CogIPOneImagePelSetOperationConstants.
+   --  The Operation of PelSet.
    Pel_Set_Care_Pels      : constant Int32 := 1;
    Pel_Set_Dont_Care_Pels : constant Int32 := 2;
 
@@ -315,7 +302,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
    Max_Smoothness      : constant := 24;
    --  The largest SmoothnessX / SmoothnessY.
    Max_Magnitude_Shift : constant := 7;
-   --  MagnitudeShift lies in -7 .. 7 (as in VisionPro).
+   --  MagnitudeShift lies in -7 .. 7.
    Max_Multiply_Value  : constant := 1.0E6;
    --  The largest ConstantValue of MultiplyConstant.
    Max_Amount          : constant := 1000.0;
@@ -333,7 +320,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Overflow_Mode  : Int32 := Overflow_Mode_Bounded;
    end record
      with Convention => C;
-   --  CogIPOneImageAddSubtractConstant. Any ConstantValue is accepted.
+   --  Any ConstantValue is accepted.
 
    type Convolve_3x3_Kernel is array (0 .. 8) of Long_Float
      with Convention => C;
@@ -347,9 +334,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Kernel        : Convolve_3x3_Kernel := Identity_3x3;
    end record
      with Convention => C;
-   --  CogIPOneImageConvolve3x3 (GetKernel / SetKernel: the array;
-   --  GetKernelValue / SetKernelValue: one position). The default kernel
-   --  copies the image.
+   --  The default kernel copies the image.
 
    type Convolve_NxM_Kernel is
      array (0 .. Max_Convolve_Values - 1) of Long_Float
@@ -366,14 +351,12 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Kernel        : Convolve_NxM_Kernel := Identity_NxM;
    end record
      with Convention => C;
-   --  CogIPOneImageConvolveNxM (GetKernelValue / SetKernelValue (Col,
-   --  Row)). The default 3 x 3 kernel copies the image.
+   --  The default 3 x 3 kernel copies the image.
 
    type Ks_IP_One_Image_Flip_Rotate is record
       Operation_In_Pixel_Space : Int32 := Flip_Rotate_None;
    end record
      with Convention => C;
-   --  CogIPOneImageFlipRotate.
 
    type Ks_IP_One_Image_Gauss_Sampler is record
       Smoothness_X    : Int32 := 2;
@@ -383,7 +366,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Sample_Y        : Int32 := 1;
    end record
      with Convention => C;
-   --  CogIPOneImageGaussSampler (SampleX, SampleY in 1 .. Max_Sample).
+   --  SampleX and SampleY lie in 1 .. Max_Sample.
 
    type Ks_IP_One_Image_Grey_Morphology_NxM is record
       Operation     : Int32 := Morphology_Erode;
@@ -391,35 +374,32 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Kernel_Height : Int32 := 3;
    end record
      with Convention => C;
-   --  CogIPOneImageGreyMorphologyNxM (a flat element: KernelEnabled is
-   --  not offered).
+   --  The structuring element is a flat KernelWidth x KernelHeight
+   --  rectangle.
 
    type Ks_IP_One_Image_Median_NxM is record
       Kernel_Width  : Int32 := 3;
       Kernel_Height : Int32 := 3;
    end record
      with Convention => C;
-   --  CogIPOneImageMedianNxM.
 
    type Ks_IP_One_Image_Multiply_Constant is record
       Constant_Value : Long_Float := 1.0;
       Overflow_Mode  : Int32 := Overflow_Mode_Bounded;
    end record
      with Convention => C;
-   --  CogIPOneImageMultiplyConstant.
 
    type Ks_IP_One_Image_Quantize is record
       Levels : Int32 := Quantize_Level_S2;
    end record
      with Convention => C;
-   --  CogIPOneImageQuantize.
 
    type Ks_IP_One_Image_Box_Filter is record
       Kernel_Width  : Int32 := 3;
       Kernel_Height : Int32 := 3;
    end record
      with Convention => C;
-   --  (AMV name) The mean filter.
+   --  The mean filter.
 
    type Ks_IP_One_Image_Threshold is record
       Threshold  : Int32 := 128;
@@ -427,8 +407,8 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       High_Value : Int32 := 255;
    end record
      with Convention => C;
-   --  (AMV name) HighValue where the value is >= Threshold (0 .. 256),
-   --  LowValue elsewhere; swap the two for the opposite polarity.
+   --  HighValue where the value is >= Threshold (0 .. 256), LowValue
+   --  elsewhere; swap the two for the opposite polarity.
 
    type Ks_IP_One_Image_Unsharp_Mask is record
       Amount       : Long_Float := 1.0;
@@ -436,14 +416,14 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Smoothness_Y : Int32 := 2;
    end record
      with Convention => C;
-   --  (AMV name) Sharpening by the difference from a smoothed image.
+   --  Sharpening by the difference from a smoothed image.
 
    type Ks_IP_One_Image_Expand is record
       Expansion_X : Int32 := 2;
       Expansion_Y : Int32 := 2;
    end record
      with Convention => C;
-   --  CogIPOneImageExpand (1 .. Max_Sample each; AMV defaults).
+   --  ExpansionX and ExpansionY lie in 1 .. Max_Sample.
 
    type Ks_IP_One_Image_High_Pass_Filter is record
       Processing_Mode : Int32 := High_Pass_Gauss;
@@ -453,10 +433,9 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Kernel_Height   : Int32 := 3;
    end record
      with Convention => C;
-   --  CogIPOneImageHighPassFilter (SigmaX and SigmaY, read only, follow
-   --  from the smoothness; AMV defaults). Gauss uses the smoothness, Mean
-   --  and Median the kernel's size (odd, 1 .. Max_Kernel_Size); all five
-   --  are checked whatever the mode.
+   --  SigmaX and SigmaY follow from the smoothness (Sigma). Gauss uses the
+   --  smoothness, Mean and Median the kernel's size (odd, 1 ..
+   --  Max_Kernel_Size); all five components are checked whatever the mode.
 
    type Ks_IP_One_Image_Sub_Sampler is record
       Sample_X        : Int32 := 2;
@@ -464,7 +443,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Spatial_Average : Int32 := False_Value;
    end record
      with Convention => C;
-   --  CogIPOneImageSubSampler (1 .. Max_Sample each; AMV defaults).
+   --  SampleX and SampleY lie in 1 .. Max_Sample.
 
    type Ks_IP_One_Image_Pel_Set is record
       Operation                 : Int32 := Pel_Set_Care_Pels;
@@ -473,9 +452,9 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Input_Image_Mask_Offset_Y : Int32 := 0;
    end record
      with Convention => C;
-   --  CogIPOneImagePelSet without its InputImageMask, which is passed with
-   --  the list (Execute_Masked). Operation SetCarePels or SetDontCarePels,
-   --  PelValue in 0 .. 255, any offsets (AMV defaults).
+   --  PelSet without its InputImageMask, which is passed with the list
+   --  (Execute_Masked). Operation SetCarePels or SetDontCarePels, PelValue
+   --  in 0 .. 255, any offsets.
 
    type Ks_IP_One_Image_Operator is record
       Kind                  : Int32 := Kind_Add_Subtract_Constant;
@@ -499,9 +478,9 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Pel_Set               : Ks_IP_One_Image_Pel_Set;
    end record
      with Convention => C;
-   --  C: ks_ip_one_image_operator (ICogIPOneImageOperator). The default
-   --  record is an enabled AddSubtractConstant of 0 (which changes
-   --  nothing); every component holds the defaults of its class.
+   --  C: ks_ip_one_image_operator. The default record is an enabled
+   --  AddSubtractConstant of 0 (which changes nothing); every component
+   --  holds the defaults of its class.
 
    type Operator_Array is
      array (0 .. Max_Operators - 1) of Ks_IP_One_Image_Operator
@@ -512,8 +491,8 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
       Items : Operator_Array;
    end record
      with Convention => C;
-   --  C: ks_ip_one_image_operators (CogIPOneImageOperators): Items (0 ..
-   --  Count - 1), applied in that order.
+   --  C: ks_ip_one_image_operators: Items (0 .. Count - 1), applied in that
+   --  order.
 
    ---------------------------------------------------------------------
    --  What the checks establish
@@ -1017,7 +996,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
                        else Value = 0.0);
    --  GetKernelValue (Col, Row). Bad_Parameter unless 0 <= Col <
    --  KernelWidth and 0 <= Row < KernelHeight, with sizes in 1 ..
-   --  Max_Convolve_Size (as VisionPro's ArgumentException).
+   --  Max_Convolve_Size.
 
    procedure Convolve_NxM_Set_Kernel_Value
      (Params    : in out Ks_IP_One_Image_Convolve_NxM;
@@ -1062,7 +1041,7 @@ package AMV.Kernels.IP_One_Image with SPARK_Mode, Preelaborate is
                             and then Value = Params.Kernel (Integer (Position))
                        else Value = 0.0);
    --  GetKernelValue (position). Bad_Parameter for a position that is not
-   --  a code of CogIPOneImageConvolve3x3PositionConstants.
+   --  one of the Position_* codes.
 
    procedure Convolve_3x3_Set_Kernel_Value
      (Params   : in out Ks_IP_One_Image_Convolve_3x3;

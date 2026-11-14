@@ -1,7 +1,7 @@
---  Kernel of AMV.Caliper.Find_Line: CogFindLineTool (run parameters
---  CogFindLine, results CogFindLineResults and CogFindLineResult). Its
---  entry points are part of the C API of the caliper tools
---  (include/amv_caliper.h, names ks_find_line_*).
+--  Kernel of AMV.Caliper.Find_Line: the find line tool, whose run
+--  parameters are a Ks_Find_Line_Run_Params and whose results are a
+--  Ks_Find_Line_Results. Its entry points are part of the C API of the
+--  caliper tools (include/amv_caliper.h, names ks_find_line_*).
 --
 --  What a run does. NumCalipers calipers are placed along the expected
 --  line segment, in the segment's own space: caliper K (0-based) is
@@ -84,7 +84,7 @@ package AMV.Kernels.Find_Line with SPARK_Mode, Preelaborate is
    --  The largest NumCalipers (C: KS_FIND_LINE_MAX_CALIPERS).
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogFindLine; C: ks_find_line_run_params)
+   --  Run parameters (C: ks_find_line_run_params)
    ---------------------------------------------------------------------
 
    type Ks_Find_Line_Run_Params is record
@@ -105,7 +105,7 @@ package AMV.Kernels.Find_Line with SPARK_Mode, Preelaborate is
    --  parameters as ks_caliper_check_run_params checks them.
 
    ---------------------------------------------------------------------
-   --  Results (CogFindLineResults; C: ks_find_line_results *, opaque)
+   --  Results (C: ks_find_line_results *, opaque)
    ---------------------------------------------------------------------
 
    type Ks_Find_Line_Result is record
@@ -116,8 +116,9 @@ package AMV.Kernels.Find_Line with SPARK_Mode, Preelaborate is
       Distance_To_Line : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_find_line_result (CogFindLineResult without CaliperResults,
-   --  which ks_find_line_results_caliper_results returns).
+   --  C: ks_find_line_result: the result of one caliper, without the
+   --  caliper's own results, which ks_find_line_results_caliper_results
+   --  returns.
 
    type Item_Array is array (Natural range <>) of Ks_Find_Line_Result;
    type Item_Array_Access is access Item_Array;
@@ -216,7 +217,7 @@ package AMV.Kernels.Find_Line with SPARK_Mode, Preelaborate is
      Export, Convention => C,
      External_Name => "ks_find_line_run_params_default",
      Post => Valid (Status) and then Succeeded (Status);
-   --  The defaults of CogFindLine (the record's default values).
+   --  The default run parameters (the record's default values).
 
    procedure Caliper_Region
      (Params : Ks_Find_Line_Run_Params;
@@ -256,8 +257,8 @@ package AMV.Kernels.Find_Line with SPARK_Mode, Preelaborate is
                             and then Results.Count
                                        = Natural (Params.Num_Calipers)
                        else Results = null);
-   --  Runs the find line tool (CogFindLine.Execute). Returns a new
-   --  results handle (null on failure).
+   --  Runs the find line tool. Returns a new results handle (null on
+   --  failure).
 
    procedure Results_Destroy (Results : in out Ks_Find_Line_Results)
    with

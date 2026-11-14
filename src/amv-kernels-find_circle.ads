@@ -1,7 +1,7 @@
---  Kernel of AMV.Caliper.Find_Circle: CogFindCircleTool (run parameters
---  CogFindCircle, results CogFindCircleResults and CogFindCircleResult).
---  Its entry points are part of the C API of the caliper tools
---  (include/amv_caliper.h, names ks_find_circle_*).
+--  Kernel of AMV.Caliper.Find_Circle: the find circle tool, whose run
+--  parameters are a Ks_Find_Circle_Run_Params and whose results are a
+--  Ks_Find_Circle_Results. Its entry points are part of the C API of the
+--  caliper tools (include/amv_caliper.h, names ks_find_circle_*).
 --
 --  What a run does. NumCalipers calipers are placed on the expected
 --  circular arc, in the arc's own space: caliper K (0-based) is centred
@@ -22,20 +22,19 @@
 --  a time), which needs 3 points. With RadiusConstraintEnabled: the
 --  circle of radius RadiusConstraint (in the selected space) whose centre
 --  minimises the sum of squared radial residuals (abs (P - C) - R)**2 of
---  the used points, which needs 2 points. That fit is our own: it
---  minimises over the centre C and unit vectors U_I the sum of
---  abs (P_I - C - R U_I)**2, whose minimum over the U_I is exactly the
---  sum above, by alternating the two exact partial minimisations (U_I =
---  (P_I - C) / abs (P_I - C), then C = mean (P_I - R U_I)); every step
---  lowers the sum, and it stops when the centre moves by at most 1.0E-12
---  times the radius, or after Max_Iterations steps. It starts from the
---  expected arc's centre mapped into the selected space (the centroid of
---  the points when that fails), so that a short arc converges to the
---  centre on the expected side. NumToIgnore points are discarded one at a
---  time as for the free fit: each time the point whose removal gives the
---  smallest sum of squared residuals. With DecrementNumToIgnore set,
---  NumToIgnore is lowered as far as needed (not below 0) to leave the
---  points the fit needs.
+--  the used points, which needs 2 points. That fit minimises over the
+--  centre C and unit vectors U_I the sum of abs (P_I - C - R U_I)**2,
+--  whose minimum over the U_I is exactly the sum above, by alternating
+--  the two exact partial minimisations (U_I = (P_I - C) / abs (P_I - C),
+--  then C = mean (P_I - R U_I)); every step lowers the sum, and it stops
+--  when the centre moves by at most 1.0E-12 times the radius, or after
+--  Max_Iterations steps. It starts from the expected arc's centre mapped
+--  into the selected space (the centroid of the points when that fails),
+--  so that a short arc converges to the centre on the expected side.
+--  NumToIgnore points are discarded one at a time as for the free fit:
+--  each time the point whose removal gives the smallest sum of squared
+--  residuals. With DecrementNumToIgnore set, NumToIgnore is lowered as far
+--  as needed (not below 0) to leave the points the fit needs.
 --
 --  Curvature. A caliper averages its edge across its projection length
 --  L, over which a circle of radius R bends away from the caliper's
@@ -53,7 +52,7 @@
 --  FilterHalfSizeInPixels; beyond that the edge is smeared over more
 --  pixels than the filter spans, the caliper no longer finds the mean
 --  position, and the correction overshoots (choose a shorter projection
---  length). VisionPro's behaviour here is not known.
+--  length).
 --
 --  Results. One item per caliper, in the order of the calipers: Found,
 --  Used, X and Y (0 when not found), DistanceToCircle (abs (abs (P - C) -
@@ -113,12 +112,12 @@ package AMV.Kernels.Find_Circle with SPARK_Mode, Preelaborate is
    Max_Iterations : constant := 200;
    --  The most steps of the fixed-radius fit.
 
-   --  CogFindCircleSearchDirectionConstants (VisionPro's values).
+   --  The search direction codes (C: KS_FIND_CIRCLE_SEARCH_DIRECTION_*).
    Search_Direction_Inward  : constant Int32 := 0;
    Search_Direction_Outward : constant Int32 := 1;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogFindCircle; C: ks_find_circle_run_params)
+   --  Run parameters (C: ks_find_circle_run_params)
    ---------------------------------------------------------------------
 
    type Ks_Find_Circle_Run_Params is record
@@ -143,7 +142,7 @@ package AMV.Kernels.Find_Circle with SPARK_Mode, Preelaborate is
    --  checks them.
 
    ---------------------------------------------------------------------
-   --  Results (CogFindCircleResults; C: ks_find_circle_results *)
+   --  Results (C: ks_find_circle_results *, opaque)
    ---------------------------------------------------------------------
 
    type Ks_Find_Circle_Result is record
@@ -154,9 +153,9 @@ package AMV.Kernels.Find_Circle with SPARK_Mode, Preelaborate is
       Distance_To_Circle : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_find_circle_result (CogFindCircleResult without its
-   --  CaliperResults, which ks_find_circle_results_caliper_results
-   --  returns).
+   --  C: ks_find_circle_result: the result of one caliper, without the
+   --  caliper's own results, which ks_find_circle_results_caliper_results
+   --  returns.
 
    type Item_Array is array (Natural range <>) of Ks_Find_Circle_Result;
    type Item_Array_Access is access Item_Array;
@@ -254,7 +253,7 @@ package AMV.Kernels.Find_Circle with SPARK_Mode, Preelaborate is
      Export, Convention => C,
      External_Name => "ks_find_circle_run_params_default",
      Post => Valid (Status) and then Succeeded (Status);
-   --  The defaults of CogFindCircle (the record's default values).
+   --  The default run parameters (the record's default values).
 
    procedure Caliper_Region
      (Params : Ks_Find_Circle_Run_Params;
@@ -294,8 +293,8 @@ package AMV.Kernels.Find_Circle with SPARK_Mode, Preelaborate is
                             and then Results.Count
                                        = Natural (Params.Num_Calipers)
                        else Results = null);
-   --  Runs the find circle tool (CogFindCircle.Execute). Returns a new
-   --  results handle (null on failure).
+   --  Runs the find circle tool. Returns a new results handle (null on
+   --  failure).
 
    procedure Results_Destroy (Results : in out Ks_Find_Circle_Results)
    with

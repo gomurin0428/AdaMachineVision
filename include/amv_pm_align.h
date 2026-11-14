@@ -1,12 +1,9 @@
 /*
- * AdaMachineVision (AMV) C API: geometric pattern location
- * (Cognex.VisionPro.PMAlign: CogPMAlignTool, CogPMAlignPattern,
- * CogPMAlignRunParams, CogPMAlignZoneAngle, CogPMAlignZoneScale,
- * CogPMAlignResults, CogPMAlignResult). Included by amv.h; the entry points
- * belong to the SPARK kernel AMV.Kernels.PM_Align, whose spec describes
- * the method (our own: gradient-direction shape matching on a pyramid with
- * a least squares refinement; not Cognex's PatMax or PatQuick), every
- * measure and every bound in full.
+ * AdaMachineVision (AMV) C API: geometric pattern location. Included by
+ * amv.h; the entry points belong to the SPARK kernel AMV.Kernels.PM_Align,
+ * whose spec describes the method (our own: gradient-direction shape
+ * matching on a pyramid with a least squares refinement), every measure
+ * and every bound in full.
  *
  * A pattern is an owned handle: create it, set its train parameters,
  * train it on an 8-bit image within a pixel region (with the transform from
@@ -26,8 +23,7 @@
 extern "C" {
 #endif
 
-/* CogPMAlignTrainAlgorithmConstants (only the first three are
-   supported). */
+/* Train algorithms (only the first three are supported). */
 #define KS_PM_ALIGN_TRAIN_ALGORITHM_PAT_MAX                  0
 #define KS_PM_ALIGN_TRAIN_ALGORITHM_PAT_QUICK                1
 #define KS_PM_ALIGN_TRAIN_ALGORITHM_PAT_MAX_AND_PAT_QUICK    2
@@ -35,15 +31,14 @@ extern "C" {
 #define KS_PM_ALIGN_TRAIN_ALGORITHM_PAT_MAX_HIGH_SENSITIVITY 4
 #define KS_PM_ALIGN_TRAIN_ALGORITHM_PAT_MAX_PERSPECTIVE      5
 
-/* CogPMAlignRunAlgorithmConstants (PAT_FLEX and PAT_MAX_PERSPECTIVE are
-   not supported). */
+/* Run algorithms (PAT_FLEX and PAT_MAX_PERSPECTIVE are not supported). */
 #define KS_PM_ALIGN_RUN_ALGORITHM_PAT_MAX             0
 #define KS_PM_ALIGN_RUN_ALGORITHM_PAT_QUICK           1
 #define KS_PM_ALIGN_RUN_ALGORITHM_BEST_TRAINED        2
 #define KS_PM_ALIGN_RUN_ALGORITHM_PAT_FLEX            3
 #define KS_PM_ALIGN_RUN_ALGORITHM_PAT_MAX_PERSPECTIVE 4
 
-/* CogPMAlignZoneConstants. */
+/* Zone configurations. */
 #define KS_PM_ALIGN_ZONE_NOMINAL  0
 #define KS_PM_ALIGN_ZONE_LOW_HIGH 1
 
@@ -67,7 +62,7 @@ extern "C" {
 #define KS_PM_ALIGN_MAX_TIMEOUT            1.0e9
 #define KS_PM_ALIGN_MAX_GRAIN_LIMIT        32.0
 
-/* The train parameters of CogPMAlignPattern (AMV defaults:
+/* The train parameters of a pattern (defaults:
    ks_pm_align_train_params_default). */
 typedef struct {
     int32_t train_algorithm;         /* PAT_MAX */
@@ -77,7 +72,7 @@ typedef struct {
     double  grain_limit_fine;        /* 1.0 */
 } ks_pm_align_train_params;
 
-/* CogPMAlignZoneAngle (radians) and CogPMAlignZoneScale. */
+/* The angle zone (radians) and the scale zone. */
 typedef struct {
     int32_t configuration; /* NOMINAL */
     double  low;           /* -pi (scale: 0.9) */
@@ -90,7 +85,7 @@ typedef struct {
     double  low, high, nominal;
 } ks_pm_align_zone_scale;
 
-/* CogPMAlignRunParams (AMV defaults: ks_pm_align_run_params_default). */
+/* The run parameters (defaults: ks_pm_align_run_params_default). */
 typedef struct {
     double                 accept_threshold;                /* 0.5 */
     double                 coarse_accept_threshold;         /* 0.3 */
@@ -113,8 +108,8 @@ typedef struct {
     double x, y, normal_x, normal_y;
 } ks_pm_align_feature;
 
-/* CogPMAlignResult: the measures and the pose (GetPose builds the
-   transform: scaling * R (rotation), then the translation). */
+/* A result: the measures and the pose (GetPose builds the transform:
+   scaling * R (rotation), then the translation). */
 typedef struct {
     double  score, coverage, clutter, fit_error, contrast;
     double  outside_region_feature_proportion;

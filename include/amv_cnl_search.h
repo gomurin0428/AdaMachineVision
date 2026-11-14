@@ -1,8 +1,7 @@
 /*
- * AdaMachineVision (AMV) C API: the CNL search (AMV.Kernels.CNL_Search,
- * the counterpart of CogCNLSearchTool, CogCNLSearchPattern,
- * CogCNLSearchRunParams and CogCNLSearchResults). Included by amv.h; the
- * conventions of amv.h apply (ks_status, adainit).
+ * AdaMachineVision (AMV) C API: the CNL search
+ * (AMV.Kernels.CNL_Search). Included by amv.h; the conventions of amv.h
+ * apply (ks_status, adainit).
  *
  * The pattern is an owned handle (ks_cnl_search_pattern *, NULL is an
  * untrained pattern with the default training parameters). The entry
@@ -15,9 +14,9 @@
  * training. The origin (origin_x, origin_y) is given in the train
  * image's selected space; pixel_from_selected maps it to pixel space.
  * ks_cnl_search_pattern_train_masked also takes a train image mask
- * (TrainImageMask and its offsets, AMV's meaning): its pixels of value 0
- * mark train image pixels "don't care", and the score is then taken over
- * the cared-for pixels of the pattern only.
+ * (TrainImageMask and its offsets): its pixels of value 0 mark train
+ * image pixels "don't care", and the score is then taken over the
+ * cared-for pixels of the pattern only.
  *
  * A run scores every window of the image as large as the pattern inside
  * the bounding box of the search region (NULL: no position, no results)
@@ -44,8 +43,7 @@
  * location back into the image's selected space; the pattern is searched
  * for in the rectangle's frame (results have no angle).
  * ks_cnl_search_execute searches the bounding box of its pixel region with
- * either search region mode, as VisionPro does for every region but an
- * affine rectangle.
+ * either search region mode.
  *
  * Partial matches (LINEAR_SEARCH only): partial_match_limit_left / _right
  * (at most half the trained pattern's width) and _up / _down (at most half
@@ -60,9 +58,6 @@
  *
  * The meaning of every field and operation is documented in
  * src/amv-kernels-cnl_search.ads and src/amv-cnl_search.ads.
- *
- * AMV is not affiliated with or endorsed by Cognex Corporation; "Cognex"
- * and "VisionPro" are trademarks of Cognex Corporation.
  */
 
 #ifndef AMV_CNL_SEARCH_H
@@ -74,19 +69,18 @@
 extern "C" {
 #endif
 
-/* CogCNLSearchAlgorithmConstants (flags; NON_LINEAR_CNLPAS is not
-   supported). */
+/* Algorithms (flags; NON_LINEAR_CNLPAS is not supported). */
 #define KS_CNL_SEARCH_ALGORITHM_LINEAR_SEARCH     1
 #define KS_CNL_SEARCH_ALGORITHM_LINEAR_CNLPAS     2
 #define KS_CNL_SEARCH_ALGORITHM_NON_LINEAR_CNLPAS 4
 
-/* CogCNLSearchAccuracyConstants (flags). */
+/* Accuracies (flags). */
 #define KS_CNL_SEARCH_ACCURACY_VERY_FINE 1
 #define KS_CNL_SEARCH_ACCURACY_FINE      2
 #define KS_CNL_SEARCH_ACCURACY_COARSE    4
 
-/* CogCNLSearchEdgeHitConstants (flags: the sides of the search area a
-   result's window crosses; UNKNOWN is never reported). */
+/* Edge hits (flags: the sides of the search area a result's window
+   crosses; UNKNOWN is never reported). */
 #define KS_CNL_SEARCH_EDGE_HIT_NONE    0
 #define KS_CNL_SEARCH_EDGE_HIT_UNKNOWN 1
 #define KS_CNL_SEARCH_EDGE_HIT_LEFT    2
@@ -94,7 +88,7 @@ extern "C" {
 #define KS_CNL_SEARCH_EDGE_HIT_RIGHT   8
 #define KS_CNL_SEARCH_EDGE_HIT_BOTTOM  16
 
-/* CogRegionModeConstants, for train_region_mode (all three) and
+/* Region modes, for train_region_mode (all three) and
    search_region_mode (PIXEL_ALIGNED_BOUNDING_BOX or AFFINE_TRANSFORM). */
 #define KS_CNL_SEARCH_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK 0
 #define KS_CNL_SEARCH_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX             1
@@ -111,7 +105,7 @@ extern "C" {
 #define KS_CNL_SEARCH_MAX_CLIMB_STEPS   16
 #define KS_CNL_SEARCH_MIN_CARED_PIXELS  64
 
-/* The training parameters of CogCNLSearchPattern;
+/* The training parameters of a pattern;
    ks_cnl_search_train_params_default fills in the defaults. */
 typedef struct {
     int32_t algorithms;      /* LINEAR_SEARCH; 1 .. 3 */
@@ -127,7 +121,7 @@ typedef struct {
                                   ks_cnl_search_pattern_train_affine) */
 } ks_cnl_search_train_params;
 
-/* CogCNLSearchRunParams; ks_cnl_search_run_params_default fills in the
+/* The run parameters; ks_cnl_search_run_params_default fills in the
    defaults. */
 typedef struct {
     int32_t algorithm;            /* LINEAR_SEARCH */
@@ -145,7 +139,7 @@ typedef struct {
     int32_t partial_match_reduce_score; /* 0, 0 or 1 */
 } ks_cnl_search_run_params;
 
-/* CogCNLSearchResult. */
+/* A result. */
 typedef struct {
     int32_t id;                /* the index */
     int32_t accepted;          /* 1 */
@@ -272,7 +266,7 @@ void ks_cnl_search_pattern_get_trained_pattern_image(
     const ks_cnl_search_pattern *pattern, ks_image_8_grey **image,
     ks_status *status);
 
-/* The defaults of CogCNLSearchRunParams. */
+/* The default run parameters. */
 void ks_cnl_search_run_params_default(ks_cnl_search_run_params *params,
                                       ks_status *status);
 /* Runs the search. *results is a new handle (NULL on failure):

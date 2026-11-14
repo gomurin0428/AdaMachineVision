@@ -1,8 +1,8 @@
 /*
  * AdaMachineVision (AMV) C API: the fixture tools and the calibrations
- * (Cognex.VisionPro.CalibFix: CogNPointToNPoint, CogFixtureTool with
- * CogFixture, CogFixtureNPointToNPointTool with CogFixtureNPointToNPoint,
- * CogCalibNPointToNPoint and CogCalibCheckerboard with their tools).
+ * (the fit of a transform to point pairs, the fixture tool, the N-point
+ * fixture tool, and the N-point and checkerboard calibrations with their
+ * tools).
  *
  * The functions are the entry points of the SPARK kernel
  * AMV.Kernels.Calib_Fix, whose spec (src/amv-kernels-calib_fix.ads)
@@ -15,15 +15,13 @@
  * Coordinates must be finite and within KS_CALIB_FIX_MAX_VALUE.
  *
  * Fits. ks_n_point_to_n_point_compute fits the transform of a DOF code
- * (KS_DOF_*, VisionPro's CogNPointToNPointDOFConstants values) that maps
- * B onto A with the least sum of squared distances; each DOF needs at
- * least 0, 1, 1, 1, 2, 2, 3, 3 pairs (in the order of the codes), and
- * points that do not determine the transform give
- * KS_FAILURE_BAD_PARAMETER. The
- * result holds the transform (within KS_TRANSFORM_MAX_VALUE, with a
- * non-zero determinant and an inverse within the bounds, and exactly the
- * structure of its DOF), the RMS error (B mapped minus A, A units) and the
- * fit's parameters.
+ * (KS_DOF_*) that maps B onto A with the least sum of squared distances;
+ * each DOF needs at least 0, 1, 1, 1, 2, 2, 3, 3 pairs (in the order of the
+ * codes), and points that do not determine the transform give
+ * KS_FAILURE_BAD_PARAMETER. The result holds the transform (within
+ * KS_TRANSFORM_MAX_VALUE, with a non-zero determinant and an inverse within
+ * the bounds, and exactly the structure of its DOF), the RMS error (B
+ * mapped minus A, A units) and the fit's parameters.
  *
  * Spaces. The fixture and calibration tools take the coordinate space
  * state of the input image (tree, selected name as stored,
@@ -36,9 +34,8 @@
  *
  * Calibrations. A ks_calibration * is an owned trained object of one of
  * two kinds (KS_CALIBRATION_N_POINT_TO_N_POINT, KS_CALIBRATION_CHECKERBOARD;
- * AMV's single type for CogCalibNPointToNPoint and CogCalibCheckerboard).
- * Changing an input uncalibrates it; the tools fail with
- * KS_FAILURE_OPERATOR_NOT_TRAINED for an uncalibrated one. The
+ * one type for both). Changing an input uncalibrates it; the tools fail
+ * with KS_FAILURE_OPERATOR_NOT_TRAINED for an uncalibrated one. The
  * checkerboard calibration finds the X-corners of a checkerboard in an
  * 8-bit image, organises them in a grid (the largest board in the image;
  * origin at the corner nearest the image centre, axes along the tile edges
@@ -122,7 +119,7 @@ extern "C" {
 #define KS_CALIB_FIX_MAX_WARP_POINTS        65536
 #define KS_CALIB_FIX_MIN_PLATE_SCALE        1.0e-150
 
-/* CogNPointToNPointDOFConstants and CogCalibCheckerboardDOFConstants. */
+/* The degrees of freedom of a fit. */
 #define KS_DOF_NONE                                          0
 #define KS_DOF_TRANSLATION_X                                 1
 #define KS_DOF_TRANSLATION_Y                                 2
@@ -136,15 +133,14 @@ extern "C" {
 #define KS_POINT_GROUP_A 0 /* unfixtured, uncalibrated */
 #define KS_POINT_GROUP_B 1 /* raw fixtured, raw calibrated */
 
-/* SpaceToOutput: CogFixtureSpaceToOutputConstants FixturedSpace /
-   UnfixturedSpace, CogCalibSpaceToOutputConstants CalibratedSpace /
-   UncalibratedSpace. */
+/* SpaceToOutput: the new space (FixturedSpace, CalibratedSpace) or the
+   input's selection (UnfixturedSpace, UncalibratedSpace). */
 #define KS_SPACE_TO_OUTPUT_NEW 0
 #define KS_SPACE_TO_OUTPUT_OLD 1
 
-/* CogFixturedSpaceNameDuplicateHandlingConstants: COMPATIBILITY replaces
-   an existing space, ENHANCED fails (KS_FAILURE_BAD_PARAMETER) when the
-   space exists. */
+/* FixturedSpaceNameDuplicateHandling: COMPATIBILITY replaces an existing
+   space, ENHANCED fails (KS_FAILURE_BAD_PARAMETER) when the space
+   exists. */
 #define KS_FIXTURED_SPACE_NAME_DUPLICATE_COMPATIBILITY 1
 #define KS_FIXTURED_SPACE_NAME_DUPLICATE_ENHANCED      2
 
@@ -152,9 +148,8 @@ extern "C" {
 #define KS_CALIBRATION_N_POINT_TO_N_POINT 0
 #define KS_CALIBRATION_CHECKERBOARD       1
 
-/* CogCalibFixComputationModeConstants (VisionPro's values). AMV implements
-   LINEAR and PERSPECTIVE_AND_RADIAL_WARP (checkerboard only); the others
-   give KS_FAILURE_BAD_PARAMETER. */
+/* ComputationMode. AMV implements LINEAR and PERSPECTIVE_AND_RADIAL_WARP
+   (both kinds of calibration); the others give KS_FAILURE_BAD_PARAMETER. */
 #define KS_COMPUTATION_MODE_LINEAR                        1
 #define KS_COMPUTATION_MODE_PERSPECTIVE_AND_RADIAL_WARP   2
 #define KS_COMPUTATION_MODE_LINESCAN_WARP                 3
@@ -163,9 +158,7 @@ extern "C" {
 #define KS_COMPUTATION_MODE_THREE_PARAM_RADIAL_WARP       6
 #define KS_COMPUTATION_MODE_NO_DISTORTION_WARP            7
 
-/* CogCalibNPointAdjustmentSpaceConstants and
-   CogCalibCheckerboardAdjustmentSpaceConstants (VisionPro's values): the
-   space the calibrated origin and x axis rotation are given in. */
+/* The space the calibrated origin and x axis rotation are given in. */
 #define KS_ADJUSTMENT_SPACE_RAW_CALIBRATED 0
 #define KS_ADJUSTMENT_SPACE_UNCALIBRATED   1
 
@@ -210,7 +203,7 @@ void ks_point_pairs_get_point(const ks_point_pairs *pairs, int32_t index,
 void ks_point_pairs_set_point(ks_point_pairs *pairs, int32_t index,
                               int32_t group, double x, double y,
                               ks_status *status);
-/* Removes every pair (AMV name). */
+/* Removes every pair. */
 void ks_point_pairs_clear(ks_point_pairs *pairs, ks_status *status);
 /* A new list with the same pairs (NULL for NULL). */
 void ks_point_pairs_duplicate(const ks_point_pairs *pairs,
@@ -219,7 +212,7 @@ void ks_point_pairs_duplicate(const ks_point_pairs *pairs,
 void ks_point_pairs_destroy(ks_point_pairs **pairs);
 
 /* ------------------------------------------------------------------ */
-/* The fit (CogNPointToNPoint.ComputeGroupAFromGroupBTransform)         */
+/* The fit                                                              */
 /* ------------------------------------------------------------------ */
 
 void ks_n_point_to_n_point_compute(const ks_point_pairs *pairs,
@@ -228,7 +221,7 @@ void ks_n_point_to_n_point_compute(const ks_point_pairs *pairs,
                                    ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* The fixture tool (CogFixtureTool, CogFixture)                        */
+/* The fixture tool                                                     */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -251,7 +244,7 @@ void ks_fixture_execute(const ks_image_8_grey *input_image,
                         ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* The N-point fixture tool (CogFixtureNPointToNPointTool)              */
+/* The N-point fixture tool                                             */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -273,7 +266,7 @@ void ks_fixture_n_point_to_n_point_execute(
     ks_n_point_to_n_point_fit *fit, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Calibrations (CogCalibNPointToNPoint, CogCalibCheckerboard)          */
+/* Calibrations                                                         */
 /* ------------------------------------------------------------------ */
 
 typedef struct ks_calibration ks_calibration; /* opaque */
@@ -350,13 +343,13 @@ void ks_calibration_uncalibrate(ks_calibration *calibration,
 void ks_calibration_computed_fit(const ks_calibration *calibration,
                                  ks_n_point_to_n_point_fit *fit,
                                  ks_status *status);
-/* (AMV) Corner index of a checkerboard calibration: its pixel position
-   (inside the image) and grid indices. */
+/* Corner index of a checkerboard calibration: its pixel position (inside
+   the image) and grid indices. */
 void ks_calibration_get_corner(const ks_calibration *calibration,
                                int32_t index, double *pixel_x,
                                double *pixel_y, int32_t *grid_i,
                                int32_t *grid_j, ks_status *status);
-/* (AMV) The size of the image the corners were found in (0 x 0 without
+/* The size of the image the corners were found in (0 x 0 without
    corners). */
 void ks_calibration_corner_image_size(const ks_calibration *calibration,
                                       int32_t *width, int32_t *height,
@@ -368,9 +361,8 @@ void ks_calibration_corner_image_size(const ks_calibration *calibration,
 /* SwapCalibratedHandedness)                                            */
 /* ------------------------------------------------------------------ */
 
-/* (AMV name for the group of properties.) The defaults (AMV's) are all
-   zero: the origin (0, 0) and the rotation 0 in raw calibrated space, not
-   swapped. */
+/* The origin adjustment. The defaults are all zero: the origin (0, 0) and
+   the rotation 0 in raw calibrated space, not swapped. */
 typedef struct {
     double  calibrated_origin_x;              /* within 1.0e150 */
     double  calibrated_origin_y;              /* within 1.0e150 */
@@ -410,7 +402,7 @@ void ks_calibration_computed_uncalibrated_from_calibrated_transform(
 /* The computation mode and the nonlinear model                         */
 /* ------------------------------------------------------------------ */
 
-/* (AMV) The model of PERSPECTIVE_AND_RADIAL_WARP. With
+/* The model of PERSPECTIVE_AND_RADIAL_WARP. With
    g = ((x - grid_center_x) / grid_scale, (y - grid_center_y) / grid_scale)
    for the plate point (x, y) (the grid indices (i, j) of a checkerboard's
    corner, the raw calibrated point of an N-point calibration's pair; the
@@ -454,32 +446,31 @@ void ks_calibration_computation_mode(const ks_calibration *calibration,
                                      int32_t *mode, ks_status *status);
 void ks_calibration_set_computation_mode(ks_calibration *calibration,
                                          int32_t mode, ks_status *status);
-/* (AMV) The model; KS_FAILURE_BAD_PARAMETER in the linear mode,
+/* The model; KS_FAILURE_BAD_PARAMETER in the linear mode,
    KS_FAILURE_OPERATOR_NOT_TRAINED when not calibrated. */
 void ks_calibration_computed_warp_model(const ks_calibration *calibration,
                                         ks_radial_warp_model *model,
                                         ks_status *status);
-/* (AMV) The input pixel that the output pixel (output_x, output_y) of the
-   warped image shows (*inside 1), or *inside 0 (and 0, 0) when it shows
-   nothing. The output coordinates must be finite and within
+/* The input pixel that the output pixel (output_x, output_y) of the warped
+   image shows (*inside 1), or *inside 0 (and 0, 0) when it shows nothing.
+   The output coordinates must be finite and within
    KS_CALIB_FIX_MAX_OUTPUT_COORDINATE. */
 void ks_calibration_map_output_pixel(const ks_calibration *calibration,
                                      double output_x, double output_y,
                                      double *input_x, double *input_y,
                                      int32_t *inside, ks_status *status);
-/* (AMV) The inverse: the output pixel of the warped image that shows the
-   input pixel (input_x, input_y) (*inside 1), or *inside 0 (and 0, 0)
-   when it lies beyond the model's valid radius or maps behind the camera.
-   Mapped on by the output's linear calibrated space, it gives the
-   calibrated coordinates of a point measured in the distorted input. */
+/* The inverse: the output pixel of the warped image that shows the input
+   pixel (input_x, input_y) (*inside 1), or *inside 0 (and 0, 0) when it
+   lies beyond the model's valid radius or maps behind the camera. Mapped on
+   by the output's linear calibrated space, it gives the calibrated
+   coordinates of a point measured in the distorted input. */
 void ks_calibration_map_input_pixel(const ks_calibration *calibration,
                                     double input_x, double input_y,
                                     double *output_x, double *output_y,
                                     int32_t *inside, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* The calibration tools (CogCalibNPointToNPointTool,                   */
-/* CogCalibCheckerboardTool)                                            */
+/* The calibration tools                                                */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -506,9 +497,9 @@ void ks_calibration_tool_execute(const ks_image_8_grey *input_image,
                                  const ks_transform_2d_linear *pixel_from_root,
                                  ks_status *status);
 
-/* CogCalibCheckerboardRunParams. An output pixel of the warp that shows
-   no input pixel gets unfilled_pel_value (0 .. 255) when
-   unfilled_pel_value_enabled is 1, otherwise 0. */
+/* The run parameters of the checkerboard calibration tool. An output pixel
+   of the warp that shows no input pixel gets unfilled_pel_value (0 .. 255)
+   when unfilled_pel_value_enabled is 1, otherwise 0. */
 typedef struct {
     ks_space_name calibrated_space_name;      /* a path component */
     int32_t       space_to_output;            /* KS_SPACE_TO_OUTPUT_* */
@@ -534,12 +525,12 @@ void ks_calibration_checkerboard_tool_execute(
     ks_coordinate_space_tree *tree, ks_space_name *selected,
     const ks_transform_2d_linear *pixel_from_root, ks_image_8_grey **output,
     ks_status *status);
-/* (AMV) The N-point tool (CogCalibNPointToNPointTool) in every mode:
+/* The N-point calibration tool in every mode:
    ks_calibration_checkerboard_tool_execute with the name and
-   space_to_output of params and unfilled pixels 0 (VisionPro's N-point
-   run parameters have no UnfilledPelValue). The linear mode sets *output
-   to NULL; PERSPECTIVE_AND_RADIAL_WARP to the warped image (the caller
-   destroys it). */
+   space_to_output of params and unfilled pixels 0 (params has no
+   unfilled_pel_value). The linear mode sets *output to NULL;
+   PERSPECTIVE_AND_RADIAL_WARP to the warped image (the caller destroys
+   it). */
 void ks_calibration_n_point_tool_execute(
     const ks_image_8_grey *input_image, const ks_calibration *calibration,
     const ks_calibration_run_params *params, ks_coordinate_space_tree *tree,

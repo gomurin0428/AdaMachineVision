@@ -1,5 +1,4 @@
---  Kernel of AMV.Transforms: 2D linear (affine) transforms, the
---  counterpart of CogTransform2DLinear.
+--  Kernel of AMV.Transforms: 2D linear (affine) transforms.
 --
 --  A transform maps (x, y) to (A x + B y + Translation_X,
 --  C x + D y + Translation_Y). The decomposed form, the composition order

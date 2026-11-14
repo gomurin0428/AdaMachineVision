@@ -1,5 +1,4 @@
---  Tests for AMV.Caliper (CogCaliperTool) and its kernel
---  AMV.Kernels.Caliper.
+--  Tests for AMV.Caliper and its kernel AMV.Kernels.Caliper.
 --
 --  The scenes are drawn with AMV_Test_Images: half-planes give straight
 --  edges at known positions, rectangles give bars of known width. Edges
@@ -156,7 +155,7 @@ procedure Test_Caliper is
       Check (Code (Pair) = 2 and then Code (Light_To_Dark) = 2
              and then Code (Bilinear_Accurate) = 4
              and then Code (Straddle) = 8,
-             "codes are VisionPro's values");
+             "the numeric codes");
    end Test_Defaults;
 
    procedure Test_Failures is

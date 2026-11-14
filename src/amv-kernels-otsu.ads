@@ -3,8 +3,7 @@
 --  HardDynamicThreshold and the histogram result's
 --  GetMinimumWGVThreshold. Internal: no entry points of its own.
 --
---  Definition (Otsu 1979; the method of the public literature, not a
---  VisionPro algorithm): the threshold T in 1 .. 255 splits the samples
+--  Definition (Otsu 1979): the threshold T in 1 .. 255 splits the samples
 --  into the classes "< T" (n0 samples, sum of grey levels s0) and ">= T"
 --  (n1, s1); T maximises the between-class variance n0 n1 (m0 - m1)**2 =
 --  (n1 s0 - n0 s1)**2 / (n0 n1), which is the same as minimising the

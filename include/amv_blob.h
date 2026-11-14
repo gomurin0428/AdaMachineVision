@@ -1,7 +1,6 @@
 /*
- * AdaMachineVision (AMV) C API: blob analysis (AMV.Kernels.Blob, the
- * counterpart of CogBlobTool, CogBlob and CogBlobResults). Included by
- * amv.h; the conventions of amv.h apply (ks_status, adainit).
+ * AdaMachineVision (AMV) C API: blob analysis (AMV.Kernels.Blob).
+ * Included by amv.h; the conventions of amv.h apply (ks_status, adainit).
  *
  * A run takes an 8-bit image, the pixels to analyse as a pixel region
  * (ks_pixel_region_whole_image for the whole image; NULL is the empty
@@ -57,9 +56,6 @@
  *
  * The meaning of every field and operation is documented in
  * src/amv-kernels-blob.ads and src/amv-blob.ads.
- *
- * AMV is not affiliated with or endorsed by Cognex Corporation; "Cognex"
- * and "VisionPro" are trademarks of Cognex Corporation.
  */
 
 #ifndef AMV_BLOB_H
@@ -71,7 +67,7 @@
 extern "C" {
 #endif
 
-/* CogBlobSegmentationModeConstants */
+/* Segmentation modes */
 #define KS_BLOB_SEGMENTATION_NONE                    0
 #define KS_BLOB_SEGMENTATION_MAP                     1
 #define KS_BLOB_SEGMENTATION_HARD_FIXED_THRESHOLD    2
@@ -81,21 +77,21 @@ extern "C" {
 #define KS_BLOB_SEGMENTATION_SOFT_RELATIVE_THRESHOLD 6
 #define KS_BLOB_SEGMENTATION_SUBTRACTION_IMAGE       7
 
-/* CogBlobSegmentationPolarityConstants */
+/* Segmentation polarities */
 #define KS_BLOB_POLARITY_DARK_BLOBS  0
 #define KS_BLOB_POLARITY_LIGHT_BLOBS 1
 
-/* CogBlobConnectivityModeConstants */
+/* Connectivity modes */
 #define KS_BLOB_CONNECTIVITY_GREY_SCALE             0
 #define KS_BLOB_CONNECTIVITY_LABELED                1
 #define KS_BLOB_CONNECTIVITY_WHOLE_IMAGE_GREY_SCALE 2
 
-/* CogBlobConnectivityCleanupConstants */
+/* Connectivity cleanups */
 #define KS_BLOB_CLEANUP_NONE  0
 #define KS_BLOB_CLEANUP_PRUNE 1
 #define KS_BLOB_CLEANUP_FILL  2
 
-/* CogBlobMeasureConstants (2 and 14 are not computed) */
+/* Measures (2 and 14 are not computed) */
 #define KS_BLOB_MEASURE_LABEL                     0
 #define KS_BLOB_MEASURE_AREA                      1
 #define KS_BLOB_MEASURE_BOUNDARY_PIXEL_LENGTH     2
@@ -140,23 +136,23 @@ extern "C" {
 #define KS_BLOB_MEASURE_BOUNDING_BOX_PRINCIPAL_AXIS_ASPECT  41
 #define KS_BLOB_MEASURE_NOT_CLIPPED                         42
 
-/* CogBlobMeasureModeConstants */
+/* Measure modes */
 #define KS_BLOB_MEASURE_MODE_NONE        0
 #define KS_BLOB_MEASURE_MODE_PRE_COMPUTE 1
 #define KS_BLOB_MEASURE_MODE_FILTER      2
 
-/* CogBlobFilterModeConstants */
+/* Filter modes */
 #define KS_BLOB_FILTER_EXCLUDE_BLOBS_IN_RANGE 0
 #define KS_BLOB_FILTER_INCLUDE_BLOBS_IN_RANGE 1
 
-/* CogBlobAxisConstants */
+/* Axes of the boxes and the medians */
 #define KS_BLOB_AXIS_PRINCIPAL                0
 #define KS_BLOB_AXIS_SELECTED_SPACE           1
 #define KS_BLOB_AXIS_EXTREMA_ANGLE            2
 #define KS_BLOB_AXIS_PIXEL_ALIGNED            3
 #define KS_BLOB_AXIS_PIXEL_ALIGNED_NO_EXCLUDE 4
 
-/* CogBlobMorphologyConstants */
+/* Morphology operations */
 #define KS_BLOB_MORPHOLOGY_ERODE_HORIZONTAL  0
 #define KS_BLOB_MORPHOLOGY_ERODE_VERTICAL    1
 #define KS_BLOB_MORPHOLOGY_ERODE_SQUARE      2
@@ -170,11 +166,11 @@ extern "C" {
 #define KS_BLOB_MORPHOLOGY_OPEN_VERTICAL     10
 #define KS_BLOB_MORPHOLOGY_OPEN_SQUARE       11
 
-/* CogBlobLabelConstants (grey scale connectivity) */
+/* The label of a feature (grey scale connectivity) */
 #define KS_BLOB_LABEL_HOLE 0
 #define KS_BLOB_LABEL_BLOB 1
 
-/* CogBlobSegmentedImageConstants */
+/* The stages of a saved segmented image */
 #define KS_BLOB_SEGMENTED_FINAL_IMAGE       0
 #define KS_BLOB_SEGMENTED_BEFORE_MORPHOLOGY 1
 #define KS_BLOB_SEGMENTED_BEFORE_MASKING    2
@@ -190,9 +186,8 @@ extern "C" {
 #define KS_BLOB_MAX_ID_IMAGE_BLOBS        65535
 #define KS_BLOB_MAX_EXTREMA_ANGLE         1.0e6 /* radians */
 
-/* CogBlobSegmentationParams. Every field is checked by ks_blob_execute,
-   whatever the mode. The soft fixed defaults (102, 153) are AMV's;
-   VisionPro does not state them. */
+/* The segmentation parameters. Every field is checked by ks_blob_execute,
+   whatever the mode. The soft fixed defaults are 102 and 153. */
 typedef struct {
     int32_t mode;                    /* KS_BLOB_SEGMENTATION_* */
     int32_t polarity;                /* KS_BLOB_POLARITY_* */
@@ -207,7 +202,7 @@ typedef struct {
     int32_t softness;                     /* 0 .. KS_BLOB_MAX_SOFTNESS */
 } ks_blob_segmentation_params;
 
-/* CogBlobMeasure */
+/* A run-time measure */
 typedef struct {
     int32_t measure;            /* KS_BLOB_MEASURE_* */
     int32_t mode;               /* KS_BLOB_MEASURE_MODE_* */
@@ -216,19 +211,19 @@ typedef struct {
     double  filter_range_high;
 } ks_blob_measure;
 
-/* CogBlobMeasureCollection: items[0 .. count - 1] */
+/* The run-time measures: items[0 .. count - 1] */
 typedef struct {
     int32_t         count;
     ks_blob_measure items[KS_BLOB_MAX_RUN_TIME_MEASURES];
 } ks_blob_measure_collection;
 
-/* CogBlobMorphologyCollection: items[0 .. count - 1] */
+/* The morphology operations: items[0 .. count - 1] */
 typedef struct {
     int32_t count;
     int32_t items[KS_BLOB_MAX_MORPHOLOGY_OPERATIONS]; /* KS_BLOB_MORPHOLOGY_* */
 } ks_blob_morphology_collection;
 
-/* CogBlob (the run parameters) */
+/* The run parameters */
 typedef struct {
     ks_blob_segmentation_params   segmentation_params;
     int32_t                       connectivity_mode;
@@ -246,7 +241,7 @@ typedef struct {
     int32_t                       save_segmented_image_before_morphology;
 } ks_blob_run_params;
 
-/* CogBlobResult: one feature, every measure in the selected space. */
+/* One feature, every measure in the selected space. */
 typedef struct {
     int32_t id;                      /* 0-based, raster order */
     int32_t label;                   /* KS_BLOB_LABEL_* or grey value */
@@ -318,22 +313,22 @@ _Static_assert(sizeof(ks_blob_result) == 528,
 
 typedef struct ks_blob_results ks_blob_results; /* opaque */
 
-/* VisionPro's defaults: hard dynamic threshold, dark blobs, fixed 128,
-   relative 50, no tails, soft fixed 102 .. 153 (AMV's), soft relative
-   40 .. 60, softness 254, grey scale, fill, min pixels 10, sorted by area
-   descending, no run-time measures, no morphology. */
+/* The defaults: hard dynamic threshold, dark blobs, fixed 128, relative
+   50, no tails, soft fixed 102 .. 153, soft relative 40 .. 60, softness
+   254, grey scale, fill, min pixels 10, sorted by area descending, no
+   run-time measures, no morphology. */
 void ks_blob_run_params_default(ks_blob_run_params *params,
                                 ks_status *status);
 
-/* The setters of CogBlobSegmentationParams (SetSegmentation*): each
+/* The setters of the segmentation parameters (SetSegmentation*): each
    checks its arguments, then sets mode and the fields it names. On
-   KS_FAILURE_BAD_PARAMETER (VisionPro's ArgumentException; the message
-   names the argument) *params is unchanged: a value out of its range
-   (percentages 0 .. 100, hard_fixed_threshold 0 .. 65535, soft fixed low
-   0 .. 65534 and high 1 .. 65535, softness 0 .. 254), tail_low +
-   tail_high > 100, soft fixed low >= high, soft relative low > high, or a
-   polarity that is not KS_BLOB_POLARITY_*. (AMV's dynamic threshold does
-   not use the tails.) */
+   KS_FAILURE_BAD_PARAMETER (the message names the argument) *params is
+   unchanged: a value out of its range (percentages 0 .. 100,
+   hard_fixed_threshold 0 .. 65535, soft fixed low 0 .. 65534 and high
+   1 .. 65535, softness 0 .. 254), tail_low + tail_high > 100, soft fixed
+   low >= high, soft relative low > high, or a polarity that is not
+   KS_BLOB_POLARITY_*. (AMV's dynamic threshold does not use the
+   tails.) */
 void ks_blob_segmentation_params_set_hard_fixed_threshold(
     ks_blob_segmentation_params *params, int32_t hard_fixed_threshold,
     int32_t polarity, ks_status *status);
@@ -361,11 +356,10 @@ void ks_blob_morphology_collection_add(
     ks_blob_morphology_collection *collection, int32_t operation,
     ks_status *status);
 
-/* CogBlob.Execute. Failures, in this order: KS_FAILURE_IMAGE_NO_PIXELS
+/* Runs the analysis. Failures, in this order: KS_FAILURE_IMAGE_NO_PIXELS
    for a NULL image; KS_FAILURE_BAD_PARAMETER for run parameters that are
-   not valid (the message names the property; extrema_angle must be
-   finite and within +/-KS_BLOB_MAX_EXTREMA_ANGLE), a transform whose
-   matrix
+   not valid (the message names the property; extrema_angle must be finite
+   and within +/-KS_BLOB_MAX_EXTREMA_ANGLE), a transform whose matrix
    entries exceed KS_BLOB_MAX_SCALE or whose translation exceeds
    KS_BLOB_MAX_TRANSLATION, a region that is not valid or does not lie in
    the image; KS_FAILURE_OUT_OF_MEMORY. */
@@ -424,9 +418,9 @@ void ks_blob_results_get_blob_measure(const ks_blob_results *results,
                                       int32_t measure, int32_t id,
                                       double *value, ks_status *status);
 
-/* CogBlobResult.GetMeasure (KS_FAILURE_BAD_PARAMETER for a measure that is
-   not computed) and GetBoundingBox (principal, selected space, extrema
-   angle, pixel aligned). */
+/* GetMeasure (KS_FAILURE_BAD_PARAMETER for a measure that is not
+   computed) and GetBoundingBox (principal, selected space, extrema angle,
+   pixel aligned). */
 void ks_blob_result_get_measure(const ks_blob_result *result,
                                 int32_t measure, double *value,
                                 ks_status *status);
@@ -434,30 +428,29 @@ void ks_blob_result_get_bounding_box(const ks_blob_result *result,
                                      int32_t axis, ks_rectangle_affine *box,
                                      ks_status *status);
 
-/* CogBlobResult.GetBoundary: a new polygon (ks_polygon_destroy frees it),
-   the outer boundary of the feature along its pixel edges in the selected
-   space. */
+/* GetBoundary: a new polygon (ks_polygon_destroy frees it), the outer
+   boundary of the feature along its pixel edges in the selected space. */
 void ks_blob_results_get_boundary(const ks_blob_results *results, int32_t id,
                                   ks_polygon **boundary, ks_status *status);
 
-/* CogBlobResult.GetBoundingBoxAtAngle (on the results, by id): the
-   smallest rectangle around the feature's pixel squares along the axes at
-   angle (radians, finite, within +/-KS_BLOB_MAX_EXTREMA_ANGLE) in the
-   selected space, rotation = angle, no skew. KS_FAILURE_BAD_PARAMETER for
-   an id no feature has or a bad angle. */
+/* GetBoundingBoxAtAngle: the smallest rectangle around the pixel squares
+   of feature id along the axes at angle (radians, finite, within
+   +/-KS_BLOB_MAX_EXTREMA_ANGLE) in the selected space, rotation = angle,
+   no skew. KS_FAILURE_BAD_PARAMETER for an id no feature has or a bad
+   angle. */
 void ks_blob_results_get_bounding_box_at_angle(const ks_blob_results *results,
                                                int32_t id, double angle,
                                                ks_rectangle_affine *box,
                                                ks_status *status);
 
-/* CogBlobResult.GetMedianX / GetMedianY (on the results, by id): the
-   median of the x (y) coordinates of the feature's pixel centres in the
-   frame of the measures of the box of axis (KS_BLOB_AXIS_*): principal,
-   along the principal axes from the centre of mass; selected space and
-   pixel aligned, the selected space; extrema angle, the measure
-   median_extrema_angle_x (_y). The middle value, or the mean of the two
-   middle values for an even number of pixels. KS_FAILURE_BAD_PARAMETER
-   for an id no feature has or a bad axis; KS_FAILURE_OUT_OF_MEMORY. */
+/* GetMedianX / GetMedianY: the median of the x (y) coordinates of the
+   pixel centres of feature id in the frame of the measures of the box of
+   axis (KS_BLOB_AXIS_*): principal, along the principal axes from the
+   centre of mass; selected space and pixel aligned, the selected space;
+   extrema angle, the measure median_extrema_angle_x (_y). The middle
+   value, or the mean of the two middle values for an even number of
+   pixels. KS_FAILURE_BAD_PARAMETER for an id no feature has or a bad
+   axis; KS_FAILURE_OUT_OF_MEMORY. */
 void ks_blob_results_get_median_x(const ks_blob_results *results, int32_t id,
                                   int32_t axis, double *median,
                                   ks_status *status);
@@ -473,27 +466,27 @@ void ks_blob_results_create_blob_id_image(const ks_blob_results *results,
                                           ks_image_16_grey **image,
                                           ks_status *status);
 
-/* CogBlobResults.CreateBlobImage (filtered, viewable, background): a new
-   8-bit image of the input image's size with the features (all, or those
-   that passed the filter when filtered = 1) painted onto a background.
-   viewable = 1: background 128, holes 0, blobs 255 (soft segmentation:
-   192 .. 255 by level; Labeled: 96 .. 255 by label). viewable = 0:
-   background `background` (0 .. 255), holes 0, blobs their segmented
-   value (1, or the level 1 .. softness + 1), Labeled blobs their label.
-   KS_FAILURE_IMAGE_NO_PIXELS for NULL results. */
+/* CreateBlobImage: a new 8-bit image of the input image's size with the
+   features (all, or those that passed the filter when filtered = 1)
+   painted onto a background. viewable = 1: background 128, holes 0, blobs
+   255 (soft segmentation: 192 .. 255 by level; Labeled: 96 .. 255 by
+   label). viewable = 0: background `background` (0 .. 255), holes 0,
+   blobs their segmented value (1, or the level 1 .. softness + 1),
+   Labeled blobs their label. KS_FAILURE_IMAGE_NO_PIXELS for NULL
+   results. */
 void ks_blob_results_create_blob_image(const ks_blob_results *results,
                                        int32_t filtered, int32_t viewable,
                                        int32_t background,
                                        ks_image_8_grey **image,
                                        ks_status *status);
 
-/* CogBlobResults.CreateSegmentedImage (whichImage, stretchIt): a new 8-bit
-   image of the input image's size holding the segmented image of stage
-   which (KS_BLOB_SEGMENTED_*): the levels (0 or 1, or 0 .. softness + 1),
-   0 outside the region's bounding rectangle, or with stretch_it = 1
-   level * 255 / (softness + 1). *image is NULL (with success) when the
-   run did not save that stage (run parameters save_segmented_image*).
-   KS_FAILURE_IMAGE_NO_PIXELS for NULL results. */
+/* CreateSegmentedImage: a new 8-bit image of the input image's size
+   holding the segmented image of stage which (KS_BLOB_SEGMENTED_*): the
+   levels (0 or 1, or 0 .. softness + 1), 0 outside the region's bounding
+   rectangle, or with stretch_it = 1 level * 255 / (softness + 1). *image
+   is NULL (with success) when the run did not save that stage (run
+   parameters save_segmented_image*). KS_FAILURE_IMAGE_NO_PIXELS for NULL
+   results. */
 void ks_blob_results_create_segmented_image(const ks_blob_results *results,
                                             int32_t which,
                                             int32_t stretch_it,

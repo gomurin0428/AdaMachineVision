@@ -819,7 +819,7 @@ procedure Test_Image_Processing_Filters is
          end loop;
          Modes.Input_Image := Known;
          Check (Modes.Region_Mode = IH.Pixel_Aligned_Bounding_Box_Adjust_Mask,
-                "region mode: AdjustMask by default (as VisionPro)");
+                "region mode: AdjustMask by default");
          --  A circle of radius 2.5 about (7, 5) covers 21 pixel centres;
          --  its bounding box is the 5 x 5 block.
          Circle.Set_Center_Radius (7.0, 5.0, 2.5);
@@ -1015,7 +1015,7 @@ procedure Test_Image_Processing_Filters is
              and then Tool.Run_Params.Hysteresis_Non_Survivor_Pel_Value = 0
              and then Tool.Run_Params.Region_Mode
                         = IE.Pixel_Aligned_Bounding_Box,
-             "VisionPro's defaults");
+             "the defaults");
       Tool.Run;
       Check (Tool.Run_Status.Result = Accept_Result,
              "Accept_Result (" & Tool.Run_Status.Message & ")");

@@ -287,7 +287,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
       if Operation not in Morphology_Erode_Horizontal .. Morphology_Open_Square
       then
          Bad (Status, "MorphologyOperations.Add: the operation must be a "
-                      & "CogBlobMorphologyConstants value (0 .. 11)");
+                      & "KS_BLOB_MORPHOLOGY_* value (0 .. 11)");
          return;
       elsif Collection.Count < 0
         or else Collection.Count >= Max_Morphology_Operations
@@ -515,7 +515,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
      Post => Valid (Status)
              and then Status.Failure in Failure_None | Failure_Bad_Parameter
              and then (Succeeded (Status) = Measure_Supported (Measure));
-   --  "<Name> must be a supported CogBlobMeasureConstants value".
+   --  "<Name> must be a supported KS_BLOB_MEASURE_* value".
 
    procedure Check_Measure_Code
      (Measure : Int32;
@@ -529,7 +529,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
          Bad (Status, Name & ": measure " & Image_Of (Int64 (Measure))
                       & " is not supported");
       else
-         Bad (Status, Name & " must be a CogBlobMeasureConstants value "
+         Bad (Status, Name & " must be a KS_BLOB_MEASURE_* value "
                       & "(0 .. 42)");
       end if;
    end Check_Measure_Code;
@@ -565,7 +565,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
       if S.Mode not in Segmentation_None .. Segmentation_Subtraction_Image
       then
          Bad (Status, "RunParams.SegmentationParams.Mode must be a "
-                      & "CogBlobSegmentationModeConstants value (0 .. 7)");
+                      & "KS_BLOB_SEGMENTATION_* value (0 .. 7)");
          return;
       elsif S.Mode in Segmentation_Map | Segmentation_Subtraction_Image then
          Bad (Status, "RunParams.SegmentationParams.Mode: only None and the "
@@ -720,7 +720,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
          then
             Bad (Status, "RunParams.MorphologyOperations("
                          & Image_Of (Int64 (I)) & ") must be a "
-                         & "CogBlobMorphologyConstants value (0 .. 11)");
+                         & "KS_BLOB_MORPHOLOGY_* value (0 .. 11)");
             return;
          end if;
       end loop;
@@ -1252,7 +1252,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
             Set_Success (Status);
          when others =>
             Bad (Status, "GetBoundingBox: Axis must be a "
-                         & "CogBlobAxisConstants value (0 .. 4)");
+                         & "KS_BLOB_AXIS_* value (0 .. 4)");
       end case;
    end Get_Bounding_Box;
 
@@ -1523,7 +1523,7 @@ package body AMV.Kernels.Blob with SPARK_Mode is
       if not Succeeded (Status) then
          return;
       elsif Axis not in Axis_Principal .. Axis_Pixel_Aligned_No_Exclude then
-         Bad (Status, Operation & ": Axis must be a CogBlobAxisConstants "
+         Bad (Status, Operation & ": Axis must be a KS_BLOB_AXIS_* "
                       & "value (0 .. 4)");
          return;
       elsif not Bounded_Transform (Results.Transform) then

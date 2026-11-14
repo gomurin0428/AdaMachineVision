@@ -1,5 +1,5 @@
---  The copy region tool: the counterpart of CogCopyRegionTool and its run
---  parameters CogCopyRegion (Cognex.VisionPro.ImageProcessing).
+--  The copy region tool, Ks_Copy_Region_Tool, and its run parameters,
+--  Ks_Copy_Region.
 --
 --     Tool.Input_Image := Image;
 --     Tool.Region := AMV.Shapes.Region_Holders.To_Holder (Circle);
@@ -17,10 +17,6 @@
 --  selected space and gets a pixel-from-root transform shifted by the
 --  corner of the box, so every space names the same physical places in
 --  both images.
---
---  VisionPro can copy into an existing DestinationImage with an alignment
---  of the two images; AMV always makes a new image (no Destination_Image,
---  no alignment, no SourceClipped / DestinationClipped / DestinationRegion).
 --
 --  The work is done by the SPARK kernel AMV.Kernels.Copy_Region (C:
 --  ks_copy_region_*, include/amv_ip_geometry.h), which proves that every
@@ -45,11 +41,11 @@ with AMV.Tools;
 package AMV.Image_Processing.Copy_Region is
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogCopyRegion)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_Region_Mode_Constants is AMV.Kernels.Int32 range 0 .. 2;
-   --  CogRegionModeConstants (Cognex.VisionPro), with VisionPro's values.
+   --  The codes of Region_Mode.
 
    Pixel_Aligned_Bounding_Box_Adjust_Mask :
      constant Ks_Region_Mode_Constants :=
@@ -64,12 +60,11 @@ package AMV.Image_Processing.Copy_Region is
    --  Not implemented (Run fails with Ks_Bad_Parameter_Exception).
 
    subtype Ks_Copy_Region is AMV.Kernels.Copy_Region.Ks_Copy_Region;
-   --  The run parameters (CogCopyRegion), a record with VisionPro's
-   --  defaults: Fill_Bounding_Box (1), Fill_Bounding_Box_Value (0),
-   --  Fill_Region (0), Fill_Region_Value (255) and Region_Mode
-   --  (Pixel_Aligned_Bounding_Box_Adjust_Mask). The flags are Int32 codes
-   --  0 or 1 (use the setters below); the values lie in 0 .. 255. Values
-   --  are checked when the tool runs.
+   --  The run parameters, with their defaults: Fill_Bounding_Box (1),
+   --  Fill_Bounding_Box_Value (0), Fill_Region (0), Fill_Region_Value
+   --  (255) and Region_Mode (Pixel_Aligned_Bounding_Box_Adjust_Mask). The
+   --  flags are Int32 codes 0 or 1 (use the setters below); the values
+   --  lie in 0 .. 255. Values are checked when the tool runs.
 
    procedure Set_Fill_Bounding_Box
      (Params : in out Ks_Copy_Region; Value : Boolean);
@@ -79,7 +74,7 @@ package AMV.Image_Processing.Copy_Region is
    --  FillRegion.
 
    ---------------------------------------------------------------------
-   --  The tool (CogCopyRegionTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Copy_Region_Tool is new AMV.Tools.Ks_Tool with record

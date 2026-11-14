@@ -1,15 +1,14 @@
---  Kernel of AMV.Image_Processing.Polar_Unwrap: the polar unwrap tool
---  (CogPolarUnwrapTool, whose run parameters are a CogPolarUnwrap). The C
---  API is declared in include/amv_ip_geometry.h.
+--  Kernel of AMV.Image_Processing.Polar_Unwrap: the polar unwrap tool,
+--  whose run parameters are a Ks_Polar_Unwrap. The C API is declared in
+--  include/amv_ip_geometry.h.
 --
 --  Execute resamples a circular annulus section (Region, a
---  CogCircularAnnulusSection; VisionPro also accepts an elliptical one)
---  of an 8-bit image into a new upright image: output x runs along the
---  angle, from AngleStart through AngleStart + AngleSpan, and output y
---  along the radius, from the start arc (Radius) to the end arc (Radius *
---  RadialScale; inwards when RadialScale < 1). The section must have
---  Radius > 0, RadialScale > 0 and not 1, and AngleSpan not 0 (several
---  turns are allowed).
+--  Ks_Circular_Annulus_Section) of an 8-bit image into a new upright image:
+--  output x runs along the angle, from AngleStart through AngleStart +
+--  AngleSpan, and output y along the radius, from the start arc (Radius) to
+--  the end arc (Radius * RadialScale; inwards when RadialScale < 1). The
+--  section must have Radius > 0, RadialScale > 0 and not 1, and AngleSpan
+--  not 0 (several turns are allowed).
 --
 --  Size. With S the scale of Pixel_From_Region (the square root of the
 --  absolute value of its determinant: exactly the scale of a
@@ -18,9 +17,8 @@
 --  pixels, and Height = round (ScalingY * abs (Radius * RadialScale -
 --  Radius) * S), the radial extent in pixels (halves away from zero). So
 --  the defaults (1.0) give about one output pixel per input pixel. A size
---  below 1 or above Max_Output_Side (32767) fails with Bad_Parameter, as
---  in VisionPro. ScalingX and ScalingY must lie in 0.001 .. 1000 (AMV's
---  bounds; VisionPro only requires them to be positive).
+--  below 1 or above Max_Output_Side (32767) fails with Bad_Parameter.
+--  ScalingX and ScalingY must lie in 0.001 .. 1000.
 --
 --  Mapping. The output pixel (X, Y) (centre at (X, Y)) samples the input
 --  at the point of the region's space with angle AngleStart + (X + 0.5)
@@ -34,11 +32,10 @@
 --  be anywhere in the output image's area), and ks_polar_unwrap_get_
 --  output_point_from_input_point maps the other way.
 --
---  Sampling (SamplingMode, CogPolarUnwrapSamplingModeConstants with
---  VisionPro's values): BilinearInterpolation (0, the default) or
---  NearestNeighbor (1), as in AMV.Kernels.Image_Sampling. As in VisionPro,
---  a sample point outside the area the input pixels cover fails the run
---  with Bad_Parameter ("Region lies partly outside InputImage").
+--  Sampling (SamplingMode): BilinearInterpolation (0, the default) or
+--  NearestNeighbor (1), as in AMV.Kernels.Image_Sampling. A sample point
+--  outside the area the input pixels cover fails the run with Bad_Parameter
+--  ("Region lies partly outside InputImage").
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any image
 --  handle that is null or came from the image kernel and any region,
@@ -72,13 +69,12 @@ package AMV.Kernels.Polar_Unwrap with SPARK_Mode, Preelaborate is
    use type KI.Ks_Image_8_Grey;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogPolarUnwrap; C: ks_polar_unwrap)
+   --  Run parameters (C: ks_polar_unwrap)
    ---------------------------------------------------------------------
 
    Sampling_Mode_Bilinear_Interpolation : constant Int32 := 0;
    Sampling_Mode_Nearest_Neighbor       : constant Int32 := 1;
-   --  CogPolarUnwrapSamplingModeConstants (C:
-   --  KS_POLAR_UNWRAP_SAMPLING_MODE_*).
+   --  The SamplingMode codes (C: KS_POLAR_UNWRAP_SAMPLING_MODE_*).
 
    Min_Scaling : constant := 0.001;
    Max_Scaling : constant := 1000.0;
@@ -95,7 +91,7 @@ package AMV.Kernels.Polar_Unwrap with SPARK_Mode, Preelaborate is
       Sampling_Mode : Int32 := Sampling_Mode_Bilinear_Interpolation;
    end record
      with Convention => C;
-   --  C: ks_polar_unwrap, with VisionPro's defaults.
+   --  C: ks_polar_unwrap, with the defaults.
 
    for Ks_Polar_Unwrap use record
       Scaling_X     at 0 range 0 .. 63;

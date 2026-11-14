@@ -433,8 +433,8 @@ package body AMV.Kernels.Affine_Transform with SPARK_Mode is
              and then (if Succeeded (Status)
                        then Width in 1 .. Max_Output_Side
                             and then Height in 1 .. Max_Output_Side);
-   --  The size limits of VisionPro (an output of at least 1 and at most
-   --  32767 pixels along each axis).
+   --  The size limits (an output of at least 1 and at most 32767 pixels
+   --  along each axis).
 
    procedure Check_Size
      (Width, Height : Int32;

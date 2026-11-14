@@ -1,5 +1,6 @@
---  Find circle: the counterpart of CogFindCircleTool (run parameters
---  CogFindCircle, results CogFindCircleResults and CogFindCircleResult).
+--  The find circle tool, Ks_Find_Circle_Tool, with its run parameters
+--  (Ks_Find_Circle) and results (Ks_Find_Circle_Results,
+--  Ks_Find_Circle_Result).
 --
 --  NumCalipers calipers are placed on the expected circular arc (evenly
 --  from its start to its end, or evenly around a full circle without a
@@ -46,8 +47,8 @@ package AMV.Caliper.Find_Circle is
    package KF renames AMV.Kernels.Find_Circle;
 
    type Ks_Find_Circle_Search_Direction_Constants is (Inward, Outward);
-   --  CogFindCircleSearchDirectionConstants (Inward = 0, Outward = 1, as
-   --  in VisionPro): towards the centre or away from it.
+   --  The search direction of the calipers (Inward = 0, Outward = 1):
+   --  towards the centre or away from it.
 
    Defaults : constant KF.Ks_Find_Circle_Run_Params := (others => <>);
    --  The kernel's defaults, which the record below starts from.
@@ -66,10 +67,10 @@ package AMV.Caliper.Find_Circle is
       Radius_Constraint         : Real := Defaults.Radius_Constraint;
       Caliper_Run_Params        : AMV.Caliper.Ks_Caliper;
    end record;
-   --  CogFindCircle. Expected_Circular_Arc is taken in its own selected
-   --  space (default "."; default arc: centre (0, 0), radius 50, start 0,
-   --  span Pi). Defaults: 6 calipers, search length 30, projection length
-   --  10, search Inward, NumToIgnore 0, DecrementNumToIgnore False,
+   --  The run parameters. Expected_Circular_Arc is taken in its own
+   --  selected space (default "."; default arc: centre (0, 0), radius 50,
+   --  start 0, span Pi). Defaults: 6 calipers, search length 30, projection
+   --  length 10, search Inward, NumToIgnore 0, DecrementNumToIgnore False,
    --  RadiusConstraintEnabled False, RadiusConstraint 100 (in the selected
    --  space), the default caliper parameters. Checked when the tool runs:
    --  NumCalipers in 3 .. 1000, NumToIgnore in 0 .. NumCalipers - 3
@@ -80,8 +81,8 @@ package AMV.Caliper.Find_Circle is
    function Get_Caliper_Region
      (Params : Ks_Find_Circle;
       Index  : Natural) return AMV.Shapes.Ks_Rectangle_Affine;
-   --  (AMV name) The region of caliper Index (0-based), in the expected
-   --  arc's selected space. Constraint_Error unless Index < NumCalipers.
+   --  The region of caliper Index (0-based), in the expected arc's selected
+   --  space. Constraint_Error unless Index < NumCalipers.
 
    ---------------------------------------------------------------------
    --  Results
@@ -95,12 +96,12 @@ package AMV.Caliper.Find_Circle is
       Distance_To_Circle : Real := 0.0;
       Caliper_Results    : AMV.Caliper.Ks_Caliper_Results;
    end record;
-   --  CogFindCircleResult: whether the caliper found an edge, whether its
+   --  The result of one caliper: whether it found an edge, whether its
    --  point was used in the fit, the point (0 when not found), its radial
    --  distance from the fitted circle (>= 0) and the caliper's results.
 
    type Ks_Find_Circle_Results is tagged private;
-   --  CogFindCircleResults: one item per caliper, in the order of the
+   --  The results of a run: one item per caliper, in the order of the
    --  calipers; empty before the first successful run.
 
    function Count (Results : Ks_Find_Circle_Results) return Natural;
@@ -126,7 +127,7 @@ package AMV.Caliper.Find_Circle is
    --  0 before a successful run.
 
    ---------------------------------------------------------------------
-   --  The tool (CogFindCircleTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Find_Circle_Tool is new AMV.Tools.Ks_Tool with record

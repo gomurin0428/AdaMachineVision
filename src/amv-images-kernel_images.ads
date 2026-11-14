@@ -2,8 +2,7 @@
 --  the Ada API that pass images to other kernels or get new images from
 --  them (AMV.Image_File hands the pixels of an image to the encoders of
 --  AMV.Kernels.Image_File and wraps the images its decoder returns) and
---  for programs that mix the Ada API with the C API. Not part of the
---  VisionPro-like API.
+--  for programs that mix the Ada API with the C API.
 
 pragma SPARK_Mode (Off);
 pragma Validity_Checks ("F");
@@ -100,8 +99,8 @@ package AMV.Images.Kernel_Images is
    function Kernel_Handles
      (Image : AMV.Images.Image_Holders.Holder) return Any_Image_Handles;
    --  The handles of the image Image holds, for the entry points that take
-   --  an image of any type (C: an ICogImage as five handles); all null
-   --  for an empty holder, an unallocated image or a type derived from
-   --  Ks_Image outside AMV.Images. Valid while Image holds the image.
+   --  an image of any type (C: five handles); all null for an empty
+   --  holder, an unallocated image or a type derived from Ks_Image outside
+   --  AMV.Images. Valid while Image holds the image.
 
 end AMV.Images.Kernel_Images;

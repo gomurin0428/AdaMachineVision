@@ -1,7 +1,6 @@
---  The caliper: the counterpart of Cognex.VisionPro.Caliper's
---  CogCaliperTool, with its run parameters (CogCaliper), scorers
---  (CogCaliperScorerContrast, CogCaliperScorerPosition, ...) and results
---  (CogCaliperResults, CogCaliperResult, CogCaliperEdge).
+--  The caliper tool, Ks_Caliper_Tool, with its run parameters (Ks_Caliper),
+--  scorers (Ks_Caliper_Scorer, Ks_Caliper_Scorers) and results
+--  (Ks_Caliper_Results, Ks_Caliper_Result, Ks_Caliper_Edge).
 --
 --  A caliper looks for edges along one direction inside a rectangle:
 --
@@ -33,8 +32,8 @@
 --  the search direction, measured in the selected space.
 --
 --  Run parameters: Ks_Caliper is the kernel's C-compatible record, so
---  enumerations are Int32 codes (VisionPro's numeric values) and Booleans
---  0 or 1. The Code functions below give the codes:
+--  enumerations are Int32 codes and Booleans 0 or 1. The Code functions
+--  below give the codes:
 --
 --     Tool.Run_Params.Edge_Mode := Code (Pair);
 --     Tool.Run_Params.Edge_0_Polarity := Code (Dark_To_Light);
@@ -82,14 +81,13 @@ package AMV.Caliper is
      (Bilinear_Interpolation, Bilinear_Accurate);
    for Ks_Caliper_Sampling_Mode_Constants use
      (Bilinear_Interpolation => 2, Bilinear_Accurate => 4);
-   --  Both sample bilinearly in this implementation.
+   --  Both sample bilinearly.
 
    type Ks_Caliper_Scorer_Kind is
      (Contrast, Position, Position_Neg, Position_Norm, Position_Norm_Neg,
       Size_Norm, Size_Diff_Norm, Size_Diff_Norm_Asym, Straddle);
-   --  (AMV name) One kind per scorer class: Contrast stands for
-   --  CogCaliperScorerContrast, Position for CogCaliperScorerPosition, and
-   --  so on. The measure of each kind is described in AMV.Kernels.Caliper.
+   --  The kinds of scorer. The measure of each kind is described in
+   --  AMV.Kernels.Caliper.
 
    function Code (Value : Ks_Caliper_Edge_Mode_Constants) return Int32 is
      (Ks_Caliper_Edge_Mode_Constants'Enum_Rep (Value));
@@ -114,7 +112,7 @@ package AMV.Caliper is
    --  is not one).
 
    ---------------------------------------------------------------------
-   --  Scorers (ICogCaliperScorer, CogCaliperScorers)
+   --  Scorers
    ---------------------------------------------------------------------
 
    subtype Ks_Caliper_Scorer is KC.Ks_Caliper_Scorer;
@@ -124,8 +122,7 @@ package AMV.Caliper is
 
    function New_Scorer (Kind : Ks_Caliper_Scorer_Kind)
       return Ks_Caliper_Scorer;
-   --  A new enabled scorer of that kind with its default parameters (the
-   --  constructor of the scorer class).
+   --  A new enabled scorer of that kind with its default parameters.
 
    function Kind (Scorer : Ks_Caliper_Scorer) return Ks_Caliper_Scorer_Kind;
    --  The kind of Scorer. Ks_Bad_Parameter_Exception when Scorer.Kind is
@@ -166,11 +163,11 @@ package AMV.Caliper is
    --  Removes every scorer.
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogCaliper)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_Caliper is KC.Ks_Caliper_Run_Params;
-   --  The components and defaults of CogCaliper: Edge_Mode (Single_Edge),
+   --  The run parameters, with their defaults: Edge_Mode (Single_Edge),
    --  Edge_0_Polarity and Edge_1_Polarity (Dont_Care), Edge_0_Position
    --  (0.0) and Edge_1_Position (10.0) (their difference is the expected
    --  width of a pair), Contrast_Threshold (5.0 grey levels),
@@ -181,17 +178,17 @@ package AMV.Caliper is
    --  "RunParams.ContrastThreshold must be >= 0").
 
    ---------------------------------------------------------------------
-   --  Results (CogCaliperResults)
+   --  Results
    ---------------------------------------------------------------------
 
    subtype Ks_Caliper_Edge is KC.Ks_Caliper_Edge;
-   --  CogCaliperEdge: Position, Position_X, Position_Y and Contrast (in
-   --  grey levels, positive for a dark to light edge).
+   --  An edge: Position, Position_X, Position_Y and Contrast (in grey
+   --  levels, positive for a dark to light edge).
 
    subtype Ks_Caliper_Result is KC.Ks_Caliper_Result;
-   --  CogCaliperResult: Score (0 .. 1), Position, Position_X, Position_Y,
-   --  Width (0 for a single edge), Edge_0 and Edge_1 (equal to Edge_0 for
-   --  a single edge).
+   --  A result: Score (0 .. 1), Position, Position_X, Position_Y, Width (0
+   --  for a single edge), Edge_0 and Edge_1 (equal to Edge_0 for a single
+   --  edge).
 
    subtype Real_Array is KC.Value_Array;
 
@@ -218,7 +215,7 @@ package AMV.Caliper is
    --  consecutive samples (the last value is 0).
 
    ---------------------------------------------------------------------
-   --  The tool (CogCaliperTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Caliper_Tool is new AMV.Tools.Ks_Tool with record

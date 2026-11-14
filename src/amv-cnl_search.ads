@@ -1,8 +1,7 @@
---  The CNL search tool: the counterparts of CogCNLSearchTool, its pattern
---  CogCNLSearchPattern, its run parameters CogCNLSearchRunParams and its
---  results CogCNLSearchResults and CogCNLSearchResult
---  (Cognex.VisionPro.CNLSearch): normalised correlation search for a
---  trained grey-level pattern, translation only.
+--  The CNL search tool (Ks_CNL_Search_Tool, its pattern
+--  Ks_CNL_Search_Pattern, its run parameters Ks_CNL_Search_Run_Params and
+--  its results Ks_CNL_Search_Results and Ks_CNL_Search_Result): normalised
+--  correlation search for a trained grey-level pattern, translation only.
 --
 --     Tool.Pattern.Set_Train_Image (Train);
 --     Tool.Pattern.Set_Train_Region
@@ -17,23 +16,23 @@
 --        Put (Tool.Results.Item (I).Location_X);
 --
 --  The pattern. Train copies from Train_Image the pixels of the pixel
---  aligned bounding box of Train_Region (rasterised in the train image
---  with AMV.Regions; an empty holder means the whole image): 8 .. 1024
---  pixels along each side, not all of one grey level. With
---  Train_Region_Mode Pixel_Aligned_Bounding_Box_Adjust_Mask (the default,
---  as in VisionPro) the pixels of the box that the region does not contain
---  are don't-care pixels of the pattern (see the train image mask below)
---  for Linear_Search. With Train_Region_Mode Affine_Transform the train
---  region must be an affine rectangle (Ks_Rectangle_Affine) lying entirely
---  in the train image, and the pattern is that rectangle resampled
---  upright (see "The AffineTransform region mode" below). Its origin is
---  (Origin_X, Origin_Y) in the train image's selected space (VisionPro's
---  default 70, 70). Training keeps a copy of everything the search needs
---  (pixels, pyramid levels, statistics, the origin in the pattern's
---  pixels), so the train image may change afterwards; setting any
---  training input (Set_Train_Image, Set_Train_Region, Set_Origin_X, ...)
---  untrains the pattern, as does a failed Train. Train_Image shares its
---  pixels with the image given (as every image assignment does).
+--  aligned bounding box of Train_Region (rasterised in the train image with
+--  AMV.Regions; an empty holder means the whole image): 8 .. 1024 pixels
+--  along each side, not all of one grey level. With Train_Region_Mode
+--  Pixel_Aligned_Bounding_Box_Adjust_Mask (the default) the pixels of the
+--  box that the region does not contain are don't-care pixels of the
+--  pattern (see the train image mask below) for Linear_Search. With
+--  Train_Region_Mode Affine_Transform the train region must be an affine
+--  rectangle (Ks_Rectangle_Affine) lying entirely in the train image, and
+--  the pattern is that rectangle resampled upright (see "The
+--  AffineTransform region mode" below). Its origin is (Origin_X, Origin_Y)
+--  in the train image's selected space (by default 70, 70). Training keeps
+--  a copy of everything the search needs (pixels, pyramid levels,
+--  statistics, the origin in the pattern's pixels), so the train image may
+--  change afterwards; setting any training input (Set_Train_Image,
+--  Set_Train_Region, Set_Origin_X, ...) untrains the pattern, as does a
+--  failed Train. Train_Image shares its pixels with the image given (as
+--  every image assignment does).
 --
 --  The train image mask (Train_Image_Mask and its offsets, AMV's meaning)
 --  leaves parts of the pattern out of the correlation: the score of a
@@ -70,47 +69,41 @@
 --  matched window to that of the pattern. AMV.Kernels.CNL_Search
 --  describes the algorithm, the score and every limit in detail.
 --
---  The AffineTransform region mode (AMV.Kernels.CNL_Search.Region_Modes
---  has the details). An affine rectangle is resampled into an upright
---  image by the affine transform tool's kernel with its default run
---  parameters (one pixel per pixel of the rectangle's sides, bilinear,
---  0 outside the image). Training in that mode (Train_Region_Mode
---  Affine_Transform) makes the resampled train region the pattern, so a
---  part trained turned by the rectangle's rotation (and skew) is
---  trained upright; its origin is carried along by the resampling, so it
---  marks the same physical point of the part, and a result's location is
---  that point in the search image (AMV's rule). The train image mask is
---  resampled with the same rectangle (nearest neighbour; AMV's rule).
---  Searching in that mode (Run_Params.Search_Region_Mode Affine_Transform
---  with an affine rectangle as Search_Region) searches the resampled
---  rectangle and maps every location back into Input_Image's selected
---  space; since results have no angle, the pattern is searched for in the
---  rectangle's frame, which finds the parts turned with the rectangle.
---  With any other search region (or none) that mode searches the region's
---  pixel aligned bounding box, as VisionPro documents.
+--  The AffineTransform region mode (AMV.Kernels.CNL_Search.Region_Modes has
+--  the details). An affine rectangle is resampled into an upright image by
+--  the affine transform tool's kernel with its default run parameters (one
+--  pixel per pixel of the rectangle's sides, bilinear, 0 outside the
+--  image). Training in that mode (Train_Region_Mode Affine_Transform) makes
+--  the resampled train region the pattern, so a part trained turned by the
+--  rectangle's rotation (and skew) is trained upright; its origin is
+--  carried along by the resampling, so it marks the same physical point of
+--  the part, and a result's location is that point in the search image
+--  (AMV's rule). The train image mask is resampled with the same rectangle
+--  (nearest neighbour; AMV's rule). Searching in that mode
+--  (Run_Params.Search_Region_Mode Affine_Transform with an affine rectangle
+--  as Search_Region) searches the resampled rectangle and maps every
+--  location back into Input_Image's selected space; since results have no
+--  angle, the pattern is searched for in the rectangle's frame, which finds
+--  the parts turned with the rectangle. With any other search region (or
+--  none) that mode searches the region's pixel aligned bounding box.
 --
---  Partial matches (Linear_Search only; AMV's meaning of VisionPro's run
---  parameters PartialMatchLimitLeft, ..., PartialMatchReduceScore). With
+--  Partial matches (Linear_Search only). With
 --  Run_Params.Partial_Match_Limit_Left (_Right, _Up, _Down) the pattern's
 --  window may cross the left (right, top, bottom) side of the search area
 --  (the bounding box of Search_Region, not the image) by that many of its
---  columns (rows), at most half the trained pattern's width (height):
---  such a window is scored over the part inside the area only, and scores
---  0 when fewer than a quarter of the pattern's cared-for pixels lie there
---  (with a train image mask) or when those are flat. With
+--  columns (rows), at most half the trained pattern's width (height): such
+--  a window is scored over the part inside the area only, and scores 0 when
+--  fewer than a quarter of the pattern's cared-for pixels lie there (with a
+--  train image mask) or when those are flat. With
 --  Partial_Match_Reduce_Score = 1 its score is multiplied by the fraction
 --  of the pattern's cared-for pixels inside. Edge_Hit of a result is the
 --  sum of Left, Top, Right and Bottom for the sides of the search area its
 --  window crosses (None inside). The defaults, 0, search inside the area
---  only, exactly as before; non-zero limits with Linear_CNLPAS are
---  rejected with Ks_Bad_Parameter_Exception.
+--  only, exactly as before; non-zero limits with Linear_CNLPAS are rejected
+--  with Ks_Bad_Parameter_Exception.
 --
---  Not offered (VisionPro has them): the NonLinearCNLPAS algorithm
---  (rejected with Ks_Bad_Parameter_Exception), the pattern's own partial
---  match limits (CogCNLSearchPattern's
---  PartialMatchLimit*, PartialMatchLimitsUsePattern), edge scores
---  (EdgeThreshold*), the search point (SearchPoint*), and the result
---  graphics.
+--  The algorithm Non_Linear_CNLPAS is not supported (it is rejected with
+--  Ks_Bad_Parameter_Exception).
 --
 --  Failures (Run_Status Error, results cleared; or raised by Train):
 --  Ks_Image_No_Pixels_Exception for an unallocated Input_Image or
@@ -188,14 +181,14 @@ package AMV.CNL_Search is
    package KC renames AMV.Kernels.CNL_Search;
 
    ---------------------------------------------------------------------
-   --  Enumerations (VisionPro's values; the records hold the codes)
+   --  Enumerations (the records hold the codes)
    ---------------------------------------------------------------------
 
    subtype Ks_CNL_Search_Algorithm_Constants is AMV.Kernels.Int32
      range 0 .. 7;
-   --  CogCNLSearchAlgorithmConstants. Flags: a pattern's Algorithms may
-   --  name several (Linear_Search + Linear_CNLPAS, with use type
-   --  AMV.Kernels.Int32); a run's Algorithm names one.
+   --  The algorithms. Flags: a pattern's Algorithms may name several
+   --  (Linear_Search + Linear_CNLPAS, with use type AMV.Kernels.Int32); a
+   --  run's Algorithm names one.
 
    Linear_Search     : constant Ks_CNL_Search_Algorithm_Constants :=
      KC.Algorithm_Linear_Search;
@@ -207,7 +200,7 @@ package AMV.CNL_Search is
 
    subtype Ks_CNL_Search_Accuracy_Constants is AMV.Kernels.Int32
      range 0 .. 7;
-   --  CogCNLSearchAccuracyConstants. Flags, as the algorithms.
+   --  The accuracies. Flags, as the algorithms.
 
    Very_Fine : constant Ks_CNL_Search_Accuracy_Constants :=
      KC.Accuracy_Very_Fine;
@@ -218,10 +211,9 @@ package AMV.CNL_Search is
 
    subtype Ks_CNL_Search_Edge_Hit_Constants is AMV.Kernels.Int32
      range 0 .. 31;
-   --  CogCNLSearchEdgeHitConstants. Flags: a result's Edge_Hit is the sum
-   --  of Left, Top, Right and Bottom for the sides of the search area its
-   --  window crosses (partial matches), None when it crosses none; Unknown
-   --  is never reported.
+   --  Flags: a result's Edge_Hit is the sum of Left, Top, Right and Bottom
+   --  for the sides of the search area its window crosses (partial
+   --  matches), None when it crosses none; Unknown is never reported.
 
    None    : constant Ks_CNL_Search_Edge_Hit_Constants := KC.Edge_Hit_None;
    Unknown : constant Ks_CNL_Search_Edge_Hit_Constants :=
@@ -233,7 +225,7 @@ package AMV.CNL_Search is
      KC.Edge_Hit_Bottom;
 
    subtype Ks_Region_Mode_Constants is AMV.Kernels.Int32 range 0 .. 2;
-   --  CogRegionModeConstants (Cognex.VisionPro), for Search_Region_Mode.
+   --  The region modes, for Train_Region_Mode and Search_Region_Mode.
 
    Pixel_Aligned_Bounding_Box_Adjust_Mask : constant
      Ks_Region_Mode_Constants :=
@@ -247,7 +239,7 @@ package AMV.CNL_Search is
    --  Affine_Transform; Train_Region_Mode all three.
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogCNLSearchRunParams)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_CNL_Search_Run_Params is KC.Ks_CNL_Search_Run_Params;
@@ -265,7 +257,7 @@ package AMV.CNL_Search is
    --  pattern's trained Algorithms and Accuracies.
 
    ---------------------------------------------------------------------
-   --  The pattern (CogCNLSearchPattern)
+   --  The pattern
    ---------------------------------------------------------------------
 
    type Ks_CNL_Search_Pattern is tagged private;
@@ -350,19 +342,18 @@ package AMV.CNL_Search is
    procedure Set_Train_Region_Mode
      (Pattern : in out Ks_CNL_Search_Pattern;
       Value   : AMV.Kernels.Int32);
-   --  TrainRegionMode (default Pixel_Aligned_Bounding_Box_Adjust_Mask, as
-   --  in VisionPro): with Adjust_Mask the pixels of the train region's box
-   --  that the region does not contain are don't-care pixels of the
-   --  pattern (as Train_Image_Mask marks them, and together with it) when
-   --  the pattern is trained for Linear_Search; for Linear_CNLPAS alone
-   --  the pattern is the whole box, as VisionPro does. With
-   --  Pixel_Aligned_Bounding_Box every pixel of the box is part of the
-   --  pattern. A rectangle along the axes gives the same pattern in both.
-   --  With Affine_Transform the train region must be an affine rectangle
-   --  that lies entirely in the train image, and the pattern is that
-   --  rectangle resampled upright (see "The AffineTransform region mode"
-   --  above). Any other value raises Ks_Bad_Parameter_Exception. The
-   --  setter untrains the pattern.
+   --  TrainRegionMode (default Pixel_Aligned_Bounding_Box_Adjust_Mask):
+   --  with Adjust_Mask the pixels of the train region's box that the region
+   --  does not contain are don't-care pixels of the pattern (as
+   --  Train_Image_Mask marks them, and together with it) when the pattern
+   --  is trained for Linear_Search; for Linear_CNLPAS alone the pattern is
+   --  the whole box. With Pixel_Aligned_Bounding_Box every pixel of the box
+   --  is part of the pattern. A rectangle along the axes gives the same
+   --  pattern in both. With Affine_Transform the train region must be an
+   --  affine rectangle that lies entirely in the train image, and the
+   --  pattern is that rectangle resampled upright (see "The AffineTransform
+   --  region mode" above). Any other value raises
+   --  Ks_Bad_Parameter_Exception. The setter untrains the pattern.
 
    procedure Train (Pattern : in out Ks_CNL_Search_Pattern);
    --  Trains the pattern (see above). Raises the exceptions listed at the
@@ -387,7 +378,7 @@ package AMV.CNL_Search is
    --  untrained pattern.
 
    ---------------------------------------------------------------------
-   --  Results (CogCNLSearchResults, CogCNLSearchResult)
+   --  Results
    ---------------------------------------------------------------------
 
    subtype Ks_CNL_Search_Result is KC.Ks_CNL_Search_Result;
@@ -408,7 +399,7 @@ package AMV.CNL_Search is
    --  0-based; Constraint_Error outside 0 .. Count - 1.
 
    ---------------------------------------------------------------------
-   --  The tool (CogCNLSearchTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_CNL_Search_Tool is new AMV.Tools.Ks_Tool with record

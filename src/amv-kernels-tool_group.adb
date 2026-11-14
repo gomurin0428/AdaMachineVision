@@ -197,7 +197,7 @@ package body AMV.Kernels.Tool_Group with SPARK_Mode is
    function Result_Word (Result : Result_Code) return String
    with Post => Result_Word'Result'First = 1
                 and then Result_Word'Result'Length <= 7;
-   --  The name of a result (CogToolResultConstants).
+   --  The name of a result.
 
    function Result_Word (Result : Result_Code) return String is
      (case Result is
@@ -814,7 +814,7 @@ package body AMV.Kernels.Tool_Group with SPARK_Mode is
                  Message => (Length => 0, Text => [others => ASCII.NUL]));
       if Script_Result not in Result_Code then
          Bad (Status, "Run: the script's result must be a "
-                      & "CogToolResultConstants code (-1 .. 2)");
+                      & "KS_TOOL_RESULT_* code (-1 .. 2)");
          return;
       elsif Run_Tools not in False_Value | True_Value then
          Bad (Status, "Run: the script's run_tools flag must be 0 or 1");
@@ -998,7 +998,7 @@ package body AMV.Kernels.Tool_Group with SPARK_Mode is
          return;
       elsif Result not in Result_Code then
          Cursor.Fault := Fault_Misuse;
-         Bad (Status, "Run: the result must be a CogToolResultConstants "
+         Bad (Status, "Run: the result must be a KS_TOOL_RESULT_* "
                       & "code (-1 .. 2)");
          return;
       elsif Name.Length < 0 or else Message.Length < 0 then
@@ -2354,11 +2354,11 @@ package body AMV.Kernels.Tool_Group with SPARK_Mode is
       if Sub_Result not in Result_Code then
          Set_Failure (Status, Failure_Bad_Parameter,
                       "RunTool: the tool's result must be a "
-                      & "CogToolResultConstants value (-1 .. 2)");
+                      & "KS_TOOL_RESULT_* value (-1 .. 2)");
          return;
       elsif Result not in Result_Code then
          Set_Failure (Status, Failure_Bad_Parameter,
-                      "RunTool: result must be a CogToolResultConstants "
+                      "RunTool: result must be a KS_TOOL_RESULT_* "
                       & "value (-1 .. 2)");
          return;
       end if;
