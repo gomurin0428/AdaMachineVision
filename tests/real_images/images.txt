@@ -7,7 +7,8 @@
 # scikit-image coins.png (commit 4c83882...): "Greek coins from Pompeii",
 # Brooklyn Museum collection, no known copyright restrictions.
 #
-# The images are downloaded at test time and never committed.
+# The images are downloaded at test time and never committed (docs/images
+# holds result pictures drawn on some of them; its README names them).
 left01.jpg 9621899098adffa1440c8264606bb7be535ccfd9ad126ae8e0bd9b0c5a5b8676 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left01.jpg
 left02.jpg 052e700bbcc865c112958ec2ea105cb1bce4deca50ac8d6efae13adca9df7a2c https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left02.jpg
 left03.jpg c85b9426c3d8fcf161e1e727356105091009c3fd0b1b1a65bc2da91fea2724d2 https://raw.githubusercontent.com/opencv/opencv/55ff746075718ec2d7cfe09b106c070555f3dbff/samples/data/left03.jpg

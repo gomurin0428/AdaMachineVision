@@ -8,9 +8,12 @@
 --  The images are synthetic: a model image of the part, on which the
 --  pattern is trained, and two scenes with the part moved and turned. The
 --  scenes are written to align_scene_1.pgm and align_scene_2.pgm in the
---  current directory. Each measure is checked against the drawn size
---  within a tolerance of 0.1 pixel; the exit status is a failure when a
---  part is not found or a measure is out of tolerance.
+--  current directory, and align_result.bmp shows both with what was found
+--  drawn on them: the pattern's region and the part's axes at the pose
+--  PMAlign found, each caliper's region as the fixture placed it, and the
+--  two edges it measured between. Each measure is checked against the
+--  drawn size within a tolerance of 0.1 pixel; the exit status is a
+--  failure when a part is not found or a measure is out of tolerance.
 
 with Ada.Command_Line;
 with Ada.Numerics;
@@ -28,6 +31,7 @@ with AMV.Shapes.Region_Holders;
 with AMV.Tools;
 with AMV.Transforms;
 
+with Example_Draw;
 with Example_Support;
 
 procedure Align_And_Measure is
@@ -37,6 +41,8 @@ procedure Align_And_Measure is
    use AMV.Images;
    use AMV.Transforms;
    use type AMV.Tools.Ks_Tool_Result_Constants;
+
+   package Draw renames Example_Draw;
 
    function Image (Value : Real; Aft : Natural := 1) return String
      renames Example_Support.Image;
@@ -104,8 +110,33 @@ procedure Align_And_Measure is
    --  Measuring
    ---------------------------------------------------------------------
 
+   procedure Stroke
+     (Onto           : in out Draw.Picture;
+      Part_To_Pixels : Ks_Transform_2D_Linear;
+      U0, V0, U1, V1 : Real;
+      Ink            : Draw.Colour;
+      Width          : Real := 1.5);
+   --  A line between two points given in part coordinates.
+
+   procedure Stroke
+     (Onto           : in out Draw.Picture;
+      Part_To_Pixels : Ks_Transform_2D_Linear;
+      U0, V0, U1, V1 : Real;
+      Ink            : Draw.Colour;
+      Width          : Real := 1.5)
+   is
+      X0, Y0, X1, Y1 : Real;
+   begin
+      Part_To_Pixels.Map_Point (U0, V0, X0, Y0);
+      Part_To_Pixels.Map_Point (U1, V1, X1, Y1);
+      Draw.Line (Onto, X0, Y0, X1, Y1, Ink, Width);
+   end Stroke;
+
    procedure Measure
      (Fixtured               : Ks_Image_8_Grey;
+      Onto                   : in out Draw.Picture;
+      Row                    : Natural;
+      Ink                    : Draw.Colour;
       Name                   : String;
       Center_U, Center_V     : Real;
       Length, Across         : Real;
@@ -115,10 +146,14 @@ procedure Align_And_Measure is
    --  u axis, in a Length x Across rectangle centred on (Center_U,
    --  Center_V) in part coordinates, prints the distance found and checks
    --  it against Expected (All_Good becomes False when it is out of
-   --  tolerance or not found).
+   --  tolerance or not found). On Onto it draws the rectangle in Ink, the
+   --  two edges in green, and the distance on caption row Row.
 
    procedure Measure
      (Fixtured               : Ks_Image_8_Grey;
+      Onto                   : in out Draw.Picture;
+      Row                    : Natural;
+      Ink                    : Draw.Colour;
       Name                   : String;
       Center_U, Center_V     : Real;
       Length, Across         : Real;
@@ -128,7 +163,20 @@ procedure Align_And_Measure is
       use AMV.Caliper;
       Tool : Ks_Caliper_Tool;
       X, Y : Real;
+
+      --  From the image's selected space (the part's) to its pixels.
+      Part_To_Pixels : constant Ks_Transform_2D_Linear :=
+        Fixtured.Get_Transform ("#", ".");
+      U0 : constant Real := Center_U - Length / 2.0;
+      U1 : constant Real := Center_U + Length / 2.0;
+      V0 : constant Real := Center_V - Across / 2.0;
+      V1 : constant Real := Center_V + Across / 2.0;
    begin
+      Stroke (Onto, Part_To_Pixels, U0, V0, U1, V0, Ink);
+      Stroke (Onto, Part_To_Pixels, U1, V0, U1, V1, Ink);
+      Stroke (Onto, Part_To_Pixels, U1, V1, U0, V1, Ink);
+      Stroke (Onto, Part_To_Pixels, U0, V1, U0, V0, Ink);
+
       Tool.Input_Image := Fixtured;
       --  The region's selected space is "." (the default): the image's
       --  selected space, which the fixture tool made the part's space.
@@ -146,9 +194,11 @@ procedure Align_And_Measure is
       if Tool.Run_Status.Result /= AMV.Tools.Accept_Result then
          Put_Line ("  " & Name & ": the caliper failed: "
                    & AMV.Tools.Message (Tool.Run_Status));
+         Draw.Caption (Onto, Row, Name & ": FAILED", Draw.Red);
          All_Good := False;
       elsif Tool.Results.Count = 0 then
          Put_Line ("  " & Name & ": no pair of edges found");
+         Draw.Caption (Onto, Row, Name & ": NOT FOUND", Draw.Red);
          All_Good := False;
       else
          declare
@@ -157,8 +207,18 @@ procedure Align_And_Measure is
             --  Positions are in the selected space (part coordinates);
             --  map the centre of the pair back to pixels to show where it
             --  is in the scene.
-            Fixtured.Get_Transform ("#", ".").Map_Point
+            Part_To_Pixels.Map_Point
               (Found.Position_X, Found.Position_Y, X, Y);
+            Stroke (Onto, Part_To_Pixels,
+                    Found.Edge_0.Position_X, V0 - 4.0,
+                    Found.Edge_0.Position_X, V1 + 4.0,
+                    Draw.Green, Width => 2.5);
+            Stroke (Onto, Part_To_Pixels,
+                    Found.Edge_1.Position_X, V0 - 4.0,
+                    Found.Edge_1.Position_X, V1 + 4.0,
+                    Draw.Green, Width => 2.5);
+            Draw.Caption
+              (Onto, Row, Name & ": " & Image (Found.Width, 2), Ink);
             Put ("  " & Name & ": " & Image (Found.Width, 2) & ", centred at ("
                  & Image (X) & ", " & Image (Y) & ") in the image: ");
             if abs (Found.Width - Expected) <= Tolerance then
@@ -183,6 +243,7 @@ procedure Align_And_Measure is
 
    Align   : AMV.PM_Align.Ks_PM_Align_Tool;
    Fixture : AMV.Calib_Fix.Ks_Fixture_Tool;
+   Shown   : array (Scenes'Range) of Draw.Picture;
 
 begin
    Train (Align.Pattern);
@@ -203,6 +264,7 @@ begin
            "align_scene_" & Character'Val (Character'Pos ('0') + N) & ".pgm";
       begin
          AMV.Image_File.Write_Image (File_Name, Scene);
+         Shown (N) := Draw.Create (Scene, Scale => 1.5);
          Put_Line (File_Name & ": the part drawn at (" & Image (P.X) & ", "
                    & Image (P.Y) & "), turned by " & Image (P.Degrees)
                    & " degrees");
@@ -213,14 +275,18 @@ begin
          if Align.Run_Status.Result /= AMV.Tools.Accept_Result then
             Put_Line ("  PMAlign failed: "
                       & AMV.Tools.Message (Align.Run_Status));
+            Draw.Caption (Shown (N), 0, "PMALIGN: FAILED", Draw.Red);
             All_Good := False;
          elsif Align.Results.Count = 0 then
             Put_Line ("  PMAlign did not find the part");
+            Draw.Caption (Shown (N), 0, "PMALIGN: NOT FOUND", Draw.Red);
             All_Good := False;
          else
             declare
                Found : constant AMV.PM_Align.Ks_PM_Align_Result :=
                  Align.Results.Item (0);
+               Pose  : constant Ks_Transform_2D_Linear :=
+                 AMV.PM_Align.Get_Pose (Found);
             begin
                Put_Line ("  PMAlign: found at ("
                          & Image (Found.Translation_X, 2)
@@ -233,9 +299,30 @@ begin
                --  output image has the same pixels, with "@\Fixture"
                --  added at the pose and selected.
                Fixture.Input_Image := Scene;
-               Fixture.Run_Params.Unfixtured_From_Fixtured_Transform :=
-                 AMV.PM_Align.Get_Pose (Found);
+               Fixture.Run_Params.Unfixtured_From_Fixtured_Transform := Pose;
                Fixture.Run;
+
+               --  The picture: the train region where the pose puts it
+               --  (cyan), and the part's origin and u axis (yellow).
+               Stroke (Shown (N), Pose, -70.0, -42.0, 70.0, -42.0, Draw.Cyan);
+               Stroke (Shown (N), Pose, 70.0, -42.0, 70.0, 42.0, Draw.Cyan);
+               Stroke (Shown (N), Pose, 70.0, 42.0, -70.0, 42.0, Draw.Cyan);
+               Stroke (Shown (N), Pose, -70.0, 42.0, -70.0, -42.0, Draw.Cyan);
+               Stroke (Shown (N), Pose, 0.0, 0.0, 40.0, 0.0, Draw.Yellow,
+                       Width => 2.5);
+               Stroke (Shown (N), Pose, 40.0, 0.0, 33.0, -4.0, Draw.Yellow,
+                       Width => 2.5);
+               Stroke (Shown (N), Pose, 40.0, 0.0, 33.0, 4.0, Draw.Yellow,
+                       Width => 2.5);
+               Draw.Dot
+                 (Shown (N), Found.Translation_X, Found.Translation_Y,
+                  Draw.Yellow, Size => 4.0);
+               Draw.Caption
+                 (Shown (N), 0,
+                  "PMALIGN: AT (" & Image (Found.Translation_X) & ", "
+                  & Image (Found.Translation_Y) & "), TURNED "
+                  & Image (AMV.Misc.Rad_To_Deg (Found.Rotation)) & " DEG",
+                  Draw.Cyan);
             end;
 
             if Fixture.Run_Status.Result /= AMV.Tools.Accept_Result then
@@ -245,7 +332,8 @@ begin
             else
                --  3. Measure in part coordinates: the same regions serve
                --  for every scene.
-               Measure (Fixture.Output_Image, "slot width",
+               Measure (Fixture.Output_Image, Shown (N), 1, Draw.Magenta,
+                        "slot width",
                         Center_U   => 20.0 + Slot_Width / 2.0,
                         Center_V   => 18.0,
                         Length     => 40.0,
@@ -253,7 +341,8 @@ begin
                         Polarity_0 => AMV.Caliper.Light_To_Dark,
                         Polarity_1 => AMV.Caliper.Dark_To_Light,
                         Expected   => Slot_Width);
-               Measure (Fixture.Output_Image, "plate length",
+               Measure (Fixture.Output_Image, Shown (N), 2, Draw.Orange,
+                        "plate length",
                         Center_U   => 0.0,
                         Center_V   => -24.0,
                         Length     => Plate_Length + 30.0,
@@ -265,6 +354,9 @@ begin
          end if;
       end;
    end loop;
+
+   Draw.Write (Draw.Beside (Shown (1), Shown (2)), "align_result.bmp");
+   Put_Line ("wrote the result picture to align_result.bmp");
 
    if not All_Good then
       Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);

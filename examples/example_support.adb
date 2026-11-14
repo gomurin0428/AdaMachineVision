@@ -1,4 +1,8 @@
+with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Text_IO;
+
+with AMV.Image_File;
 
 package body Example_Support is
 
@@ -43,6 +47,25 @@ package body Example_Support is
          end loop;
       end loop;
    end Paint;
+
+   function Real_Image_File (Name : String) return String is
+      Directory : constant String :=
+        (if Ada.Environment_Variables.Exists ("AMV_REAL_IMAGES")
+         then Ada.Environment_Variables.Value ("AMV_REAL_IMAGES")
+         else "build/real-images");
+      File_Name : constant String := Directory & "/" & Name;
+   begin
+      if not Ada.Directories.Exists (File_Name) then
+         raise Missing_Image with
+           File_Name & " is missing: run make fetch-real-images, and set"
+           & " AMV_REAL_IMAGES to the directory when it is not"
+           & " build/real-images";
+      end if;
+      return File_Name;
+   end Real_Image_File;
+
+   function Real_Image (Name : String) return AMV.Images.Ks_Image_8_Grey is
+     (AMV.Image_File.Read_Image_8_Grey (Real_Image_File (Name)));
 
    package Real_IO is new Ada.Text_IO.Float_IO (Real);
 

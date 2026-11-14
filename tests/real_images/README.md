@@ -21,6 +21,13 @@ PGMs by `tools/zip_tiff_to_pgm.py`, standard library only). The images are
 never committed. The test reads them from `$AMV_REAL_IMAGES`
 (`build/real-images` by default). CI runs it on every pull request.
 
+The test prints numbers. To see what the tools find, the examples of
+[`examples/real_images`](../../examples/real_images/README.md) run the
+same tools with the same settings on some of these images and draw the
+results on them; a few of their pictures are shown in the sections
+below. Those result pictures (`docs/images`) are the only pictures made
+from these images that are committed.
+
 ## How the expected values are set (tuning and evaluation)
 
 A test on real images is only an evaluation if neither the tool's
@@ -94,6 +101,13 @@ outer boundary of the board, the outermost edge where the grey level rises
 towards the board's inside: the board has a light rim with an inner edge
 too, the side lit obliquely shows a blurred band outside it, and the white
 transducer rings come up to the edges (over them on some boards).
+
+![Board 0700, upside down, with its four holes circled in green, its two outlines in orange and the width caliper in magenta](../../docs/images/pcb_gauging_3_measured.png)
+
+What the tools find on board 0700, which lies upside down (drawn by
+`examples/real_images/pcb_gauging.adb`, whose tools start from board
+0000's holes and outlines, mapped by the pose, as the fixture below
+does).
 
 **Where the tools are placed (the fixture).** As a recipe would place
 them: board 0000's reference holes and outlines, taught once on that
@@ -376,6 +390,12 @@ misses. Tolerances 1.5 times the tuning maxima, rounded up to 0.05: missed
 | eval 09 | evaluation | 137 | 113 | 0.182 | 0.009 |
 | eval 10 | evaluation | 119 | 98 | 0.185 | 0.010 |
 
+![Field eval 07 with every blob outlined in green and an orange cross on each hand-drawn nucleus without a blob of its own](../../docs/images/nuclei_count_result.png)
+
+eval 07, the median of the nine evaluation images that pass (drawn by
+`examples/real_images/nuclei_count.adb`): the blobs in green, and an
+orange cross on each of the 17 nuclei that are counted as missed.
+
 Nine evaluation images pass. eval 02 fails and stays a known failure,
 checked to still fail: its nuclei are small and dim (median area 131
 pixels against about 650 in the tuning images, mean grey about 27 against
@@ -396,6 +416,11 @@ centre (the rim's outer boundary, not the weaker edge between the wax and
 the rim inside it), fitted with a geometric least-squares circle, outliers
 beyond 3 robust sigmas dropped. Their RMS is 0.5 .. 2.0 px: the cups are
 seen slightly from the side, so their outlines are not perfectly round.
+
+![Image 0450 with a green circle on each of the four rims and its radius](../../docs/images/candle_rims_3_measured.png)
+
+The four rims found in evaluation image 0450 (drawn by
+`examples/real_images/candle_rims.adb`).
 
 **Where the tools are placed (the fixture).** PMAlign is trained on
 0000's top left light (the light's square, origin the identity) and finds

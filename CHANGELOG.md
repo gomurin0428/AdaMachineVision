@@ -66,6 +66,12 @@ section 9.1.
   the trained pattern has exactly the resampled size, and the results of
   an affine search have the proved facts of `ks_cnl_search_execute`, with
   every window inside the resampled rectangle.
+* Examples: every example writes a picture of its results, the input
+  image with what the tools found drawn on it (`examples/example_draw`,
+  for the examples only), and four new examples run on photographs
+  (`examples/real_images`: `coin_count`, `pcb_gauging`, `candle_rims`,
+  `nuclei_count`; `make run-real-image-examples`). The READMEs show the
+  pictures (`docs/images`, written again by `make pictures`).
 
 ## [0.1.0] - 2026-11-12
 

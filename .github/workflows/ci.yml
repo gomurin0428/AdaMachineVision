@@ -1,9 +1,10 @@
 # Builds, tests and proves AdaMachineVision on Linux with the reference
 # toolchain (GNAT 16.1, gprbuild 26, gnatprove 16.1 from the GNAT FSF
 # builds), the same steps as before a pull request: make check, make test,
-# make run-examples, make test-real-images and make prove. The proof is
-# split into groups of kernels (tools/prove_groups.sh), each proved by its
-# own job in parallel with the build and tests.
+# make run-examples, make test-real-images, make run-real-image-examples
+# and make prove. The proof is split into groups of kernels
+# (tools/prove_groups.sh), each proved by its own job in parallel with the
+# build and tests.
 
 name: CI
 
@@ -63,6 +64,9 @@ jobs:
 
       - name: make test-real-images (open camera images and targets)
         run: make test-real-images
+
+      - name: make run-real-image-examples (the examples on those images)
+        run: make run-real-image-examples
 
       # Every kernel file must belong to a proof group (a new kernel falls
       # into "core"), and every group must have files.
