@@ -1,10 +1,8 @@
 /*
- * AdaMachineVision (AMV) C API: the IP one-image tool
- * (Cognex.VisionPro.ImageProcessing: CogIPOneImageTool, its operator
- * collection CogIPOneImageOperators and the operator classes). Included by
- * amv.h; the entry points belong to the SPARK kernel AMV.Kernels.
- * IP_One_Image, whose spec describes every operator, definition and bound
- * in full.
+ * AdaMachineVision (AMV) C API: the IP one-image tool, its operator list
+ * and its operators. Included by amv.h; the entry points belong to the
+ * SPARK kernel AMV.Kernels.IP_One_Image, whose spec describes every
+ * operator, definition and bound in full.
  *
  * An operator is one struct, ks_ip_one_image_operator: a kind
  * (KS_IP_ONE_IMAGE_KIND_*), enabled (0 or 1; a disabled operator is
@@ -38,9 +36,7 @@
 extern "C" {
 #endif
 
-/* Operator kinds (AMV codes: the VisionPro classes in the order of their
-   names, then BOX_FILTER, THRESHOLD and UNSHARP_MASK, our own, then the
-   VisionPro classes added later, in the order they were added). */
+/* Operator kinds. */
 #define KS_IP_ONE_IMAGE_KIND_ADD_SUBTRACT_CONSTANT 0
 #define KS_IP_ONE_IMAGE_KIND_CONVOLVE_3X3          1
 #define KS_IP_ONE_IMAGE_KIND_CONVOLVE_NXM          2
@@ -61,16 +57,15 @@ extern "C" {
 #define KS_IP_ONE_IMAGE_KIND_SUB_SAMPLER           17
 #define KS_IP_ONE_IMAGE_KIND_PEL_SET               18
 
-/* CogIPOneImageAddSubtractConstantOverflowModeConstants and
-   CogIPOneImageMultiplyConstantOverflowModeConstants. */
+/* The overflow_mode of ADD_SUBTRACT_CONSTANT and MULTIPLY_CONSTANT. */
 #define KS_IP_ONE_IMAGE_OVERFLOW_MODE_BOUNDED 0
 #define KS_IP_ONE_IMAGE_OVERFLOW_MODE_WRAP    1
 
-/* CogIPOneImageBoundaryModeConstants (only REFLECTED is supported). */
+/* The boundary_mode of CONVOLVE_NXM (only REFLECTED is supported). */
 #define KS_IP_ONE_IMAGE_BOUNDARY_MODE_CLIPPED   1
 #define KS_IP_ONE_IMAGE_BOUNDARY_MODE_REFLECTED 2
 
-/* CogIPOneImageConvolve3x3PositionConstants (also the index of the cell in
+/* The cells of a 3 x 3 kernel, row by row (also the index of the cell in
    kernel[]). */
 #define KS_IP_ONE_IMAGE_POSITION_NORTH_WEST 0
 #define KS_IP_ONE_IMAGE_POSITION_NORTH      1
@@ -82,8 +77,8 @@ extern "C" {
 #define KS_IP_ONE_IMAGE_POSITION_SOUTH      7
 #define KS_IP_ONE_IMAGE_POSITION_SOUTH_EAST 8
 
-/* CogIPOneImageFlipRotateOperationConstants (clockwise as displayed; the
-   flip, a left-right mirror, comes first). */
+/* The operation_in_pixel_space of FLIP_ROTATE (clockwise as displayed;
+   the flip, a left-right mirror, comes first). */
 #define KS_IP_ONE_IMAGE_FLIP_ROTATE_NONE                    0
 #define KS_IP_ONE_IMAGE_FLIP_ROTATE_ROTATE_90_DEG           1
 #define KS_IP_ONE_IMAGE_FLIP_ROTATE_ROTATE_180_DEG          2
@@ -93,7 +88,7 @@ extern "C" {
 #define KS_IP_ONE_IMAGE_FLIP_ROTATE_FLIP_AND_ROTATE_180_DEG 6
 #define KS_IP_ONE_IMAGE_FLIP_ROTATE_FLIP_AND_ROTATE_270_DEG 7
 
-/* CogIPOneImageMorphologyOperationConstants. */
+/* The operation of GREY_MORPHOLOGY_NXM. */
 #define KS_IP_ONE_IMAGE_MORPHOLOGY_ERODE                1
 #define KS_IP_ONE_IMAGE_MORPHOLOGY_DILATE               2
 #define KS_IP_ONE_IMAGE_MORPHOLOGY_OPEN                 3
@@ -102,7 +97,7 @@ extern "C" {
 #define KS_IP_ONE_IMAGE_MORPHOLOGY_CLOSE_MINUS_ORIGINAL 6
 #define KS_IP_ONE_IMAGE_MORPHOLOGY_ORIGINAL_MINUS_OPEN  7
 
-/* CogIPOneImageQuantizeLevelConstants: 2^(code + 1) grey levels. */
+/* The levels of QUANTIZE: 2^(code + 1) grey levels. */
 #define KS_IP_ONE_IMAGE_QUANTIZE_LEVEL_S2   0
 #define KS_IP_ONE_IMAGE_QUANTIZE_LEVEL_S4   1
 #define KS_IP_ONE_IMAGE_QUANTIZE_LEVEL_S8   2
@@ -111,13 +106,13 @@ extern "C" {
 #define KS_IP_ONE_IMAGE_QUANTIZE_LEVEL_S64  5
 #define KS_IP_ONE_IMAGE_QUANTIZE_LEVEL_S128 6
 
-/* CogIPOneImageHighPassFilterProcessingModeConstants: the smoothing whose
-   result HIGH_PASS_FILTER subtracts. */
+/* The processing_mode of HIGH_PASS_FILTER: the smoothing whose result it
+   subtracts. */
 #define KS_IP_ONE_IMAGE_HIGH_PASS_GAUSS  0
 #define KS_IP_ONE_IMAGE_HIGH_PASS_MEAN   1
 #define KS_IP_ONE_IMAGE_HIGH_PASS_MEDIAN 2
 
-/* CogIPOneImagePelSetOperationConstants: the pixels PEL_SET writes. */
+/* The operation of PEL_SET: the pixels it writes. */
 #define KS_IP_ONE_IMAGE_PEL_SET_CARE_PELS      1
 #define KS_IP_ONE_IMAGE_PEL_SET_DONT_CARE_PELS 2
 
@@ -403,8 +398,7 @@ void ks_ip_one_image_execute_masked(
     ks_image_8_grey **output, ks_transform_2d_linear *output_from_input,
     ks_status *status);
 
-/* Region modes of CogIPOneImageTool.RegionMode (CogRegionModeConstants;
-   the same values as in amv_ip_geometry.h). */
+/* The tool's region modes (the same values as in amv_ip_geometry.h). */
 #ifndef KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK
 #define KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK 0
 #define KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX             1

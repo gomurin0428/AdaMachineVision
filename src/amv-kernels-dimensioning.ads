@@ -1,14 +1,13 @@
---  Kernel of AMV.Dimensioning: the measuring tools of
---  Cognex.VisionPro.Dimensioning (CogDistance*Tool, CogAngle*Tool,
---  CogIntersect*Tool). Its entry points are the C API of
+--  Kernel of AMV.Dimensioning: the tools that measure distances, angles
+--  and intersections. Its entry points are the C API of
 --  include/amv_dimensioning.h (names ks_distance_*, ks_angle_*,
---  ks_intersect_*). The fitting tools (CogFitLineTool, CogFitCircleTool,
---  CogFitEllipseTool) are in the child AMV.Kernels.Dimensioning.Fitting.
+--  ks_intersect_*). The fitting tools are in the child
+--  AMV.Kernels.Dimensioning.Fitting.
 --
 --  These tools measure shapes and points; they read no pixels. Each takes
 --  its inputs (numbers and the shape records of AMV.Kernels.Shapes) and
 --  fills a fixed-size result record (C: ks_<tool>_result), or returns a
---  single angle, as the read-only properties of the VisionPro tool.
+--  single angle.
 --
 --  Coordinates. Every result is expressed in one space, the "measuring
 --  space": in the Ada API the selected space of the tool's InputImage.
@@ -33,15 +32,15 @@
 --  bound (possible only for inputs near it) gives Bad_Parameter ("the
 --  result would exceed +/-1.0E150"). An ellipse needs both radii > 0.
 --
---  Signs and degenerate cases follow the VisionPro reference (CogMath):
+--  Signs and degenerate cases:
 --
 --  * Distances are >= 0, except where one shape lies inside a circle or an
 --    ellipse: a point inside (DistancePointCircle, DistancePointEllipse), a
 --    segment inside (DistanceSegmentCircle, DistanceSegmentEllipse) and a
 --    circle inside another (DistanceCircleCircle) give the negative of the
 --    shortest distance between the boundaries. A point exactly at the
---    centre of a circle gives +Radius and an arbitrary point of the circle
---    (the reference documents this case so).
+--    centre of a circle gives +Radius and an arbitrary point of the
+--    circle.
 --  * Shapes that touch or cross (a line through a circle, two crossing
 --    segments, overlapping circles) are at distance 0, and the points of
 --    a tool that measures between two shapes are then (0, 0).
@@ -70,12 +69,12 @@
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any argument
 --  (NaN and infinities included); only the documented failure codes;
---  every result within its bounds: distances >= 0 where VisionPro
---  documents them unsigned and >= -Max_Length (never below -Radius for a
---  point and a circle) where it does not, angles in (-Pi, Pi], every
---  point within 1.0E150, NumPoints within its documented range (-1 .. 1,
---  0 .. 2 or -1 .. 2), Intersects = (NumPoints /= 0), and the points not
---  reported, and every value of a failed call, exactly 0 (Gold).
+--  every result within its bounds: distances >= 0, or >= -Max_Length
+--  where they can be negative (never below -Radius for a point and a
+--  circle), angles in (-Pi, Pi], every point within 1.0E150, NumPoints
+--  within its documented range (-1 .. 1, 0 .. 2 or -1 .. 2),
+--  Intersects = (NumPoints /= 0), and the points not reported, and every
+--  value of a failed call, exactly 0 (Gold).
 --
 --  Nothing is trusted: the kernel has no SPARK_Mode Off body.
 
@@ -137,8 +136,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Angle    : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_point_point_result. Distance and Angle of
-   --  CogDistancePointPointTool.
+   --  C: ks_distance_point_point_result.
 
    function Valid_Result (R : Ks_Distance_Point_Point_Result) return Boolean
    is (Unsigned_Distance (R.Distance) and then Valid_Angle (R.Angle));
@@ -149,7 +147,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Line_Y   : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_point_line_result (CogDistancePointLineTool).
+   --  C: ks_distance_point_line_result.
 
    function Valid_Result (R : Ks_Distance_Point_Line_Result) return Boolean
    is (Unsigned_Distance (R.Distance)
@@ -161,7 +159,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Segment_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_point_segment_result (CogDistancePointSegmentTool).
+   --  C: ks_distance_point_segment_result.
 
    function Valid_Result (R : Ks_Distance_Point_Segment_Result)
       return Boolean
@@ -174,7 +172,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Circle_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_point_circle_result (CogDistancePointCircleTool).
+   --  C: ks_distance_point_circle_result.
 
    function Valid_Result (R : Ks_Distance_Point_Circle_Result) return Boolean
    is (Signed_Distance (R.Distance)
@@ -186,7 +184,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Ellipse_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_point_ellipse_result (CogDistancePointEllipseTool).
+   --  C: ks_distance_point_ellipse_result.
 
    function Valid_Result (R : Ks_Distance_Point_Ellipse_Result)
       return Boolean
@@ -201,9 +199,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Segment_B_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_segment_segment_result
-   --  (CogDistanceSegmentSegmentTool: SegmentAX, SegmentAY, SegmentBX,
-   --  SegmentBY).
+   --  C: ks_distance_segment_segment_result.
 
    function Valid_Result (R : Ks_Distance_Segment_Segment_Result)
       return Boolean
@@ -223,7 +219,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Line_Y    : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_segment_line_result (CogDistanceSegmentLineTool).
+   --  C: ks_distance_segment_line_result.
 
    function Valid_Result (R : Ks_Distance_Segment_Line_Result)
       return Boolean
@@ -242,7 +238,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Circle_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_line_circle_result (CogDistanceLineCircleTool).
+   --  C: ks_distance_line_circle_result.
 
    function Valid_Result (R : Ks_Distance_Line_Circle_Result) return Boolean
    is (Unsigned_Distance (R.Distance)
@@ -260,7 +256,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Circle_Y  : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_segment_circle_result (CogDistanceSegmentCircleTool).
+   --  C: ks_distance_segment_circle_result.
 
    function Valid_Result (R : Ks_Distance_Segment_Circle_Result)
       return Boolean
@@ -279,8 +275,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Circle_B_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_circle_circle_result (CogDistanceCircleCircleTool:
-   --  CircleAX, CircleAY, CircleBX, CircleBY).
+   --  C: ks_distance_circle_circle_result.
 
    function Valid_Result (R : Ks_Distance_Circle_Circle_Result)
       return Boolean
@@ -300,7 +295,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Ellipse_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_line_ellipse_result (CogDistanceLineEllipseTool).
+   --  C: ks_distance_line_ellipse_result.
 
    function Valid_Result (R : Ks_Distance_Line_Ellipse_Result)
       return Boolean
@@ -320,8 +315,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Ellipse_Y : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_distance_segment_ellipse_result
-   --  (CogDistanceSegmentEllipseTool).
+   --  C: ks_distance_segment_ellipse_result.
 
    function Valid_Result (R : Ks_Distance_Segment_Ellipse_Result)
       return Boolean
@@ -341,7 +335,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Angle      : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_intersect_line_line_result (CogIntersectLineLineTool).
+   --  C: ks_intersect_line_line_result.
 
    function Valid_Result (R : Ks_Intersect_Line_Line_Result) return Boolean
    is (R.Num_Points in -1 .. 1
@@ -358,7 +352,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Y          : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_intersect_segment_line_result (CogIntersectSegmentLineTool).
+   --  C: ks_intersect_segment_line_result.
 
    function Valid_Result (R : Ks_Intersect_Segment_Line_Result)
       return Boolean
@@ -375,8 +369,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Y          : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_intersect_segment_segment_result
-   --  (CogIntersectSegmentSegmentTool).
+   --  C: ks_intersect_segment_segment_result.
 
    function Valid_Result (R : Ks_Intersect_Segment_Segment_Result)
       return Boolean
@@ -395,11 +388,11 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Y1         : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  The properties of the tools that find at most two points
-   --  (CogIntersectLineCircleTool, CogIntersectSegmentCircleTool,
-   --  CogIntersectLineEllipseTool, CogIntersectSegmentEllipseTool). C:
-   --  ks_intersect_line_circle_result and the three others, which are this
-   --  struct.
+   --  The result of the tools that find at most two points
+   --  (Intersect_Line_Circle, Intersect_Segment_Circle,
+   --  Intersect_Line_Ellipse and Intersect_Segment_Ellipse). C:
+   --  ks_intersect_line_circle_result and the three others, which are
+   --  this struct.
 
    function Valid_Result (R : Ks_Intersect_Two_Points_Result) return Boolean
    is (R.Num_Points in 0 .. 2
@@ -431,9 +424,8 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
       Y3         : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_intersect_circle_circle_result (CogIntersectCircleCircleTool).
-   --  As in VisionPro, at most two points are found here, so X2, Y2, X3
-   --  and Y3 are always 0 (they are kept for the layout of the tool).
+   --  C: ks_intersect_circle_circle_result. At most two points are found,
+   --  so X2, Y2, X3 and Y3 are always 0.
 
    function Valid_Result (R : Ks_Intersect_Circle_Circle_Result)
       return Boolean
@@ -463,9 +455,9 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
              and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistancePointPointTool: the length of the segment from (StartX,
-   --  StartY) to (EndX, EndY), and its direction from the x axis in
-   --  (-Pi, Pi] (0 when the points coincide).
+   --  The length of the segment from (StartX, StartY) to (EndX, EndY),
+   --  and its direction from the x axis in (-Pi, Pi] (0 when the points
+   --  coincide).
 
    procedure Angle_Point_Point
      (Start_X, Start_Y, End_X, End_Y : Long_Float;
@@ -478,8 +470,8 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
              and then Status.Failure in Failure_None | Failure_Bad_Parameter
              and then Valid_Angle (Angle)
              and then (if not Succeeded (Status) then Angle = 0.0);
-   --  CogAnglePointPointTool: the direction from (StartX, StartY) to
-   --  (EndX, EndY), as DistancePointPoint's Angle.
+   --  The direction from (StartX, StartY) to (EndX, EndY), as
+   --  DistancePointPoint's Angle.
 
    procedure Angle_Line_Line
      (Line_A, Line_B                       : KS.Ks_Line;
@@ -493,8 +485,8 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status)
              and then Valid_Angle (Angle)
              and then (if not Succeeded (Status) then Angle = 0.0);
-   --  CogAngleLineLineTool: LineB.Rotation - LineA.Rotation (after the
-   --  mapping), reduced to (-Pi, Pi]: the angle from line A to line B.
+   --  LineB.Rotation - LineA.Rotation (after the mapping), reduced to
+   --  (-Pi, Pi]: the angle from line A to line B.
 
    ---------------------------------------------------------------------
    --  Distances
@@ -512,8 +504,8 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistancePointLineTool: the perpendicular distance from (X, Y) to
-   --  the line, and the foot of the perpendicular (LineX, LineY).
+   --  The perpendicular distance from (X, Y) to the line, and the foot of
+   --  the perpendicular (LineX, LineY).
 
    procedure Distance_Point_Segment
      (X, Y                  : Long_Float;
@@ -527,10 +519,9 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistancePointSegmentTool: the distance from (X, Y) to the
-   --  nearest point of the segment (SegmentX, SegmentY), an end point or
-   --  the foot of the perpendicular. A segment of no length is its start
-   --  point.
+   --  The distance from (X, Y) to the nearest point of the segment
+   --  (SegmentX, SegmentY), an end point or the foot of the
+   --  perpendicular. A segment of no length is its start point.
 
    procedure Distance_Point_Circle
      (X, Y                 : Long_Float;
@@ -545,10 +536,10 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
              and then Result.Distance >= -Max_Value
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistancePointCircleTool: |P - centre| - Radius (negative inside
-   --  the circle, 0 on it, so never below -Radius), and the nearest point
-   --  of the circle (CircleX, CircleY), (X, Y) itself on the circle. A
-   --  point exactly at the centre gives +Radius and the point at angle 0.
+   --  |P - centre| - Radius (negative inside the circle, 0 on it, so
+   --  never below -Radius), and the nearest point of the circle
+   --  (CircleX, CircleY), (X, Y) itself on the circle. A point exactly at
+   --  the centre gives +Radius and the point at angle 0.
 
    procedure Distance_Point_Ellipse
      (X, Y                  : Long_Float;
@@ -562,14 +553,14 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistancePointEllipseTool: the distance from (X, Y) to the nearest
-   --  point of the ellipse (EllipseX, EllipseY), negative inside it (the
-   --  negative of the distance to the boundary). The nearest point is
-   --  found by bisection (Eberly's method: a root of a monotone function
-   --  of one variable in the ellipse's own frame), to about the precision
-   --  of the coordinates. Of several nearest points (a point on an axis
-   --  inside the ellipse) one is chosen. A point exactly at the centre of
-   --  an ellipse whose radii are equal gives +Radius, as for a circle.
+   --  The distance from (X, Y) to the nearest point of the ellipse
+   --  (EllipseX, EllipseY), negative inside it (the negative of the
+   --  distance to the boundary). The nearest point is found by bisection
+   --  (Eberly's method: a root of a monotone function of one variable in
+   --  the ellipse's own frame), to about the precision of the
+   --  coordinates. Of several nearest points (a point on an axis inside
+   --  the ellipse) one is chosen. A point exactly at the centre of an
+   --  ellipse whose radii are equal gives +Radius, as for a circle.
 
    procedure Distance_Segment_Segment
      (Segment_A, Segment_B    : KS.Ks_Line_Segment;
@@ -583,13 +574,13 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceSegmentSegmentTool: 0 (and (0, 0) points) when the
-   --  segments touch, cross or overlap (as
-   --  ks_intersect_segment_segment_execute decides); otherwise the shortest distance between them, which is
-   --  reached at an end point of one of them, and the nearest points on
-   --  segment A and on segment B (of several equally near pairs, as for
-   --  parallel segments, the first of: A's start, A's end, B's start,
-   --  B's end and its nearest point on the other segment).
+   --  0 (and (0, 0) points) when the segments touch, cross or overlap (as
+   --  ks_intersect_segment_segment_execute decides); otherwise the
+   --  shortest distance between them, which is reached at an end point of
+   --  one of them, and the nearest points on segment A and on segment B
+   --  (of several equally near pairs, as for parallel segments, the first
+   --  of: A's start, A's end, B's start, B's end and its nearest point on
+   --  the other segment).
 
    procedure Distance_Segment_Line
      (Segment               : KS.Ks_Line_Segment;
@@ -604,11 +595,10 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceSegmentLineTool: 0 (and (0, 0) points) when the segment
-   --  touches or crosses the line (its end points are not strictly on one
-   --  side); otherwise the distance of the nearer end point (the start
-   --  point when both are as near, as for a parallel segment) and its
-   --  foot on the line.
+   --  0 (and (0, 0) points) when the segment touches or crosses the line
+   --  (its end points are not strictly on one side); otherwise the
+   --  distance of the nearer end point (the start point when both are as
+   --  near, as for a parallel segment) and its foot on the line.
 
    procedure Distance_Line_Circle
      (Line                 : KS.Ks_Line;
@@ -623,11 +613,11 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceLineCircleTool: 0 (and (0, 0) points) when the line meets
-   --  the circle (its distance from the centre is at most the radius);
-   --  otherwise that distance minus the radius, the foot of the
-   --  perpendicular from the centre (LineX, LineY) and the point of the
-   --  circle facing the line (CircleX, CircleY).
+   --  0 (and (0, 0) points) when the line meets the circle (its distance
+   --  from the centre is at most the radius); otherwise that distance
+   --  minus the radius, the foot of the perpendicular from the centre
+   --  (LineX, LineY) and the point of the circle facing the line
+   --  (CircleX, CircleY).
 
    procedure Distance_Segment_Circle
      (Segment               : KS.Ks_Line_Segment;
@@ -642,13 +632,13 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceSegmentCircleTool. Outside the circle (its nearest point
-   --  farther than the radius from the centre): the distance from the
-   --  segment's point nearest the centre to the circle, that point and the
-   --  circle's point towards it. Inside (both end points nearer than the
-   --  radius): the negative of the distance from the end point farther
-   --  from the centre to the circle, that end point and the circle's point
-   --  beyond it. Otherwise (touching or crossing): 0 and (0, 0) points.
+   --  Outside the circle (its nearest point farther than the radius from
+   --  the centre): the distance from the segment's point nearest the
+   --  centre to the circle, that point and the circle's point towards it.
+   --  Inside (both end points nearer than the radius): the negative of
+   --  the distance from the end point farther from the centre to the
+   --  circle, that end point and the circle's point beyond it. Otherwise
+   --  (touching or crossing): 0 and (0, 0) points.
 
    procedure Distance_Circle_Circle
      (Circle_A, Circle_B     : KS.Ks_Circle;
@@ -662,12 +652,12 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceCircleCircleTool. Apart: the gap between the circles and
-   --  the facing points on the line of the centres. One inside the other:
-   --  the negative of the gap, and the facing points (on the side of the
-   --  inner centre). Concentric (equal centres) with different radii: the
-   --  negative of the difference of the radii, and the points at angle 0.
-   --  Identical, touching or crossing circles: 0 and (0, 0) points.
+   --  Apart: the gap between the circles and the facing points on the
+   --  line of the centres. One inside the other: the negative of the gap,
+   --  and the facing points (on the side of the inner centre). Concentric
+   --  (equal centres) with different radii: the negative of the
+   --  difference of the radii, and the points at angle 0. Identical,
+   --  touching or crossing circles: 0 and (0, 0) points.
 
    procedure Distance_Line_Ellipse
      (Line                  : KS.Ks_Line;
@@ -682,10 +672,10 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceLineEllipseTool: 0 (and (0, 0) points) when the line
-   --  meets the ellipse; otherwise the gap between them, the point of the
-   --  ellipse nearest the line (where its tangent is parallel to the line)
-   --  and that point's foot on the line.
+   --  0 (and (0, 0) points) when the line meets the ellipse; otherwise
+   --  the gap between them, the point of the ellipse nearest the line
+   --  (where its tangent is parallel to the line) and that point's foot
+   --  on the line.
 
    procedure Distance_Segment_Ellipse
      (Segment               : KS.Ks_Line_Segment;
@@ -700,15 +690,13 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogDistanceSegmentEllipseTool: 0 (and (0, 0) points) when the
-   --  segment meets the ellipse's boundary (as
-   --  ks_intersect_segment_ellipse_execute finds it) or has one end point
-   --  inside
-   --  and one outside. Inside (both end points inside): the negative of
-   --  the smaller distance of an end point to the boundary, that end point
-   --  and its nearest point of the ellipse. Outside: the shortest distance,
-   --  reached at an end point or where the segment passes the ellipse's
-   --  nearest point to its line, and the two points.
+   --  0 (and (0, 0) points) when the segment meets the ellipse's boundary
+   --  (as ks_intersect_segment_ellipse_execute finds it) or has one end
+   --  point inside and one outside. Inside (both end points inside): the
+   --  negative of the smaller distance of an end point to the boundary,
+   --  that end point and its nearest point of the ellipse. Outside: the
+   --  shortest distance, reached at an end point or where the segment
+   --  passes the ellipse's nearest point to its line, and the two points.
 
    ---------------------------------------------------------------------
    --  Intersections
@@ -726,10 +714,10 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectLineLineTool: NumPoints 1 and the point (X, Y) for
-   --  lines that cross; 0 for parallel lines; -1 for coincident ones.
-   --  Angle is the angle from line A to line B in (-Pi, Pi] (as
-   --  ks_angle_line_line_execute), for parallel lines too.
+   --  NumPoints 1 and the point (X, Y) for lines that cross; 0 for
+   --  parallel lines; -1 for coincident ones. Angle is the angle from
+   --  line A to line B in (-Pi, Pi] (as ks_angle_line_line_execute), for
+   --  parallel lines too.
 
    procedure Intersect_Segment_Line
      (Segment               : KS.Ks_Line_Segment;
@@ -744,11 +732,10 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectSegmentLineTool: NumPoints 1 and the point where the
-   --  segment crosses or touches the line; 0 when both end points lie
-   --  strictly on one side; -1 when the whole segment (of a length > 0)
-   --  lies on the line. A segment of no length on the line gives its
-   --  point.
+   --  NumPoints 1 and the point where the segment crosses or touches the
+   --  line; 0 when both end points lie strictly on one side; -1 when the
+   --  whole segment (of a length > 0) lies on the line. A segment of no
+   --  length on the line gives its point.
 
    procedure Intersect_Segment_Segment
      (Segment_A, Segment_B    : KS.Ks_Line_Segment;
@@ -762,11 +749,11 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectSegmentSegmentTool: NumPoints 1 and the point where the
-   --  segments cross or touch; 0 when they do not meet (parallel segments
-   --  on different lines included); -1 when they lie on one line and
-   --  overlap along a piece of a length > 0. Collinear segments that only
-   --  share an end point give that point.
+   --  NumPoints 1 and the point where the segments cross or touch; 0 when
+   --  they do not meet (parallel segments on different lines included);
+   --  -1 when they lie on one line and overlap along a piece of a
+   --  length > 0. Collinear segments that only share an end point give
+   --  that point.
 
    procedure Intersect_Line_Circle
      (Line                 : KS.Ks_Line;
@@ -781,9 +768,9 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectLineCircleTool: 0, 1 (tangent: the foot of the
-   --  perpendicular from the centre) or 2 points, the first one first
-   --  along the line's direction (as ks_geometry_intersect_line_circle).
+   --  0, 1 (tangent: the foot of the perpendicular from the centre) or 2
+   --  points, the first one first along the line's direction (as
+   --  ks_geometry_intersect_line_circle).
 
    procedure Intersect_Segment_Circle
      (Segment               : KS.Ks_Line_Segment;
@@ -798,11 +785,10 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectSegmentCircleTool: the points of the segment's line on
-   --  the circle that lie on the segment (within the tolerance at its
-   --  ends, then moved onto the end), in the order from start to end: 0,
-   --  1 (tangent, an end point on the circle, or a segment from inside to
-   --  outside) or 2.
+   --  The points of the segment's line on the circle that lie on the
+   --  segment (within the tolerance at its ends, then moved onto the
+   --  end), in the order from start to end: 0, 1 (tangent, an end point
+   --  on the circle, or a segment from inside to outside) or 2.
 
    procedure Intersect_Circle_Circle
      (Circle_A, Circle_B     : KS.Ks_Circle;
@@ -816,11 +802,11 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectCircleCircleTool: -1 for identical circles (centres and
-   --  radii equal within the tolerance), otherwise 0, 1 (touching) or 2
-   --  points as ks_geometry_intersect_circles finds them (with two
-   --  points, the first lies to the left of the line from centre A to
-   --  centre B in a y-up view: on the side of its left normal).
+   --  -1 for identical circles (centres and radii equal within the
+   --  tolerance), otherwise 0, 1 (touching) or 2 points as
+   --  ks_geometry_intersect_circles finds them (with two points, the
+   --  first lies to the left of the line from centre A to centre B in a
+   --  y-up view: on the side of its left normal).
 
    procedure Intersect_Line_Ellipse
      (Line                  : KS.Ks_Line;
@@ -835,9 +821,8 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectLineEllipseTool: 0, 1 (tangent: the ellipse's point
-   --  nearest the line) or 2 points, the first one first along the line's
-   --  direction.
+   --  0, 1 (tangent: the ellipse's point nearest the line) or 2 points,
+   --  the first one first along the line's direction.
 
    procedure Intersect_Segment_Ellipse
      (Segment               : KS.Ks_Line_Segment;
@@ -852,7 +837,7 @@ package AMV.Kernels.Dimensioning with SPARK_Mode, Preelaborate is
      Post => Status_OK (Status) and then Valid_Result (Result)
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogIntersectSegmentEllipseTool: as for a circle, with the points of
+   --  As for a circle, with the points of
    --  ks_intersect_line_ellipse_execute.
 
 end AMV.Kernels.Dimensioning;

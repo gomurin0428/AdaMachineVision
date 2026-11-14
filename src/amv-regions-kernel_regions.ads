@@ -2,7 +2,7 @@
 --  packages of the Ada API that pass a rasterised region to other kernels
 --  (the vision tools pass it to their execute entry points, which take a
 --  const ks_pixel_region *) and for programs that mix the Ada API with the
---  C API. Not part of the VisionPro-like API.
+--  C API.
 
 pragma SPARK_Mode (Off);
 pragma Validity_Checks ("F");

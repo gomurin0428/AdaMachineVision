@@ -1,9 +1,9 @@
 /*
- * AdaMachineVision (AMV) C API: the caliper tools (Cognex.VisionPro.Caliper:
- * CogCaliperTool, CogFindLineTool, CogFindCircleTool). Included by amv.h;
- * the entry points belong to the SPARK kernels AMV.Kernels.Caliper,
- * AMV.Kernels.Find_Line and AMV.Kernels.Find_Circle, whose specs describe
- * the algorithms, the scorers and every bound in full.
+ * AdaMachineVision (AMV) C API, the caliper tools: the caliper, the find
+ * line tool and the find circle tool. Included by amv.h; the entry points
+ * belong to the SPARK kernels AMV.Kernels.Caliper, AMV.Kernels.Find_Line
+ * and AMV.Kernels.Find_Circle, whose specs describe the algorithms, the
+ * scorers and every bound in full.
  *
  * Positions are reported in the space that selected_from_pixel maps pixel
  * space to (the input image's selected space in the Ada API); regions and
@@ -22,24 +22,24 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------------------------ */
-/* Caliper (CogCaliperTool, CogCaliper, CogCaliperResults)             */
+/* Caliper                                                             */
 /* ------------------------------------------------------------------ */
 
-/* CogCaliperEdgeModeConstants. */
+/* Edge modes. */
 #define KS_CALIPER_EDGE_MODE_SINGLE_EDGE 1
 #define KS_CALIPER_EDGE_MODE_PAIR        2
 
-/* CogCaliperPolarityConstants (dark to light: the grey level rises along
-   the search direction). */
+/* Polarities (dark to light: the grey level rises along the search
+   direction). */
 #define KS_CALIPER_POLARITY_DARK_TO_LIGHT 1
 #define KS_CALIPER_POLARITY_LIGHT_TO_DARK 2
 #define KS_CALIPER_POLARITY_DONT_CARE     3
 
-/* CogCaliperSamplingModeConstants (both sample bilinearly here). */
+/* Sampling modes (both sample bilinearly). */
 #define KS_CALIPER_SAMPLING_MODE_BILINEAR_INTERPOLATION 2
 #define KS_CALIPER_SAMPLING_MODE_BILINEAR_ACCURATE      4
 
-/* Scorer kinds, one per CogCaliperScorer* class (AMV codes). */
+/* Scorer kinds. */
 #define KS_CALIPER_SCORER_CONTRAST            0
 #define KS_CALIPER_SCORER_POSITION            1
 #define KS_CALIPER_SCORER_POSITION_NEG        2
@@ -61,20 +61,20 @@ extern "C" {
 
 /* One scorer: a measure m of a candidate mapped through a tent that is y1
    at m = xc, falls linearly to y0 at xc - x0 and at xc + x1, and stays y0
-   beyond (SetXYParameters (x0, x1, xc, y0, y1); our own definition). */
+   beyond (SetXYParameters (x0, x1, xc, y0, y1)). */
 typedef struct {
     int32_t kind;      /* KS_CALIPER_SCORER_* */
     int32_t enabled;   /* 0 or 1 */
     double  x0, x1, xc, y0, y1;
 } ks_caliper_scorer;
 
-/* CogCaliperScorers: items[0 .. count - 1]. */
+/* A list of scorers: items[0 .. count - 1]. */
 typedef struct {
     int32_t           count;
     ks_caliper_scorer items[KS_CALIPER_MAX_SCORERS];
 } ks_caliper_scorers;
 
-/* CogCaliper; ks_caliper_run_params_default fills in the defaults. */
+/* Run parameters; ks_caliper_run_params_default fills in the defaults. */
 typedef struct {
     int32_t            edge_mode;                   /* SINGLE_EDGE */
     int32_t            edge_0_polarity;             /* DONT_CARE */
@@ -89,13 +89,13 @@ typedef struct {
     ks_caliper_scorers two_edge_scorers;            /* one SizeDiffNorm */
 } ks_caliper_run_params;
 
-/* CogCaliperEdge (contrast is signed: positive for dark to light). */
+/* An edge (contrast is signed: positive for dark to light). */
 typedef struct {
     double position, position_x, position_y, contrast;
 } ks_caliper_edge;
 
-/* CogCaliperResult (a single edge result has width 0 and edge_1 equal
-   to edge_0). */
+/* A result (a single edge result has width 0 and edge_1 equal to
+   edge_0). */
 typedef struct {
     double          score, position, position_x, position_y, width;
     ks_caliper_edge edge_0, edge_1;
@@ -120,7 +120,7 @@ _Static_assert(sizeof(ks_caliper_result) == 104,
                "ks_caliper_result must be 104 bytes");
 #endif
 
-/* The defaults of CogCaliper. */
+/* The default run parameters. */
 void ks_caliper_run_params_default(ks_caliper_run_params *params,
                                    ks_status *status);
 /* A new enabled scorer of that kind with its default parameters. */
@@ -191,12 +191,13 @@ void ks_caliper_results_filtered_value(const ks_caliper_results *results,
                                        ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Find line (CogFindLineTool, CogFindLine, CogFindLineResults)        */
+/* Find line                                                           */
 /* ------------------------------------------------------------------ */
 
 #define KS_FIND_LINE_MAX_CALIPERS 1000
 
-/* CogFindLine; ks_find_line_run_params_default fills in the defaults. */
+/* Run parameters; ks_find_line_run_params_default fills in the
+   defaults. */
 typedef struct {
     int32_t               num_calipers;              /* 6, 2 .. 1000 */
     int32_t               num_to_ignore;             /* 0 */
@@ -208,8 +209,8 @@ typedef struct {
     ks_caliper_run_params caliper_run_params;
 } ks_find_line_run_params;
 
-/* CogFindLineResult (its CaliperResults: ks_find_line_results_caliper_
-   results). found and used are 0 or 1. */
+/* The result of one caliper (its caliper results:
+   ks_find_line_results_caliper_results). found and used are 0 or 1. */
 typedef struct {
     int32_t found, used;
     double  x, y, distance_to_line;
@@ -264,16 +265,16 @@ void ks_find_line_results_fit(const ks_find_line_results *results,
                               int32_t *num_points_used, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Find circle (CogFindCircleTool, CogFindCircle, CogFindCircleResults) */
+/* Find circle                                                         */
 /* ------------------------------------------------------------------ */
 
 #define KS_FIND_CIRCLE_MAX_CALIPERS 1000
 
-/* CogFindCircleSearchDirectionConstants. */
+/* Search directions. */
 #define KS_FIND_CIRCLE_SEARCH_DIRECTION_INWARD  0
 #define KS_FIND_CIRCLE_SEARCH_DIRECTION_OUTWARD 1
 
-/* CogFindCircle; ks_find_circle_run_params_default fills in the
+/* Run parameters; ks_find_circle_run_params_default fills in the
    defaults. */
 typedef struct {
     int32_t               num_calipers;              /* 6, 3 .. 1000 */
@@ -288,11 +289,11 @@ typedef struct {
     ks_caliper_run_params caliper_run_params;
 } ks_find_circle_run_params;
 
-/* CogFindCircleResult (its CaliperResults: ks_find_circle_results_
-   caliper_results). x, y: the caliper's edge moved away from the centre
-   by the curvature correction L*L / (24 R) (L the projection length, R
-   the radius; see AMV.Kernels.Find_Circle); the caliper results keep the
-   edge as found. */
+/* The result of one caliper (its caliper results:
+   ks_find_circle_results_caliper_results). x, y: the caliper's edge moved
+   away from the centre by the curvature correction L*L / (24 R) (L the
+   projection length, R the radius; see AMV.Kernels.Find_Circle); the
+   caliper results keep the edge as found. */
 typedef struct {
     int32_t found, used;
     double  x, y, distance_to_circle;

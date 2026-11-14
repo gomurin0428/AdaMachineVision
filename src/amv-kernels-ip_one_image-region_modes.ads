@@ -1,36 +1,30 @@
---  The region modes of the IP one-image tool (CogIPOneImageTool.RegionMode,
---  CogRegionModeConstants): the operators of AMV.Kernels.IP_One_Image run
---  on the part of the input image that the region selects, and the output
---  image is that part only.
+--  The region modes of the IP one-image tool: the operators of
+--  AMV.Kernels.IP_One_Image run on the part of the input image that the
+--  region selects, and the output image is that part only.
 --
---  * Pixel_Aligned_Bounding_Box (VisionPro's default; Execute_In_Box): the
+--  * Pixel_Aligned_Bounding_Box (the tool's default; Execute_In_Box): the
 --    part is the pixel-aligned bounding box of the region, that is the
---    rectangle of its pixel region. Every pixel of the box is processed,
---    as if the box were the whole input image: the operators read no
---    pixel outside it (their image border is the box's border), and the
---    operators that change the pixel grid are allowed.
+--    rectangle of its pixel region. Every pixel of the box is processed, as
+--    if the box were the whole input image: the operators read no pixel
+--    outside it (their image border is the box's border), and the operators
+--    that change the pixel grid are allowed.
 --  * Pixel_Aligned_Bounding_Box_Adjust_Mask (Execute_In_Box): the same
 --    box, but the first enabled operator of the list processes only the
 --    region's own pixels; the other pixels of the box keep their input
---    values through it. The operators after it process the whole box (in
---    VisionPro the region mode concerns the first operator only). When
---    the first enabled operator changes the pixel grid, the region must
---    fill its box.
+--    values through it. The operators after it process the whole box.
+--    When the first enabled operator changes the pixel grid, the region
+--    must fill its box.
 --  * Affine_Transform (Execute_Affine): the part is an affine rectangle,
 --    resampled into an upright image by AMV.Kernels.Affine_Transform with
 --    that kernel's default run parameters (scaling 1, so one output pixel
 --    per input pixel along each side; its default sampling; samples
 --    outside the image are 0). Every pixel of that image is processed.
---    As in VisionPro, a PelSet cannot be the first enabled operator.
+--    A PelSet cannot be the first enabled operator.
 --
---  What VisionPro documents is which pixels each mode covers, that the
---  output is the box (or the resampled rectangle), that the mode concerns
---  the first operator, and which operators support each mode. AMV's
---  choices where it says nothing: the operators never read pixels outside
---  the box; the Adjust_Mask mode is accepted for every operator (VisionPro
---  names four that support it: GaussSampler, GreyMorphologyNxM, MedianNxM
---  and PelSet); the mask of a PelSet lies over the image that operator
---  receives, so its offsets count from the box's corner.
+--  The operators never read pixels outside the box; the Adjust_Mask mode
+--  is accepted for every operator; the mask of a PelSet lies over the
+--  image that operator receives, so its offsets count from the box's
+--  corner.
 --
 --  The output keeps the physical places of the input: Output_From_Input
 --  (Execute_In_Box) maps the input image's pixel coordinates to the
@@ -65,7 +59,7 @@ is
    package KS renames AMV.Kernels.Shapes;
 
    ---------------------------------------------------------------------
-   --  Codes (CogRegionModeConstants; C: KS_REGION_MODE_*)
+   --  Codes (C: KS_REGION_MODE_*)
    ---------------------------------------------------------------------
 
    Region_Mode_Pixel_Aligned_Bounding_Box_Adjust_Mask : constant Int32 := 0;

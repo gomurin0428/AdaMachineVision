@@ -106,7 +106,7 @@ static void test_pairs_and_fits(void)
           "calib fix: rigid fit, unit scale (scale 2 leaves an error)");
     ks_n_point_to_n_point_compute(pairs, 8, &fit, &status);
     check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
-                     "DOFsToCompute must be a CogNPointToNPointDOFConstants "
+                     "DOFsToCompute must be a KS_DOF_* "
                      "value (0 .. 7)")
           && fit.transform.a == 1.0 && fit.rms_error == 0.0,
           "calib fix: a bad DOF code, identity result");
@@ -619,7 +619,7 @@ static void test_radial_warp(void)
     ks_calibration_set_computation_mode(calibration, 0, &status);
     check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
                      "ComputationMode must be a "
-                     "CogCalibFixComputationModeConstants value (1 .. 7)"),
+                     "KS_COMPUTATION_MODE_* value (1 .. 7)"),
           "calib fix: mode 0");
     ks_calibration_set_computation_mode(
         calibration, KS_COMPUTATION_MODE_THREE_PARAM_RADIAL_WARP, &status);

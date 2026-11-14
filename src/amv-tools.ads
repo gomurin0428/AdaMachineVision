@@ -1,5 +1,5 @@
---  The tool framework: the counterparts of ICogTool, ICogRunStatus and
---  CogToolResultConstants.
+--  The tool framework: the base type of the tools (Ks_Tool), the run
+--  status (Ks_Run_Status) and the result codes (Ks_Tool_Result_Constants).
 --
 --  A concrete tool is a public record extension of Ks_Tool that declares
 --  its inputs (Input_Image, Region, Run_Params, ...) and its Results as
@@ -31,12 +31,12 @@ private with Ada.Strings.Unbounded;
 package AMV.Tools is
 
    type Ks_Tool_Result_Constants is (Accept_Result, Warning, Reject, Error);
-   --  Accept_Result is VisionPro's "Accept" ("accept" is an Ada reserved
-   --  word). Error means the tool could not run; Reject and Warning are
-   --  set by tools that judge their own results.
+   --  Accept_Result means "Accept" ("accept" is an Ada reserved word).
+   --  Error means the tool could not run; Reject and Warning are set by
+   --  tools that judge their own results.
 
    ---------------------------------------------------------------------
-   --  ICogRunStatus
+   --  Ks_Run_Status
    ---------------------------------------------------------------------
 
    type Ks_Run_Status is tagged private;
@@ -54,7 +54,7 @@ package AMV.Tools is
    --  Duration of the last Run in milliseconds.
 
    ---------------------------------------------------------------------
-   --  ICogTool
+   --  Ks_Tool
    ---------------------------------------------------------------------
 
    type Ks_Tool is abstract tagged private;

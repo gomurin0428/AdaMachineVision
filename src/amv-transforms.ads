@@ -1,4 +1,4 @@
---  2D linear (affine) transforms: the counterpart of CogTransform2DLinear.
+--  2D linear (affine) transforms.
 --
 --  A transform maps a point (x, y) to
 --
@@ -98,8 +98,8 @@ package AMV.Transforms is
       return Ks_Transform_2D_Linear;
    --  Uniform scaling and rotation about the origin, then translation.
 
-   --  Matrix form. VisionPro's elem00, elem01, elem10 and elem11 are A, B,
-   --  C and D (row-major: row 0 is (A, B), row 1 is (C, D)).
+   --  Matrix form: A, B, C and D are the matrix elements, row-major (row 0
+   --  is (A, B), row 1 is (C, D)).
 
    procedure Get_Matrix_Elements_Translation
      (Transform                            : Ks_Transform_2D_Linear;
@@ -119,10 +119,9 @@ package AMV.Transforms is
       Column    : Integer) return Real;
    --  GetMatrixElement: the element in row Row and column Column (0 .. 1
    --  each): (0, 0) is A, (0, 1) is B, (1, 0) is C and (1, 1) is D. Raises
-   --  Ks_Bad_Parameter_Exception (VisionPro: ArgumentException) when Row
-   --  or Column is outside 0 .. 1, and, like every operation that uses the
-   --  transform, when an entry or the translation is beyond the bounds
-   --  above.
+   --  Ks_Bad_Parameter_Exception when Row or Column is outside 0 .. 1,
+   --  and, like every operation that uses the transform, when an entry or
+   --  the translation is beyond the bounds above.
 
    procedure Set_Matrix_Element
      (Transform : in out Ks_Transform_2D_Linear;
@@ -170,10 +169,6 @@ package AMV.Transforms is
      (Transform : in out Ks_Transform_2D_Linear; Value : Real);
    procedure Set_Rotation_Y
      (Transform : in out Ks_Transform_2D_Linear; Value : Real);
-   --  Set_Scaling_X, Set_Scaling_Y, Set_Rotation_X and Set_Rotation_Y are
-   --  AMV additions: ScalingX, ScalingY, RotationX and RotationY are
-   --  read-only in VisionPro, which sets them only together, through
-   --  SetScalingsRotationsTranslation.
 
    procedure Set_Scaling_Aspect_Rotation_Skew_Translation
      (Transform : in out Ks_Transform_2D_Linear;
@@ -263,9 +258,8 @@ package AMV.Transforms is
      (Transform : Ks_Transform_2D_Linear;
       Tolerance : Real := 1.0E-12) return Boolean;
    --  Identity (tolerance): True when every matrix and translation entry
-   --  is within Tolerance of the identity's. (VisionPro does not document
-   --  this test exactly; AMV compares the whole transform.) It overloads
-   --  the parameterless constructor Identity above: T.Identity and
+   --  is within Tolerance of the identity's. It overloads the
+   --  parameterless constructor Identity above: T.Identity and
    --  Identity (T) are this test, Identity alone is the constructor.
 
    function Matrix_Identity
@@ -281,8 +275,6 @@ package AMV.Transforms is
    --  Tolerance. The bound is absolute (it applies to the determinant,
    --  whose scale is that of the entries squared), so there is no default.
    --  A determinant that underflows to 0.0 counts as singular.
-
-   --  AMV additions (no VisionPro counterpart).
 
    function Is_Similarity
      (Transform : Ks_Transform_2D_Linear;

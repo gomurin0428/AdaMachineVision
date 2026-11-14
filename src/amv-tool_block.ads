@@ -1,5 +1,4 @@
---  The tool block: the counterpart of Cognex.VisionPro.ToolBlock.
---  CogToolBlock, a tool group with named input and output terminals.
+--  The tool block: a tool group with named input and output terminals.
 --
 --     Block : AMV.Tool_Block.Ks_Tool_Block;
 --     ...
@@ -10,8 +9,7 @@
 --     Block.Run;
 --     Mean := Block.Outputs.Get_Real ("Mean");
 --
---  Ks_Tool_Block extends AMV.Tool_Group.Ks_Tool_Group (CogToolBlock
---  derives from CogToolGroup's base), so the members (VisionPro's Tools),
+--  Ks_Tool_Block extends AMV.Tool_Group.Ks_Tool_Group, so the members,
 --  AbortRunOnToolFailure, the disabled flags, the Script and Run are those
 --  of the group and behave as described in AMV.Tool_Group. A block's
 --  script receives the block as a Ks_Tool_Group'Class; it views it as the
@@ -32,28 +30,15 @@
 --        Run_Tools := False;
 --     end Wire_And_Publish;
 --
---  This is what a CogToolBlockAdvancedScript does by overriding GroupRun
---  (ref message, ref result, returning whether the tools still run).
---
 --  Terminals. Inputs and Outputs are terminal collections
---  (CogToolBlockTerminalCollection). A terminal (CogToolBlockTerminal)
---  has a name, unique within its collection (1 to Max_Name_Length
---  characters, compared case-sensitively), a value type
---  (Ks_Tool_Block_Terminal_Type, the AMV form of ValueType) and a value.
---  The collection's operations map to VisionPro's as follows:
---
---     Add (new CogToolBlockTerminal (name, value))  Add (Name, Value)
---     Add (new CogToolBlockTerminal (name, type))   Add (Name, Value_Type)
---     Insert (index, terminal)          Insert (Index, Name, Value_Type)
---     Remove (name), RemoveAt, Move, Clear, Count, IndexOf (name),
---     Contains (name)                   the same names
---     Item [index].Name                 Name_Of (Index)
---     Item [name].ValueType             Value_Type (Name)
---     Item [name].Value = v             Set (Name, v)
---     (T) Item [name].Value             Get_Real (Name), Get_Integer,
---                                       Get_Boolean, Get_String,
---                                       Get_Image_8_Grey, Get_Image_16_Grey,
---                                       Get_Transform, Get_Shape
+--  (Ks_Tool_Block_Terminal_Collection). A terminal has a name, unique
+--  within its collection (1 to Max_Name_Length characters, compared
+--  case-sensitively), a value type (Ks_Tool_Block_Terminal_Type) and a
+--  value. A collection has Add (by value or by type alone), Insert,
+--  Remove, Remove_At, Move, Clear, Count, Index_Of, Contains, Name_Of and
+--  Value_Type; Set gives a terminal a value, and Get_Real, Get_Integer,
+--  Get_Boolean, Get_String, Get_Image_8_Grey, Get_Image_16_Grey,
+--  Get_Transform and Get_Shape return it.
 --
 --  A terminal added by type alone holds 0.0, 0, False or "" (scalar
 --  types) or no value (images, transforms and shapes): Has_Value is False
@@ -107,16 +92,14 @@ package AMV.Tool_Block is
    type Ks_Tool_Block_Terminal_Type is
      (Real_Type, Integer_Type, Boolean_Type, String_Type,
       Image_8_Grey_Type, Image_16_Grey_Type, Transform_Type, Shape_Type);
-   --  The value type of a terminal (AMV's form of the .NET types of
-   --  ValueType: Double, Int64, Boolean, String, CogImage8Grey,
-   --  CogImage16Grey, CogTransform2DLinear, ICogShape).
+   --  The value type of a terminal.
 
    package Shape_Holders is new Ada.Containers.Indefinite_Holders
      (AMV.Shapes.Ks_Shape'Class, AMV.Shapes."=");
    --  An optional shape of any type.
 
    ---------------------------------------------------------------------
-   --  CogToolBlockTerminalCollection
+   --  Ks_Tool_Block_Terminal_Collection
    ---------------------------------------------------------------------
 
    type Ks_Tool_Block_Terminal_Collection is tagged private;
@@ -137,12 +120,12 @@ package AMV.Tool_Block is
    function Name_Of
      (Terminals : Ks_Tool_Block_Terminal_Collection;
       Index     : Natural) return String;
-   --  Item [Index].Name.
+   --  The name of the terminal at Index.
 
    function Value_Type
      (Terminals : Ks_Tool_Block_Terminal_Collection;
       Name      : String) return Ks_Tool_Block_Terminal_Type;
-   --  Item [Name].ValueType.
+   --  The value type of the terminal Name.
 
    function Has_Value
      (Terminals : Ks_Tool_Block_Terminal_Collection;
@@ -249,8 +232,8 @@ package AMV.Tool_Block is
      (Terminals : in out Ks_Tool_Block_Terminal_Collection;
       Name      : String;
       Value     : AMV.Shapes.Ks_Shape'Class);
-   --  Item [Name].Value := Value. The terminal must have the type of
-   --  Value.
+   --  Gives the terminal Name the value Value. The terminal must have the
+   --  type of Value.
 
    function Get_Real
      (Terminals : Ks_Tool_Block_Terminal_Collection;
@@ -276,12 +259,12 @@ package AMV.Tool_Block is
    function Get_Shape
      (Terminals : Ks_Tool_Block_Terminal_Collection;
       Name      : String) return AMV.Shapes.Ks_Shape'Class;
-   --  Item [Name].Value: the value of the terminal Name, which must have
-   --  the type in the function's name (and, for an object type, a value).
-   --  An image shares its pixels with the terminal's.
+   --  The value of the terminal Name, which must have the type in the
+   --  function's name (and, for an object type, a value). An image shares
+   --  its pixels with the terminal's.
 
    ---------------------------------------------------------------------
-   --  CogToolBlock
+   --  Ks_Tool_Block
    ---------------------------------------------------------------------
 
    type Ks_Tool_Block is new AMV.Tool_Group.Ks_Tool_Group with record

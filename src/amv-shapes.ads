@@ -1,8 +1,8 @@
---  Shapes and regions: the counterparts of ICogShape, ICogRegion and the
---  CogRectangle, CogRectangleAffine, CogCircle, CogEllipse, CogPolygon,
---  CogCircularAnnulusSection, CogLine, CogLineSegment, CogPointMarker and
---  CogCircularArc classes. Only geometry is modelled (no graphics
---  properties).
+--  Shapes and regions: the abstract types Ks_Shape and Ks_Region and the
+--  shapes Ks_Rectangle, Ks_Rectangle_Affine, Ks_Circle, Ks_Ellipse,
+--  Ks_Polygon, Ks_Circular_Annulus_Section, Ks_Line, Ks_Line_Segment,
+--  Ks_Point_Marker and Ks_Circular_Arc. Only geometry is modelled (no
+--  graphics properties).
 --
 --  Every shape has a Selected_Space_Name, "." by default, naming the
 --  coordinate space of its coordinates (see docs/DESIGN.md section 5). All
@@ -46,7 +46,7 @@ package AMV.Shapes is
    pragma Preelaborate;
 
    ---------------------------------------------------------------------
-   --  ICogShape
+   --  Ks_Shape
    ---------------------------------------------------------------------
 
    type Ks_Shape is abstract tagged private;
@@ -61,14 +61,14 @@ package AMV.Shapes is
       return Ks_Shape'Class is abstract;
    --  The shape with every point mapped by Transform. The result may be of
    --  a different type when the original type cannot represent the mapped
-   --  shape (a rectangle under rotation becomes a CogRectangleAffine, a
-   --  circle under a non-similarity becomes a CogEllipse). The selected
+   --  shape (a rectangle under rotation becomes a Ks_Rectangle_Affine, a
+   --  circle under a non-similarity becomes a Ks_Ellipse). The selected
    --  space name is copied unchanged. Shapes that cannot represent the
    --  mapped geometry at all raise Ks_Bad_Parameter_Exception (see each
    --  type).
 
    ---------------------------------------------------------------------
-   --  ICogRegion
+   --  Ks_Region
    ---------------------------------------------------------------------
 
    type Ks_Region is abstract new Ks_Shape with private;
@@ -116,8 +116,7 @@ package AMV.Shapes is
    --  rectangle (its widened sides meet up to sqrt 2 times the slack
    --  beyond a corner) and three times it for an annulus section (where
    --  the angular slack adds to the radial one). AMV.Regions uses it to
-   --  choose the pixels it tests. An AMV addition with no VisionPro
-   --  counterpart.
+   --  choose the pixels it tests.
 
    procedure Get_Bounding_Box
      (Region                 : Ks_Region;
@@ -134,7 +133,7 @@ package AMV.Shapes is
    --  (signed shoelace) area instead; see Ks_Polygon.Area.
 
    ---------------------------------------------------------------------
-   --  CogRectangle: axis-aligned, X/Y is the corner with the smallest
+   --  Ks_Rectangle: axis-aligned, X/Y is the corner with the smallest
    --  coordinates.
    ---------------------------------------------------------------------
 
@@ -203,15 +202,12 @@ package AMV.Shapes is
    --  gets Region's Selected_Space_Name). For a Ks_Rectangle that is the
    --  same X and Y, and the same Width and Height up to the rounding of
    --  (X + Width) - X and (Y + Height) - Y. Declared for regions only,
-   --  which have a bounding box in AMV (VisionPro offers it on every
-   --  shape); VisionPro's copyFlags argument has no counterpart, since AMV
-   --  shapes have no graphics properties. It is class-wide rather than a
-   --  primitive of Ks_Region, which would have to be declared before
-   --  Ks_Rectangle; the prefix notation Region.Enclosing_Rectangle works
-   --  all the same.
+   --  which have a bounding box. It is class-wide rather than a primitive
+   --  of Ks_Region, which would have to be declared before Ks_Rectangle;
+   --  the prefix notation Region.Enclosing_Rectangle works all the same.
 
    ---------------------------------------------------------------------
-   --  CogRectangleAffine: a parallelogram.
+   --  Ks_Rectangle_Affine: a parallelogram.
    --
    --  Side X runs from the corner origin in direction Rotation; side Y runs
    --  from the corner origin in direction Rotation + Skew + Pi/2:
@@ -321,7 +317,7 @@ package AMV.Shapes is
    overriding function Area (Region : Ks_Rectangle_Affine) return Real;
 
    ---------------------------------------------------------------------
-   --  CogCircle
+   --  Ks_Circle
    ---------------------------------------------------------------------
 
    type Ks_Circle is new Ks_Region with private;
@@ -370,7 +366,7 @@ package AMV.Shapes is
    overriding function Area (Region : Ks_Circle) return Real;
 
    ---------------------------------------------------------------------
-   --  CogEllipse: semi-axis Radius_X along direction Rotation, semi-axis
+   --  Ks_Ellipse: semi-axis Radius_X along direction Rotation, semi-axis
    --  Radius_Y perpendicular to it.
    ---------------------------------------------------------------------
 
@@ -426,7 +422,7 @@ package AMV.Shapes is
    overriding function Area (Region : Ks_Ellipse) return Real;
 
    ---------------------------------------------------------------------
-   --  CogPolygon: a closed polygon; inside is decided by the even-odd
+   --  Ks_Polygon: a closed polygon; inside is decided by the even-odd
    --  rule. A polygon with fewer than 3 vertices contains only points on
    --  its edges.
    ---------------------------------------------------------------------
@@ -499,11 +495,11 @@ package AMV.Shapes is
    --  polygon's vertices unchanged then.
 
    ---------------------------------------------------------------------
-   --  CogCircularAnnulusSection: points whose distance from the centre is
-   --  between Radius and Radius * Radial_Scale (in either order) and whose
-   --  direction from the centre lies in [Angle_Start, Angle_Start +
-   --  Angle_Span] (Angle_Span may be negative; |Angle_Span| >= 2 Pi is a
-   --  full annulus).
+   --  Ks_Circular_Annulus_Section: points whose distance from the centre
+   --  is between Radius and Radius * Radial_Scale (in either order) and
+   --  whose direction from the centre lies in [Angle_Start,
+   --  Angle_Start + Angle_Span] (Angle_Span may be negative;
+   --  |Angle_Span| >= 2 Pi is a full annulus).
    ---------------------------------------------------------------------
 
    type Ks_Circular_Annulus_Section is new Ks_Region with private;
@@ -574,7 +570,7 @@ package AMV.Shapes is
    --  R2 are Radius and Radius * Radial_Scale.
 
    ---------------------------------------------------------------------
-   --  CogLineSegment
+   --  Ks_Line_Segment
    ---------------------------------------------------------------------
 
    type Ks_Line_Segment is new Ks_Shape with private;
@@ -620,7 +616,7 @@ package AMV.Shapes is
    --  Always a Ks_Line_Segment.
 
    ---------------------------------------------------------------------
-   --  CogLine: the infinite line through (X, Y) with direction Rotation.
+   --  Ks_Line: the infinite line through (X, Y) with direction Rotation.
    ---------------------------------------------------------------------
 
    type Ks_Line is new Ks_Shape with private;
@@ -665,8 +661,7 @@ package AMV.Shapes is
    --  signed distance of the line from the origin, measured along the
    --  normal (-sin Rotation, cos Rotation) (positive when the origin lies
    --  to the right of the line, looking along Rotation with the y axis
-   --  pointing up), and Rotation itself. This sign convention is AMV's:
-   --  VisionPro's has not been checked.
+   --  pointing up), and Rotation itself.
 
    overriding function Map
      (Shape     : Ks_Line;
@@ -677,7 +672,7 @@ package AMV.Shapes is
    --  Ks_Transform_Singular_Exception when the direction maps to zero.
 
    ---------------------------------------------------------------------
-   --  CogPointMarker
+   --  Ks_Point_Marker
    ---------------------------------------------------------------------
 
    type Ks_Point_Marker is new Ks_Shape with private;
@@ -699,7 +694,7 @@ package AMV.Shapes is
    --  (Ks_Transform_Singular_Exception when it maps to zero).
 
    ---------------------------------------------------------------------
-   --  CogCircularArc: the arc of the circle (Center, Radius) from
+   --  Ks_Circular_Arc: the arc of the circle (Center, Radius) from
    --  Angle_Start through Angle_Span (signed).
    ---------------------------------------------------------------------
 

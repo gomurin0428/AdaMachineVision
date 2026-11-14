@@ -1,5 +1,5 @@
---  Kernel of AMV.Misc (the counterpart of the CogMisc class): angle
---  conversion and normalisation, and an overflow-free vector length.
+--  Kernel of AMV.Misc: angle conversion and normalisation, and an
+--  overflow-free vector length.
 --
 --  Entry points (C names in include/amv.h). Every argument must be finite;
 --  a NaN or an infinity gives Bad_Parameter. Results are as documented in

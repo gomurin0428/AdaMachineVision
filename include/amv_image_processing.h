@@ -1,7 +1,7 @@
 /*
- * AdaMachineVision (AMV) C API: image processing filters
- * (Cognex.VisionPro.ImageProcessing): the histogram tool, the pixel map
- * tool, the Sobel edge tool and the image sharpness tool.
+ * AdaMachineVision (AMV) C API, image processing filters: the histogram
+ * tool, the pixel map tool, the Sobel edge tool and the image sharpness
+ * tool.
  *
  * The functions are the entry points of the SPARK kernels
  * AMV.Kernels.Histogram, AMV.Kernels.Pixel_Map, AMV.Kernels.Sobel_Edge
@@ -17,7 +17,7 @@
  * Pixels of the region outside the image are ignored.
  *
  * Run parameters are structs that ks_<tool>_run_params_default fills with
- * the defaults; enumerations are int32_t codes with VisionPro's values.
+ * the defaults; enumerations are int32_t codes.
  */
 
 #ifndef AMV_IMAGE_PROCESSING_H
@@ -30,16 +30,16 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------------------------ */
-/* Histogram tool (CogHistogramTool, CogHistogram, CogHistogramResult) */
+/* Histogram tool                                                      */
 /* ------------------------------------------------------------------ */
 
-/* The input image mask of the histogram (CogHistogram.InputImageMask,
+/* The input image mask of the histogram (InputImageMask,
    InputImageMaskOffsetX, InputImageMaskOffsetY) is not a parameter of
    ks_histogram_execute: restrict the region by the mask first with
    ks_pixel_region_restrict_to_mask (amv.h) and pass the result as the
    region. This is what the Ada API does. */
 
-/* CogHistogramBinModeConstants. */
+/* Bin modes. */
 #define KS_HISTOGRAM_BIN_MODE_COMPATIBILITY 1 /* num_bins bins; levels >=
                                                  num_bins - 1 in the last */
 #define KS_HISTOGRAM_BIN_MODE_UNIFORM       2 /* num_bins (<= 256) equal
@@ -121,7 +121,7 @@ void ks_histogram_result_minimum_wgv_threshold(
     ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Pixel map tool (CogIPOneImagePixelMap as a tool of its own)          */
+/* Pixel map tool (the PIXEL_MAP operator as a tool of its own)        */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -142,10 +142,10 @@ void ks_pixel_map_execute(const ks_image_8_grey *image,
                           ks_image_8_grey **output, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Sobel edge tool (CogSobelEdgeTool, CogSobelEdge, CogSobelEdgeResult) */
+/* Sobel edge tool                                                     */
 /* ------------------------------------------------------------------ */
 
-/* CogSobelEdgePostProcessModeConstants. */
+/* Post-process modes. */
 #define KS_SOBEL_EDGE_POST_PROCESS_MODE_NONE                 0
 #define KS_SOBEL_EDGE_POST_PROCESS_MODE_PEAK_DETECT          1
 #define KS_SOBEL_EDGE_POST_PROCESS_MODE_HYSTERESIS_THRESHOLD 2
@@ -191,8 +191,8 @@ void ks_sobel_edge_execute(const ks_image_8_grey *image,
                            ks_image_8_grey **final_magnitude_image,
                            ks_status *status);
 
-/* Region modes of CogSobelEdge.RegionMode (CogRegionModeConstants; the
-   same values as in amv_ip_geometry.h). */
+/* The region modes of the Sobel edge tool (the same values as in
+   amv_ip_geometry.h). */
 #ifndef KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK
 #define KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK 0
 #define KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX             1
@@ -230,11 +230,11 @@ void ks_sobel_edge_execute_affine(
     ks_transform_2d_linear *output_pixel_from_root, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Image sharpness tool (CogImageSharpnessTool, CogImageSharpness)      */
+/* Image sharpness tool                                                */
 /* ------------------------------------------------------------------ */
 
-/* CogImageSharpnessModeConstants. AUTO_CORRELATION and BAND_PASS are not
-   implemented (KS_FAILURE_BAD_PARAMETER). */
+/* Modes. AUTO_CORRELATION and BAND_PASS are not implemented
+   (KS_FAILURE_BAD_PARAMETER). */
 #define KS_IMAGE_SHARPNESS_MODE_AUTO_CORRELATION 1
 #define KS_IMAGE_SHARPNESS_MODE_ABS_DIFF         2
 #define KS_IMAGE_SHARPNESS_MODE_BAND_PASS        4

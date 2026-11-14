@@ -101,7 +101,7 @@ package body AMV.Dimensioning.Create_Shapes is
    end New_Segment;
 
    ---------------------------------------------------------------------
-   --  CogCreateCircleTool
+   --  Ks_Create_Circle_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute (Tool : in out Ks_Create_Circle_Tool) is
@@ -127,7 +127,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Circle);
 
    ---------------------------------------------------------------------
-   --  CogCreateEllipseTool
+   --  Ks_Create_Ellipse_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute (Tool : in out Ks_Create_Ellipse_Tool) is
@@ -152,7 +152,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Ellipse);
 
    ---------------------------------------------------------------------
-   --  CogCreateLineTool
+   --  Ks_Create_Line_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute (Tool : in out Ks_Create_Line_Tool) is
@@ -176,7 +176,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Line);
 
    ---------------------------------------------------------------------
-   --  CogCreateSegmentTool
+   --  Ks_Create_Segment_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute (Tool : in out Ks_Create_Segment_Tool) is
@@ -201,7 +201,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Segment);
 
    ---------------------------------------------------------------------
-   --  CogCreateLineBisectPointsTool
+   --  Ks_Create_Line_Bisect_Points_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -227,7 +227,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Line);
 
    ---------------------------------------------------------------------
-   --  CogCreateLineParallelTool
+   --  Ks_Create_Line_Parallel_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -254,7 +254,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Line);
 
    ---------------------------------------------------------------------
-   --  CogCreateLinePerpendicularTool
+   --  Ks_Create_Line_Perpendicular_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute
@@ -281,7 +281,7 @@ package body AMV.Dimensioning.Create_Shapes is
      (Tool.Outputs.Line);
 
    ---------------------------------------------------------------------
-   --  CogCreateSegmentAvgSegsTool
+   --  Ks_Create_Segment_Avg_Segs_Tool
    ---------------------------------------------------------------------
 
    overriding procedure Execute

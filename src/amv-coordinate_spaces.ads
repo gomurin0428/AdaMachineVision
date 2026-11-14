@@ -1,10 +1,10 @@
---  Coordinate space trees: the counterpart of CogCoordinateSpaceTree.
+--  Coordinate space trees.
 --
 --  A tree always contains the root space "@". Every other space has a
 --  parent and a Parent_From_Child transform that maps coordinates
---  expressed in the space to coordinates expressed in its parent, as in
---  VisionPro (AddSpace takes it as parentFromNew). The tree stores it
---  exactly as given.
+--  expressed in the space to coordinates expressed in its parent
+--  (Add_Space takes it as Parent_From_New). The tree stores it exactly as
+--  given.
 --
 --  Spaces are named by path from the root, components separated by '\':
 --  a space "Fixture" added under "@" is called "@\Fixture"; a space "Part"
@@ -13,20 +13,17 @@
 --  to "@", "#" or ".".
 --
 --  Every space name argument is a full name: "@" or a path that starts
---  with "@\". VisionPro also resolves bare and partial names (a last
---  component that is unique in the tree, a path relative to a space);
---  AMV does not implement that lookup yet (FindNames, LookUpName and
---  ResolvePartialName are not implemented either), so such a name is
+--  with "@\". Bare and partial names (a last component that is unique in
+--  the tree, a path relative to a space) are not resolved: such a name is
 --  simply not in the tree.
 --
 --  The special names "#" (pixel space) and "." (selected space) belong to
---  an image, not to a tree; AMV.Images resolves them. Every subprogram here
---  that takes a space name raises
+--  an image, not to a tree; AMV.Images resolves them. Every subprogram
+--  here that takes a space name raises
 --  Ks_Image_Bad_Selected_Space_Name_Exception for a name that is not in
---  the tree (VisionPro: CogSpaceTreeNameNotInTreeException, or
---  CogSpaceTreeInvalidNameSyntaxException for a malformed name), except
---  Space_Exists and Verify_Name, which answer False. Space name arguments
---  may have any bounds; they need not start at 1.
+--  the tree (a malformed name included), except Space_Exists and
+--  Verify_Name, which answer False. Space name arguments may have any
+--  bounds; they need not start at 1.
 --
 --  Limits. A tree holds at most 64 spaces, the root included, and a full
 --  space name has at most 256 characters. Add_Space raises
@@ -35,9 +32,8 @@
 --  characters names no space (Space_Exists and Verify_Name give False;
 --  the other subprograms raise Ks_Image_Bad_Selected_Space_Name_Exception).
 --
---  Transforms are values (Ks_Transform_2D_Linear), so the copyTransform
---  argument of VisionPro's AddSpace and ChangeTransform has no
---  counterpart: the tree always keeps its own copy.
+--  Transforms are values (Ks_Transform_2D_Linear): the tree always keeps
+--  its own copy.
 --
 --  The operations are done by the SPARK kernel
 --  AMV.Kernels.Coordinate_Spaces (the C functions
@@ -81,32 +77,27 @@ package AMV.Coordinate_Spaces is
 
    type Ks_Add_Space_Constants is
      (Duplicate_Is_Error, Replace_Duplicate, Ignore_Duplicate);
-   --  What Add_Space does when the space exists already (VisionPro:
-   --  CogAddSpaceConstants, same positions): raise
-   --  Ks_Bad_Parameter_Exception (VisionPro:
-   --  CogSpaceTreeDuplicateChildNameException), replace its transform
-   --  (keeping its descendants), or change nothing.
+   --  What Add_Space does when the space exists already: raise
+   --  Ks_Bad_Parameter_Exception, replace its transform (keeping its
+   --  descendants), or change nothing.
 
    type Ks_Space_Tree_Pathname_Constants is (None, Full, Partial);
-   --  How a space name is returned (VisionPro:
-   --  CogSpaceTreePathnameConstants, same positions): None gives its last
-   --  component ("Part" for "@\Fixture\Part"; "@" for the root), Full its
-   --  full name, and Partial, for a space below the space named by the
-   --  operation's Space_Name argument, its path relative to that space
-   --  ("B\C" for "@\A\B\C" below "@\A"). Partial gives the full name of
-   --  a space that is not below it (the space itself, its parent).
+   --  How a space name is returned: None gives its last component ("Part"
+   --  for "@\Fixture\Part"; "@" for the root), Full its full name, and
+   --  Partial, for a space below the space named by the operation's
+   --  Space_Name argument, its path relative to that space ("B\C" for
+   --  "@\A\B\C" below "@\A"). Partial gives the full name of a space that
+   --  is not below it (the space itself, its parent).
 
    ---------------------------------------------------------------------
-   --  CogStringCollection
+   --  Ks_String_Collection
    ---------------------------------------------------------------------
 
    package String_Collections is
 
       type Ks_String_Collection is tagged private;
-      --  A list of strings, the counterpart of CogStringCollection (of its
-      --  members only Count and Item so far, plus the AMV addition
-      --  Append). A value: assignment copies the strings. The default
-      --  value is empty.
+      --  A list of strings, with Count, Item and Append. A value:
+      --  assignment copies the strings. The default value is empty.
 
       function Count (Collection : Ks_String_Collection) return Natural;
 
@@ -117,8 +108,7 @@ package AMV.Coordinate_Spaces is
 
       procedure Append
         (Collection : in out Ks_String_Collection; Value : String);
-      --  Adds Value at the end (an AMV addition; the tree builds its
-      --  results with it).
+      --  Adds Value at the end (the tree builds its results with it).
 
    private
 
@@ -143,15 +133,14 @@ package AMV.Coordinate_Spaces is
      renames String_Collections.Item;
 
    ---------------------------------------------------------------------
-   --  CogCoordinateSpaceTree
+   --  Ks_Coordinate_Space_Tree
    ---------------------------------------------------------------------
 
    type Ks_Coordinate_Space_Tree is tagged private;
    --  Default value: a tree that contains only the root space "@".
 
    function Root_Name (Tree : Ks_Coordinate_Space_Tree) return String;
-   --  The name of the root space, always "@" (VisionPro's RootName can
-   --  also be set; AMV does not implement the setter).
+   --  The name of the root space, always "@".
 
    procedure Add_Space
      (Tree               : in out Ks_Coordinate_Space_Tree;
@@ -162,14 +151,13 @@ package AMV.Coordinate_Spaces is
    --  Adds the space Parent_Space_Name & '\' & New_Space_Name, whose
    --  coordinates Parent_From_New maps into the parent's. When that space
    --  exists already, Duplicate_Handling decides (see
-   --  Ks_Add_Space_Constants); its default, Replace_Duplicate, is an AMV
-   --  choice (VisionPro's default is not documented) that makes re-adding
-   --  a space, as a fixture tool does on every run, replace its transform.
-   --  The checks, in this order: Parent_Space_Name must be in the tree and
-   --  New_Space_Name must be a valid path component (see above; of a
-   --  component longer than 256 characters only the first 256 are
-   --  checked), otherwise Ks_Image_Bad_Selected_Space_Name_Exception is
-   --  raised; Parent_From_New must be finite and within 1.0E150
+   --  Ks_Add_Space_Constants); its default, Replace_Duplicate, makes
+   --  re-adding a space, as a fixture tool does on every run, replace its
+   --  transform. The checks, in this order: Parent_Space_Name must be in
+   --  the tree and New_Space_Name must be a valid path component (see
+   --  above; of a component longer than 256 characters only the first 256
+   --  are checked), otherwise Ks_Image_Bad_Selected_Space_Name_Exception
+   --  is raised; Parent_From_New must be finite and within 1.0E150
    --  (Ks_Bad_Parameter_Exception) and invertible within that bound
    --  (Ks_Transform_Singular_Exception); the full name must have at most
    --  256 characters (Ks_Bad_Parameter_Exception); an existing space with
@@ -250,11 +238,11 @@ package AMV.Coordinate_Spaces is
    --  True when Space_Name is the full name of a space of the tree;
    --  Found_Name is then its name in Pathname_Format (Partial gives the
    --  full name). False, with Found_Name "", for any other name (malformed
-   --  ones included; never raises). VisionPro also accepts bare and
-   --  partial names here; AMV does not (see above).
+   --  ones included; never raises). Bare and partial names are not
+   --  accepted (see above).
 
    ---------------------------------------------------------------------
-   --  AMV additions
+   --  Further operations
    ---------------------------------------------------------------------
 
    function Full_Space_Name

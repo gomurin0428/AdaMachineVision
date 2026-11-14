@@ -1,8 +1,7 @@
 /*
- * AdaMachineVision (AMV) C API: image processing geometry tools
- * (Cognex.VisionPro.ImageProcessing): the affine transform tool, the copy
- * region tool, the two-image tools (add, subtract, min/max), the image
- * convert tool and the polar unwrap tool.
+ * AdaMachineVision (AMV) C API, image processing geometry tools: the
+ * affine transform tool, the copy region tool, the two-image tools (add,
+ * subtract, min/max), the image convert tool and the polar unwrap tool.
  *
  * The functions are the entry points of the SPARK kernels
  * AMV.Kernels.Affine_Transform, AMV.Kernels.Copy_Region,
@@ -26,8 +25,7 @@
  * gets a fresh tree (its root is its pixel space).
  *
  * Run parameters are structs that ks_<tool>_run_params_default fills with
- * the defaults; enumerations are int32_t codes with VisionPro's values;
- * flags are int32_t 0 or 1.
+ * the defaults; enumerations are int32_t codes; flags are int32_t 0 or 1.
  */
 
 #ifndef AMV_IP_GEOMETRY_H
@@ -40,17 +38,17 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------------------------ */
-/* Affine transform tool (CogAffineTransformTool, CogAffineTransform)   */
+/* Affine transform tool                                               */
 /* ------------------------------------------------------------------ */
 
-/* CogAffineTransformSamplingModeConstants (NEAREST_NEIGHBOR is AMV's;
-   HIGH_PRECISION is not implemented: KS_FAILURE_BAD_PARAMETER). */
+/* Sampling modes (HIGH_PRECISION is not implemented:
+   KS_FAILURE_BAD_PARAMETER). */
 #define KS_AFFINE_TRANSFORM_SAMPLING_MODE_NEAREST_NEIGHBOR       1
 #define KS_AFFINE_TRANSFORM_SAMPLING_MODE_BILINEAR_INTERPOLATION 2
 #define KS_AFFINE_TRANSFORM_SAMPLING_MODE_HIGH_PRECISION         3
 #define KS_AFFINE_TRANSFORM_SAMPLING_MODE_BILINEAR_ACCURATE      4
 
-/* CogAffineTransformClipModeConstants. */
+/* Clip modes. */
 #define KS_AFFINE_TRANSFORM_CLIP_MODE_ZEROES 0
 #define KS_AFFINE_TRANSFORM_CLIP_MODE_FILL   1
 #define KS_AFFINE_TRANSFORM_CLIP_MODE_ERROR  2
@@ -97,10 +95,10 @@ void ks_affine_transform_execute(const ks_image_8_grey *image,
                                  ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Copy region tool (CogCopyRegionTool, CogCopyRegion)                  */
+/* Copy region tool                                                    */
 /* ------------------------------------------------------------------ */
 
-/* CogRegionModeConstants (AFFINE_TRANSFORM is not implemented). */
+/* Region modes (AFFINE_TRANSFORM is not implemented). */
 #define KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK 0
 #define KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX             1
 #define KS_REGION_MODE_AFFINE_TRANSFORM                       2
@@ -132,22 +130,21 @@ void ks_copy_region_execute(const ks_image_8_grey *image,
                             ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Two-image tools (CogIPTwoImageAddTool, CogIPTwoImageSubtractTool,   */
-/* CogIPTwoImageMinMaxTool)                                            */
+/* Two-image tools                                                     */
 /* ------------------------------------------------------------------ */
 
-/* CogIPTwoImageAddOverflowModeConstants. */
+/* The overflow_mode of the add tool. */
 #define KS_IP_TWO_IMAGE_ADD_OVERFLOW_MODE_BOUNDED 0 /* min (A + B, 255) */
 #define KS_IP_TWO_IMAGE_ADD_OVERFLOW_MODE_WRAP    1 /* (A + B) mod 256 */
 #define KS_IP_TWO_IMAGE_ADD_OVERFLOW_MODE_SHIFT   2 /* (A + B) / 2 */
 
-/* CogIPTwoImageSubtractOverflowModeConstants. */
+/* The overflow_mode of the subtract tool. */
 #define KS_IP_TWO_IMAGE_SUBTRACT_OVERFLOW_MODE_BOUNDED  0 /* max (A-B, 0) */
 #define KS_IP_TWO_IMAGE_SUBTRACT_OVERFLOW_MODE_WRAP     1 /* (A-B) mod 256 */
 #define KS_IP_TWO_IMAGE_SUBTRACT_OVERFLOW_MODE_SHIFT    2 /* (A-B+256)/2 */
 #define KS_IP_TWO_IMAGE_SUBTRACT_OVERFLOW_MODE_ABSOLUTE 3 /* abs (A - B) */
 
-/* CogIPTwoImageMinMaxOperationConstants. */
+/* The operation of the min/max tool. */
 #define KS_IP_TWO_IMAGE_MIN_MAX_OPERATION_MIN 0
 #define KS_IP_TWO_IMAGE_MIN_MAX_OPERATION_MAX 1
 
@@ -188,11 +185,11 @@ void ks_ip_two_image_min_max_execute(const ks_image_8_grey *image_a,
                                      ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Image convert tool (CogImageConvertTool, CogImageConvertRunParams)   */
+/* Image convert tool                                                  */
 /* ------------------------------------------------------------------ */
 
-/* CogImageConvertRunModeConstants. Implemented: INTENSITY, PLANE0 ..
-   PLANE2 and INTENSITY_FROM_WEIGHTED_RGB; the others fail with
+/* Run modes. Implemented: INTENSITY, PLANE0 .. PLANE2 and
+   INTENSITY_FROM_WEIGHTED_RGB; the others fail with
    KS_FAILURE_BAD_PARAMETER. */
 #define KS_IMAGE_CONVERT_RUN_MODE_INTENSITY                   1
 #define KS_IMAGE_CONVERT_RUN_MODE_HSI                         2
@@ -207,7 +204,7 @@ void ks_ip_two_image_min_max_execute(const ks_image_8_grey *image_a,
 #define KS_IMAGE_CONVERT_RUN_MODE_PIXEL_FROM_RANGE            11
 #define KS_IMAGE_CONVERT_RUN_MODE_MASK_FROM_RANGE             12
 
-/* CogImageConvertBayerTypeConstants. */
+/* Bayer types. */
 #define KS_IMAGE_CONVERT_BAYER_TYPE_GR 0
 #define KS_IMAGE_CONVERT_BAYER_TYPE_RG 1
 #define KS_IMAGE_CONVERT_BAYER_TYPE_BG 2
@@ -252,10 +249,10 @@ void ks_image_convert_execute(const ks_image_8_grey *grey_8,
                               ks_image_8_grey **output, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Polar unwrap tool (CogPolarUnwrapTool, CogPolarUnwrap)               */
+/* Polar unwrap tool                                                   */
 /* ------------------------------------------------------------------ */
 
-/* CogPolarUnwrapSamplingModeConstants. */
+/* Sampling modes. */
 #define KS_POLAR_UNWRAP_SAMPLING_MODE_BILINEAR_INTERPOLATION 0
 #define KS_POLAR_UNWRAP_SAMPLING_MODE_NEAREST_NEIGHBOR       1
 

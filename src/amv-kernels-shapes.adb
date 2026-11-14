@@ -639,7 +639,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Check_Arc;
 
    ---------------------------------------------------------------------
-   --  CogRectangle
+   --  Ks_Rectangle
    ---------------------------------------------------------------------
 
    procedure Set_XY_Width_Height
@@ -812,7 +812,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Perimeter;
 
    ---------------------------------------------------------------------
-   --  CogRectangleAffine geometry
+   --  Ks_Rectangle_Affine geometry
    ---------------------------------------------------------------------
 
    type Affine_Frame is record
@@ -954,7 +954,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end From_Corners;
 
    ---------------------------------------------------------------------
-   --  CogRectangle: Map and the bounding box conversion
+   --  Ks_Rectangle: Map and the bounding box conversion
    ---------------------------------------------------------------------
 
    procedure Map
@@ -1039,7 +1039,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Rectangle_From_Bounding_Box;
 
    ---------------------------------------------------------------------
-   --  CogRectangleAffine
+   --  Ks_Rectangle_Affine
    ---------------------------------------------------------------------
 
    procedure Set_Center_Lengths_Rotation_Skew
@@ -1349,7 +1349,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogEllipse geometry (used by CogCircle.Map as well)
+   --  Ks_Ellipse geometry (used by the Map of Ks_Circle as well)
    ---------------------------------------------------------------------
 
    function Axis_Angle (E, F, G, H : Long_Float) return Long_Float
@@ -1513,7 +1513,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
         Post => Ellipse_Slack'Result in 0.0 .. 1.0E144;
 
    ---------------------------------------------------------------------
-   --  CogCircle
+   --  Ks_Circle
    ---------------------------------------------------------------------
 
    procedure Set_Center_Radius
@@ -1657,7 +1657,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogEllipse
+   --  Ks_Ellipse
    ---------------------------------------------------------------------
 
    procedure Set_Center_XY_Radius_XY_Rotation
@@ -1817,7 +1817,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogPolygon
+   --  Ks_Polygon
    ---------------------------------------------------------------------
 
    procedure Release (Polygon : in out Ks_Polygon)
@@ -2597,7 +2597,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Check_Stream_Count;
 
    ---------------------------------------------------------------------
-   --  CogCircularAnnulusSection
+   --  Ks_Circular_Annulus_Section
    ---------------------------------------------------------------------
 
    procedure Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
@@ -2983,7 +2983,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogLine
+   --  Ks_Line
    ---------------------------------------------------------------------
 
    procedure Set_XY_Rotation
@@ -3135,7 +3135,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogLineSegment
+   --  Ks_Line_Segment
    ---------------------------------------------------------------------
 
    procedure Set_Start_End
@@ -3245,7 +3245,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogPointMarker
+   --  Ks_Point_Marker
    ---------------------------------------------------------------------
 
    procedure Set_XY_Rotation
@@ -3287,7 +3287,7 @@ package body AMV.Kernels.Shapes with SPARK_Mode is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogCircularArc
+   --  Ks_Circular_Arc
    ---------------------------------------------------------------------
 
    procedure Set_Center_Radius_Angle_Start_Angle_Span

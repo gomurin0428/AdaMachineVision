@@ -263,7 +263,7 @@ procedure Test_IP_Geometry is
              and then Tool.Run_Params.Sampling_Mode = AF.Bilinear_Accurate
              and then Tool.Run_Params.Clip_Mode = AF.Zeroes
              and then Tool.Run_Params.Clip_Fill_Value = 0,
-             "the defaults are VisionPro's");
+             "the defaults");
       Tool.Input_Image := Image;
       --  Corner origin at (4.5, 5.5): output pixel (I, J) samples the
       --  centre of input pixel (5 + I, 6 + J).
@@ -547,7 +547,7 @@ procedure Test_IP_Geometry is
              and then Tool.Run_Params.Fill_Region_Value = 255
              and then Tool.Run_Params.Region_Mode
                         = CR.Pixel_Aligned_Bounding_Box_Adjust_Mask,
-             "the defaults are VisionPro's");
+             "the defaults");
       Image.Set_Pixel_From_Root_Transform
         (AMV.Transforms.Create_Similarity (2.0, 0.3, 3.0, -1.0));
       Tool.Input_Image := Image;
@@ -758,7 +758,7 @@ procedure Test_IP_Geometry is
       Check (Add.Run_Params.Overflow_Mode = TI.Bounded
              and then Sub.Run_Params.Overflow_Mode = TI.Bounded
              and then MM.Run_Params.Operation = TI.Min,
-             "the defaults are VisionPro's");
+             "the defaults");
       for Mode in 0 .. 2 loop
          Add.Run_Params.Overflow_Mode := K.Int32 (Mode);
          Add.Run;
@@ -1031,7 +1031,7 @@ procedure Test_IP_Geometry is
       Tool.Run;
       Check_Error (Tool, Bad_Name,
                    "RunParams.RunMode must be a "
-                   & "CogImageConvertRunModeConstants value (1 .. 12)",
+                   & "KS_IMAGE_CONVERT_RUN_MODE_* value (1 .. 12)",
                    "RunMode 13");
       Tool.Run_Params := (others => <>);
       Tool.Run_Params.Bayer_Type := 4;
@@ -1058,7 +1058,7 @@ procedure Test_IP_Geometry is
              and then Tool.Run_Params.Scaling_X = 1.0
              and then Tool.Run_Params.Sampling_Mode
                         = PU.Bilinear_Interpolation,
-             "the defaults are VisionPro's");
+             "the defaults");
       AMV_Test_Images.Draw_Annulus (Image, CX, CY, 34.0, 36.0, 200);
       AMV_Test_Images.Draw_Annulus (Image, CX, CY, 44.0, 46.0, 200);
       Tool.Input_Image := Image;

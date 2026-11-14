@@ -1,14 +1,10 @@
---  Kernel of AMV.Dimensioning.Create_Shapes: the shape creation tools of
---  Cognex.VisionPro.Dimensioning (CogCreateCircleTool, CogCreateEllipseTool,
---  CogCreateLineTool, CogCreateSegmentTool, CogCreateLineBisectPointsTool,
---  CogCreateLineParallelTool, CogCreateLinePerpendicularTool and
---  CogCreateSegmentAvgSegsTool). Its entry points are the C API of
---  include/amv_create_shapes.h (names ks_create_*_execute).
+--  Kernel of AMV.Dimensioning.Create_Shapes: the shape creation tools. Its
+--  entry points are the C API of include/amv_create_shapes.h (names
+--  ks_create_*_execute).
 --
 --  Each tool builds one shape from its inputs and returns it as the shape
 --  record of AMV.Kernels.Shapes (C: ks_circle, ks_ellipse, ks_line,
---  ks_line_segment), the value of its VisionPro GetOutput* method. No
---  pixel is read.
+--  ks_line_segment). No pixel is read.
 --
 --  Coordinates. Every shape is created in one space, the "selected space"
 --  (in the Ada API the selected space of the tool's InputImage, which is
@@ -40,11 +36,10 @@
 --    the input line's plus Pi/2.
 --  * Create_Segment_Avg_Segs: the segment from the midpoint of the two
 --    start points to the midpoint of the two end points (start with start
---    and end with end, as the VisionPro reference defines it). Segments
---    that point in opposite directions are not turned round, so their
---    average can be short or even of no length (still a valid segment):
---    to get the centre line of two parallel edges, pass them in the same
---    direction.
+--    and end with end). Segments that point in opposite directions are not
+--    turned round, so their average can be short or even of no length
+--    (still a valid segment): to get the centre line of two parallel edges,
+--    pass them in the same direction.
 --
 --  Angles. Every rotation a tool returns lies in (-Pi, Pi]: a mapped line
 --  or ellipse has its rotation there already, and a rotation plus Pi/2
@@ -197,8 +192,8 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
    type Input_Name is
      (Input_Circle_Name, Ellipse_Name, Line_Name, Segment_Name,
       Segment_A_Name, Segment_B_Name);
-   --  The VisionPro property names of the input shapes, as the messages
-   --  give them: InputCircle, Ellipse, Line, Segment, SegmentA, SegmentB.
+   --  The names of the input shapes, as the messages give them:
+   --  InputCircle, Ellipse, Line, Segment, SegmentA, SegmentB.
 
    type Mapped_Line is record
       Line   : KS.Ks_Line;
@@ -299,7 +294,7 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                       Input_Circle_Name).Circle
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogCreateCircleTool: InputCircle in the selected space.
+   --  InputCircle in the selected space.
 
    procedure Create_Ellipse
      (Ellipse               : KS.Ks_Ellipse;
@@ -320,7 +315,7 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                        Ellipse_Name).Ellipse
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogCreateEllipseTool: Ellipse in the selected space.
+   --  Ellipse in the selected space.
 
    procedure Create_Line
      (Line               : KS.Ks_Line;
@@ -340,7 +335,7 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                     Line_Name).Line
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogCreateLineTool: Line in the selected space.
+   --  Line in the selected space.
 
    procedure Create_Segment
      (Segment               : KS.Ks_Line_Segment;
@@ -361,7 +356,7 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                        Segment_Name).Segment
              and then (if not Succeeded (Status)
                        then Result = (others => <>));
-   --  CogCreateSegmentTool: Segment in the selected space.
+   --  Segment in the selected space.
 
    procedure Create_Line_Bisect_Points
      (Start_X, Start_Y, End_X, End_Y : Long_Float;
@@ -385,9 +380,8 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                            (Direction_Of (End_X - Start_X,
                                                           End_Y - Start_Y))
                        else Result = (others => <>));
-   --  CogCreateLineBisectPointsTool: the perpendicular bisector of the
-   --  points (StartX, StartY) and (EndX, EndY). Bad_Parameter when they are
-   --  the same point.
+   --  The perpendicular bisector of the points (StartX, StartY) and
+   --  (EndX, EndY). Bad_Parameter when they are the same point.
 
    procedure Create_Line_Parallel
      (X, Y               : Long_Float;
@@ -411,7 +405,7 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                    Map_Line (Line, Selected_From_Line,
                                              Line_Name).Line.Rotation)
                        else Result = (others => <>));
-   --  CogCreateLineParallelTool: the line through (X, Y) parallel to Line.
+   --  The line through (X, Y) parallel to Line.
 
    procedure Create_Line_Perpendicular
      (X, Y               : Long_Float;
@@ -436,8 +430,7 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                      (Map_Line (Line, Selected_From_Line,
                                                 Line_Name).Line.Rotation))
                        else Result = (others => <>));
-   --  CogCreateLinePerpendicularTool: the line through (X, Y)
-   --  perpendicular to Line.
+   --  The line through (X, Y) perpendicular to Line.
 
    procedure Create_Segment_Avg_Segs
      (Segment_A, Segment_B    : KS.Ks_Line_Segment;
@@ -469,6 +462,6 @@ package AMV.Kernels.Create_Shapes with SPARK_Mode, Preelaborate is
                                                 Selected_From_Segment_B,
                                                 Segment_B_Name).Segment)
                        else Result = (others => <>));
-   --  CogCreateSegmentAvgSegsTool: the average of SegmentA and SegmentB.
+   --  The average of SegmentA and SegmentB.
 
 end AMV.Kernels.Create_Shapes;

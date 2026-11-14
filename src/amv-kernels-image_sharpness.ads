@@ -1,15 +1,13 @@
---  Kernel of AMV.Image_Processing.Sharpness: the image sharpness tool
---  (CogImageSharpnessTool, whose run parameters are a CogImageSharpness
---  and whose result is its Score). The C API is declared in
---  include/amv_image_processing.h.
+--  Kernel of AMV.Image_Processing.Sharpness: the image sharpness tool,
+--  whose run parameters are a Ks_Image_Sharpness and whose result is its
+--  Score. The C API is declared in include/amv_image_processing.h.
 --
 --  Execute measures how sharp the pixels of a region are (the region is a
 --  pixel region handle of AMV.Kernels.Regions; the Ada API passes the whole
 --  image for an empty Region). The score is only comparable with scores of
---  the same mode on similar image content; larger is sharper. Modes
---  (CogImageSharpnessModeConstants, the C codes are VisionPro's values):
+--  the same mode on similar image content; larger is sharper. Modes:
 --
---  * GradientEnergy (8, AMV's default): the mean over the region pixels of
+--  * GradientEnergy (8, the default): the mean over the region pixels of
 --    Dx**2 + Dy**2, where Dx, Dy are the 3 x 3 Sobel derivatives of
 --    ks_real_image_sobel (grey levels per pixel) of the whole image, after
 --    a Gaussian smoothing with Sigma = GradientEnergyLowPassSmoothing
@@ -21,8 +19,7 @@
 --    Score in [0, 255]. Each distance must be >= 0 and smaller than the
 --    image's size along its axis.
 --  * AutoCorrelation (1) and BandPass (4) are not implemented: Execute
---    fails with Bad_Parameter. (VisionPro's default mode is BandPass; AMV's
---    default is GradientEnergy.) Their parameters are still checked.
+--    fails with Bad_Parameter. Their parameters are still checked.
 --
 --  Without samples (a null region, the empty region, or no region pixel
 --  with a partner in the image) the score is 0. Pixels of the region
@@ -50,14 +47,14 @@ package AMV.Kernels.Image_Sharpness with SPARK_Mode, Preelaborate is
    package KR renames AMV.Kernels.Regions;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogImageSharpness; C: ks_image_sharpness)
+   --  Run parameters (C: ks_image_sharpness)
    ---------------------------------------------------------------------
 
    Mode_Auto_Correlation : constant Int32 := 1;
    Mode_Abs_Diff         : constant Int32 := 2;
    Mode_Band_Pass        : constant Int32 := 4;
    Mode_Gradient_Energy  : constant Int32 := 8;
-   --  CogImageSharpnessModeConstants (C: KS_IMAGE_SHARPNESS_MODE_*).
+   --  The Mode codes (C: KS_IMAGE_SHARPNESS_MODE_*).
 
    Max_Low_Pass_Smoothing : constant := 100;
    --  The largest GradientEnergyLowPassSmoothing (C:
@@ -80,7 +77,7 @@ package AMV.Kernels.Image_Sharpness with SPARK_Mode, Preelaborate is
       Band_Pass_Min_Frequency            : Long_Float := 0.25;
    end record
      with Convention => C;
-   --  C: ks_image_sharpness, with VisionPro's defaults except Mode.
+   --  C: ks_image_sharpness, with the defaults.
 
    for Ks_Image_Sharpness use record
       Mode                               at 0 range 0 .. 31;

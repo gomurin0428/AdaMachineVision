@@ -1,14 +1,13 @@
---  Kernel of AMV.Image_Processing.Sobel_Edge: the Sobel edge tool
---  (CogSobelEdgeTool, whose run parameters are a CogSobelEdge and whose
---  result is a CogSobelEdgeResult). The C API is declared in
+--  Kernel of AMV.Image_Processing.Sobel_Edge: the Sobel edge tool, whose
+--  run parameters are a Ks_Sobel_Edge. The C API is declared in
 --  include/amv_image_processing.h.
 --
 --  Execute makes three new 8-bit images of the size of the input image
---  (VisionPro: EdgeMagnitudeImage, EdgeAngleImage, FinalMagnitudeImage).
---  Only the pixels the region contains are processed (the region is a
---  pixel region handle of AMV.Kernels.Regions; the Ada API passes the
---  whole image for an empty Region); every other pixel is 0 in all three
---  images. A null region (the empty region) gives three images of zeros.
+--  (EdgeMagnitudeImage, EdgeAngleImage and FinalMagnitudeImage). Only the
+--  pixels the region contains are processed (the region is a pixel region
+--  handle of AMV.Kernels.Regions; the Ada API passes the whole image for an
+--  empty Region); every other pixel is 0 in all three images. A null region
+--  (the empty region) gives three images of zeros.
 --
 --  Gradients. The derivatives Dx, Dy of a region pixel are the 3 x 3 Sobel
 --  derivatives of ks_real_image_sobel (AMV.Kernels.Image_Math) of the
@@ -27,9 +26,8 @@
 --    seen in a y-down image, docs/DESIGN.md 5), as a binary angle: angle
 --    * 256 / (2 Pi) rounded to the nearest integer modulo 256, so 0 is +x,
 --    64 is +y (down), 128 is -x and 192 is -y. A pixel without gradient
---    gets 0. (The encoding is AMV's; VisionPro does not document one.)
---  * FinalMagnitudeImage, by PostProcessMode (CogSobelEdgePostProcess-
---    ModeConstants, the C codes are VisionPro's values):
+--    gets 0.
+--  * FinalMagnitudeImage, by PostProcessMode:
 --    - None (0, the default): a copy of EdgeMagnitudeImage.
 --    - PeakDetect (1): whole-pixel non-maximum suppression. A region pixel
 --      keeps its EdgeMagnitudeImage value M when M >= PeakDetectThreshold,
@@ -76,14 +74,13 @@ package AMV.Kernels.Sobel_Edge with SPARK_Mode, Preelaborate is
    use type KI.Ks_Image_8_Grey;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogSobelEdge; C: ks_sobel_edge)
+   --  Run parameters (C: ks_sobel_edge)
    ---------------------------------------------------------------------
 
    Post_Process_None                 : constant Int32 := 0;
    Post_Process_Peak_Detect          : constant Int32 := 1;
    Post_Process_Hysteresis_Threshold : constant Int32 := 2;
-   --  CogSobelEdgePostProcessModeConstants (C:
-   --  KS_SOBEL_EDGE_POST_PROCESS_MODE_*).
+   --  The PostProcessMode codes (C: KS_SOBEL_EDGE_POST_PROCESS_MODE_*).
 
    Max_Magnitude_Scale : constant := 50.0;
    --  The largest MagnitudeScale (C: KS_SOBEL_EDGE_MAX_MAGNITUDE_SCALE).
@@ -93,9 +90,8 @@ package AMV.Kernels.Sobel_Edge with SPARK_Mode, Preelaborate is
 
    Region_Mode_Pixel_Aligned_Bounding_Box : constant Int32 := 1;
    Region_Mode_Affine_Transform           : constant Int32 := 2;
-   --  The CogRegionModeConstants that CogSobelEdge.RegionMode accepts (C:
-   --  KS_REGION_MODE_*); PixelAlignedBoundingBoxAdjustMask (0) is not one
-   --  of them.
+   --  The RegionMode codes that the tool accepts (C: KS_REGION_MODE_*);
+   --  PixelAlignedBoundingBoxAdjustMask (0) is not one of them.
 
    type Ks_Sobel_Edge is record
       Magnitude_Scale                   : Long_Float := 1.0;
@@ -109,9 +105,9 @@ package AMV.Kernels.Sobel_Edge with SPARK_Mode, Preelaborate is
         Region_Mode_Pixel_Aligned_Bounding_Box;
    end record
      with Convention => C;
-   --  C: ks_sobel_edge, with VisionPro's defaults. Region_Mode is read by
-   --  the entry points of AMV.Kernels.Sobel_Edge.Region_Modes only; Execute
-   --  below ignores it.
+   --  C: ks_sobel_edge, with the defaults. Region_Mode is read by the entry
+   --  points of AMV.Kernels.Sobel_Edge.Region_Modes only; Execute below
+   --  ignores it.
 
    for Ks_Sobel_Edge use record
       Magnitude_Scale                   at 0 range 0 .. 63;

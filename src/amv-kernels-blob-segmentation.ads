@@ -103,8 +103,8 @@ is
      Pre  => S'First (1) <= S'Last (1) and then S'First (2) <= S'Last (2),
      Post => Valid (Status)
              and then Status.Failure in Failure_None | Failure_Out_Of_Memory;
-   --  Applies Operations.Items (0 .. Count - 1) in order (codes outside
-   --  CogBlobMorphologyConstants are skipped; Execute rejects them
+   --  Applies Operations.Items (0 .. Count - 1) in order (codes other
+   --  than the Morphology_* ones are skipped; Execute rejects them
    --  before). Only foreground and background pixels change; pixels
    --  outside the region stay outside. Out_Of_Memory when the copy the
    --  operations work from cannot be allocated.

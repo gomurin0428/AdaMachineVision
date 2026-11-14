@@ -1,6 +1,6 @@
 --  Kernel of AMV.Image_Processing.Pixel_Map: a lookup table applied to the
---  pixels of a region (the operation of VisionPro's CogIPOneImagePixelMap,
---  offered as a tool of its own). The C API is declared in
+--  pixels of a region (the operation of the IP one-image tool's PixelMap
+--  operator, offered as a tool of its own). The C API is declared in
 --  include/amv_image_processing.h.
 --
 --  Execute makes a new 8-bit image of the size of the input image: every
@@ -35,13 +35,12 @@ package AMV.Kernels.Pixel_Map with SPARK_Mode, Preelaborate is
    use type KI.Ks_Image_8_Grey;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogIPOneImagePixelMap; C: ks_ip_one_image_pixel_map)
+   --  Run parameters (C: ks_ip_one_image_pixel_map)
    ---------------------------------------------------------------------
 
    type Pixel_Map_Table is array (KI.Grey_8) of KI.Grey_8
      with Convention => C;
-   --  The value each grey level is replaced by (VisionPro: GetMap /
-   --  SetMap, a byte array of 256 entries). C: uint8_t map[256].
+   --  The value each grey level is replaced by. C: uint8_t map[256].
 
    Identity_Map : constant Pixel_Map_Table := [for V in KI.Grey_8 => V];
    --  Every grey level maps to itself (the default).

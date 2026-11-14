@@ -70,8 +70,7 @@ package AMV.Kernels with SPARK_Mode, Pure is
    Failure_Index_Out_Of_Range            : constant Int32 := 9;
    --  Failure_Other corresponds to Ks_Exception. Failure_Index_Out_Of_Range
    --  is an index beyond a collection (Space_Name (Index), ...), which the
-   --  Ada API reports with Constraint_Error, as .NET does with
-   --  ArgumentOutOfRangeException.
+   --  Ada API reports with Constraint_Error.
 
    subtype Failure_Code is Int32
      range Failure_None .. Failure_Index_Out_Of_Range;
@@ -100,9 +99,9 @@ package AMV.Kernels with SPARK_Mode, Pure is
 
    --  The outcome of an entry point. Failure is one of the codes above;
    --  when it is not Failure_None, Message (1 .. Length) says what went
-   --  wrong in the VisionPro style, naming the property or argument at
-   --  fault (for example "RunParams.ContrastThreshold must be >= 0").
-   --  Length is always in 0 .. Max_Message_Length. C: ks_status.
+   --  wrong, naming the property or argument at fault (for example
+   --  "RunParams.ContrastThreshold must be >= 0"). Length is always in
+   --  0 .. Max_Message_Length. C: ks_status.
 
    function Valid (Status : Ks_Status) return Boolean is
      (Status.Failure in Failure_Code

@@ -1,6 +1,5 @@
 --  An optional region of any type, as used for a tool's Region property:
---  an empty holder means "no region" (VisionPro's null), which tools treat
---  as the whole image.
+--  an empty holder means "no region", which tools treat as the whole image.
 --
 --     Tool.Region := AMV.Shapes.Region_Holders.To_Holder (Rect);
 --     Tool.Region.Clear;

@@ -1,5 +1,5 @@
---  Tests for AMV.Calib_Fix (the fixture tools and the calibrations of
---  Cognex.VisionPro.CalibFix) and its kernel AMV.Kernels.Calib_Fix.
+--  Tests for AMV.Calib_Fix (the fixture tools and the calibrations) and
+--  its kernel AMV.Kernels.Calib_Fix.
 --
 --  The fits are checked on points made from known transforms of every
 --  DOF (exact recovery without noise, an RMS error of the order of the
@@ -650,7 +650,7 @@ procedure Test_Calib_Fix is
       Section ("N-point fixture");
       Check (Tool.Run_Params.DOFs_To_Compute = Rotation_And_Translation
              and then Tool.Run_Params.Fixtured_Space_Name = "N-Point Fixture",
-             "VisionPro's defaults");
+             "the defaults");
       Tool.Input_Image := AMV_Test_Images.Blank (64, 48);
       for I in 1 .. 4 loop
          Map (Pose, B_X (I), B_Y (I), U, V);

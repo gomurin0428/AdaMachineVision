@@ -1,5 +1,4 @@
---  Tests for AMV.Caliper.Find_Line (CogFindLineTool) and its kernel
---  AMV.Kernels.Find_Line.
+--  Tests for AMV.Caliper.Find_Line and its kernel AMV.Kernels.Find_Line.
 --
 --  The scenes are half-planes (AMV_Test_Images.Draw_Half_Plane) turned by
 --  generic angles, so that their edges are placed within about 0.002

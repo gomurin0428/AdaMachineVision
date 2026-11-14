@@ -1,6 +1,5 @@
---  The affine transform tool: the counterpart of CogAffineTransformTool and
---  its run parameters CogAffineTransform
---  (Cognex.VisionPro.ImageProcessing).
+--  The affine transform tool, Ks_Affine_Transform_Tool, and its run
+--  parameters, Ks_Affine_Transform.
 --
 --     Tool.Input_Image := Image;
 --     Tool.Region.Set_Center_Lengths_Rotation_Skew
@@ -48,16 +47,16 @@ with AMV.Tools;
 package AMV.Image_Processing.Affine_Transform is
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogAffineTransform)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_Affine_Transform_Sampling_Mode_Constants is
      AMV.Kernels.Int32 range 1 .. 4;
-   --  CogAffineTransformSamplingModeConstants, with VisionPro's values.
+   --  The codes of Sampling_Mode.
 
    Nearest_Neighbor : constant Ks_Affine_Transform_Sampling_Mode_Constants :=
      AMV.Kernels.Affine_Transform.Sampling_Mode_Nearest_Neighbor;
-   --  AMV's addition: the nearest input pixel.
+   --  The nearest input pixel.
    Bilinear_Interpolation :
      constant Ks_Affine_Transform_Sampling_Mode_Constants :=
        AMV.Kernels.Affine_Transform.Sampling_Mode_Bilinear_Interpolation;
@@ -71,7 +70,7 @@ package AMV.Image_Processing.Affine_Transform is
 
    subtype Ks_Affine_Transform_Clip_Mode_Constants is
      AMV.Kernels.Int32 range 0 .. 2;
-   --  CogAffineTransformClipModeConstants, with VisionPro's values.
+   --  The codes of Clip_Mode.
 
    Zeroes : constant Ks_Affine_Transform_Clip_Mode_Constants :=
      AMV.Kernels.Affine_Transform.Clip_Mode_Zeroes;
@@ -80,26 +79,24 @@ package AMV.Image_Processing.Affine_Transform is
    Error  : constant Ks_Affine_Transform_Clip_Mode_Constants :=
      AMV.Kernels.Affine_Transform.Clip_Mode_Error;
    --  Clipped output pixels become 0 (Zeroes, the default) or
-   --  Clip_Fill_Value (Fill), or fail the run (Error). These names are
-   --  VisionPro's; Error and Fill clash with AMV.Tools.Error and
-   --  AMV.Images.Fill when all are use-visible, so prefix them then.
+   --  Clip_Fill_Value (Fill), or fail the run (Error). Error and Fill
+   --  clash with AMV.Tools.Error and AMV.Images.Fill when all are
+   --  use-visible, so prefix them then.
 
    subtype Ks_Affine_Transform is AMV.Kernels.Affine_Transform.Ks_Affine_Transform;
-   --  The run parameters (CogAffineTransform), a record with VisionPro's
-   --  defaults: Scaling_X and Scaling_Y (1.0, in 0.001 .. 1000),
-   --  Sampling_Mode (Bilinear_Accurate), Clip_Mode (Zeroes) and
-   --  Clip_Fill_Value (0, in 0 .. 255). Values are checked when the tool
-   --  runs.
+   --  The run parameters, with their defaults: Scaling_X and Scaling_Y
+   --  (1.0, in 0.001 .. 1000), Sampling_Mode (Bilinear_Accurate),
+   --  Clip_Mode (Zeroes) and Clip_Fill_Value (0, in 0 .. 255). Values are
+   --  checked when the tool runs.
 
    ---------------------------------------------------------------------
-   --  The tool (CogAffineTransformTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Affine_Transform_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image              : AMV.Images.Ks_Image_8_Grey;
       Region                   : AMV.Shapes.Ks_Rectangle_Affine;
-      --  In its selected space (default "."); VisionPro's null region
-      --  (the whole image) has no counterpart.
+      --  In its selected space (default ".").
       Run_Params               : Ks_Affine_Transform;
       Create_Output_Image_Mask : Boolean := False;
       Output_Image             : AMV.Images.Ks_Image_8_Grey;

@@ -110,7 +110,7 @@ procedure Test_Blob is
                         = 50
              and then Params.Segmentation_Params.Tail_Low = 0
              and then Params.Segmentation_Params.Tail_High = 0,
-             "segmentation defaults (VisionPro's)");
+             "segmentation defaults");
       Check (Params.Connectivity_Mode = Code (Grey_Scale)
              and then Params.Connectivity_Cleanup = Code (Fill)
              and then Params.Connectivity_Min_Pixels = 10
@@ -119,14 +119,14 @@ procedure Test_Blob is
              and then Params.Sort_Ascending = Code (False)
              and then Params.Run_Time_Measures.Count = 0
              and then Params.Morphology_Operations.Count = 0,
-             "run parameter defaults (VisionPro's)");
+             "run parameter defaults");
       Check (Code (Whole_Image_Grey_Scale) = 2 and then Code (Not_Clipped) = 42
              and then Code (Bounding_Box_Principal_Axis_Width) = 39
              and then Code (Bounding_Box_Pixel_Aligned_No_Exclude_Min_Y) = 19
              and then Code (Exclude_Blobs_In_Range) = 0
              and then Code (Pixel_Aligned) = 3 and then Code (Open_Square) = 11
              and then Code (Pre_Compute) = 1 and then Code (Hole) = 0,
-             "codes are VisionPro's values");
+             "the numeric codes");
       Check (Count (Tool) = 0 and then Count (Tool, False) = 0,
              "no results before the first run");
 
@@ -1670,7 +1670,7 @@ procedure Test_Blob is
       Check (not Tool.Results.Create_Segmented_Image.Allocated
              and then not Tool.Results.Create_Segmented_Image
                             (Before_Masking).Allocated,
-             "segmented image: none when not saved (VisionPro: null)");
+             "segmented image: none when not saved");
       Tool.Run_Params.Save_Segmented_Image := Code (True);
       Tool.Run_Params.Save_Segmented_Image_Before_Morphology := Code (True);
       Tool.Run_Params.Save_Segmented_Image_Before_Masking := Code (True);
@@ -2053,7 +2053,7 @@ procedure Test_Blob is
              and then Params.Segmentation_Params.Soft_Relative_Threshold_High
                         = 60
              and then Params.Segmentation_Params.Softness = 254,
-             "soft defaults (VisionPro's; the fixed band AMV's)");
+             "soft defaults");
 
       --  Fixed band [50, 200) on the ramp, both polarities, softness 254,
       --  1 and 0: every measure against the reference, and the
@@ -2886,7 +2886,7 @@ procedure Test_Blob is
              "get_median_y: extrema angle, the measure");
       KB.Get_Median_X (Results, 0, 5, Value, Status);
       Check (Failed (AMV.Kernels.Failure_Bad_Parameter,
-                     "GetMedianX: Axis must be a CogBlobAxisConstants "
+                     "GetMedianX: Axis must be a KS_BLOB_AXIS_* "
                      & "value (0 .. 4)") and then Value = 0.0,
              "get_median_x: not an axis");
       KB.Get_Median_Y (Results, 1, 0, Value, Status);

@@ -20,6 +20,12 @@ section 9.1.
   stream format of `Ks_Blob` (and of `Ks_Blob_Tool`) grows with it.
 * `Ks_Histogram_Tool` has a new component, `Region_Mode`, so its stream
   format changes.
+* The message for a code that is not one of an enumeration's values
+  names the family of C constants (`GetMedianX: Axis must be a
+  KS_BLOB_AXIS_* value (0 .. 4)`); eight families of constants are named
+  this way.
+* `docs/API_MAPPING.md` is removed. The spec of each package documents
+  the tool, its defaults and what it does not support.
 
 ### Fixed
 
@@ -33,34 +39,32 @@ section 9.1.
 
 ### Added
 
-* Blob: `Create_Blob_Image` (CogBlobResults.CreateBlobImage, with
-  filtered, viewable and background) and `Create_Segmented_Image`
-  (CreateSegmentedImage, with the stages FinalImage, BeforeMorphology and
-  BeforeMasking and stretching), with the run parameters
+* Blob: `Create_Blob_Image` (with filtered, viewable and background) and
+  `Create_Segmented_Image` (with the stages FinalImage, BeforeMorphology
+  and BeforeMasking and stretching), with the run parameters
   `Save_Segmented_Image`, `Save_Segmented_Image_Before_Masking` and
   `Save_Segmented_Image_Before_Morphology` (default False). C:
   `ks_blob_results_create_blob_image`,
   `ks_blob_results_create_segmented_image`. Every pixel of both images is
   proved to follow its rule.
-* ToolGroup: `Run_Tool` (CogToolGroup.RunTool) for scripts, with the
-  decisions in the kernel (`ks_tool_group_run_tool_begin`, `_end`).
-* Histogram: `Region_Mode` (CogHistogram.RegionMode: AdjustMask, the
-  default, PixelAlignedBoundingBox and AffineTransform); C:
+* ToolGroup: `Run_Tool` for scripts, with the decisions in the kernel
+  (`ks_tool_group_run_tool_begin`, `_end`).
+* Histogram: `Region_Mode` (AdjustMask, the default,
+  PixelAlignedBoundingBox and AffineTransform); C:
   `ks_histogram_execute_affine` and `ks_pixel_region_bounding_box`.
-* CNL Search: the AffineTransform region mode, for
-  `Train_Region_Mode` (CogCNLSearchPattern.TrainRegionMode) and
-  `Search_Region_Mode` (CogCNLSearchRunParams.SearchRegionMode), in the
-  new kernel `AMV.Kernels.CNL_Search.Region_Modes`. An affine rectangle
-  is resampled into an upright image by the affine transform tool's
-  kernel with its default run parameters: training makes it the pattern
-  (the train region must be an affine rectangle lying entirely in the
-  train image, as in VisionPro; the origin is carried into the pattern by
-  the resampling and the train image mask is resampled with it), and the
-  search searches it and maps every location back into the input image's
-  selected space. With any other search region, both search region modes
-  search the region's bounding box, as VisionPro documents, so
-  `ks_cnl_search_execute` now accepts `search_region_mode` 2 for its pixel
-  region instead of rejecting it. C: `ks_cnl_search_pattern_train_affine`,
+* CNL Search: the AffineTransform region mode, for `Train_Region_Mode`
+  and `Search_Region_Mode`, in the new kernel
+  `AMV.Kernels.CNL_Search.Region_Modes`. An affine rectangle is
+  resampled into an upright image by the affine transform tool's kernel
+  with its default run parameters: training makes it the pattern (the
+  train region must be an affine rectangle lying entirely in the train
+  image; the origin is carried into the pattern by the resampling and
+  the train image mask is resampled with it), and the search searches it
+  and maps every location back into the input image's selected space.
+  With any other search region, both search region modes search the
+  region's bounding box, so `ks_cnl_search_execute` now accepts
+  `search_region_mode` 2 for its pixel region instead of rejecting it.
+  C: `ks_cnl_search_pattern_train_affine`,
   `ks_cnl_search_execute_affine` (no record changes). Patterns trained in
   the new mode are streamed with the existing format code "KSCR". Proved:
   the trained pattern has exactly the resampled size, and the results of
@@ -79,11 +83,12 @@ The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
 
 ### Core
 
-* 2-D linear transforms with VisionPro's decompositions, and coordinate
-  space trees with the root (`@`), pixel (`#`) and selected (`.`) spaces.
+* 2-D linear transforms, also decomposed into scaling, aspect, rotation
+  and skew, and coordinate space trees with the root (`@`), pixel (`#`)
+  and selected (`.`) spaces.
 * 8-bit and 16-bit grey images and planar colour images that carry a
-  coordinate space tree and share their pixels on assignment, as VisionPro
-  images do; image files in PNM and BMP.
+  coordinate space tree and share their pixels on assignment; image
+  files in PNM and BMP.
 * Shapes (point markers, lines, segments, rectangles, affine rectangles,
   circles, ellipses, polygons, circular arcs, annulus sections),
   rasterised into pixel regions in any coordinate space; regions
@@ -102,8 +107,8 @@ The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
 * Image processing: Histogram (with the minimum within-group variance
   threshold), PixelMap, SobelEdge, Sharpness; the IP one-image tool and
   its operators; the affine transform, copy region, two-image, image
-  convert and polar unwrap tools. IPOneImage and SobelEdge follow
-  VisionPro's RegionMode, with PixelAlignedBoundingBox as the default.
+  convert and polar unwrap tools. IPOneImage and SobelEdge have a
+  RegionMode, with PixelAlignedBoundingBox as the default.
 * Dimensioning: the 22 measuring tools, the fitting tools and the 8 shape
   creation tools.
 * CalibFix: N-point to N-point fits, fixtures, N-point and checkerboard
@@ -111,16 +116,14 @@ The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
   calibrated origin and handedness, and mapping points of a distorted
   input image.
 * CNL Search: normalised correlation with trained patterns, train and
-  search masks, partial matches, and TrainRegionMode with VisionPro's
-  default AdjustMask.
+  search masks, partial matches, and TrainRegionMode with the default
+  AdjustMask.
 * PMAlign: pattern location under rotation and scale with train and
   search masks and XYOverlap. The search is AMV's own method from public
-  literature, not Cognex's PatMax or PatQuick.
+  literature.
 * ToolGroup and ToolBlock.
 
-`docs/API_MAPPING.md` lists the VisionPro counterpart of every name, each
-departure, and what is not provided yet. Barcodes (ID) and OCR are not
-part of this release.
+Barcodes (ID) and OCR are not part of this release.
 
 ### C API
 

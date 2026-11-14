@@ -1,14 +1,14 @@
---  Images: the counterparts of ICogImage, CogImage8Grey, CogImage16Grey and
---  CogImage24PlanarColor.
+--  Images: the abstract type Ks_Image and the image types Ks_Image_8_Grey,
+--  Ks_Image_16_Grey and Ks_Image_24_Planar_Color.
 --
 --  Pixel (X, Y) is column X, row Y, 0-based, origin at the upper left. The
 --  centre of pixel (X, Y) is at (X, Y) in pixel space "#".
 --
---  Pixels have .NET reference semantics: assigning an image shares its
---  pixel buffer (the buffer is reference counted and freed with its last
---  user), so Set_Pixel through one copy is visible through the other. Use
---  Copy for an independent image. The coordinate space tree, the selected
---  space name and the pixel-from-root transform are plain values: they are
+--  Pixels have reference semantics: assigning an image shares its pixel
+--  buffer (the buffer is reference counted and freed with its last user),
+--  so Set_Pixel through one copy is visible through the other. Use Copy
+--  for an independent image. The coordinate space tree, the selected space
+--  name and the pixel-from-root transform are plain values: they are
 --  copied by assignment.
 --
 --  Every image carries a coordinate space tree (see AMV.Coordinate_Spaces)
@@ -57,7 +57,7 @@ package AMV.Images is
 
    type Ks_Image_Copy_Mode_Constants is
      (Copy_Pixels, Share_Pixels, No_Pixels);
-   --  How Copy treats the pixels (CogImageCopyModeConstants):
+   --  How Copy treats the pixels:
    --  Copy_Pixels:  the copy gets its own pixel buffer.
    --  Share_Pixels: the copy shares the pixel buffer (like assignment).
    --  No_Pixels:    the copy has no pixels (it is unallocated, Width =
@@ -67,7 +67,7 @@ package AMV.Images is
    type Ks_Image_Plane_Constants is (Red, Green, Blue);
 
    ---------------------------------------------------------------------
-   --  ICogImage
+   --  Ks_Image
    ---------------------------------------------------------------------
 
    type Ks_Image is abstract new Ada.Finalization.Controlled with private;
@@ -122,11 +122,10 @@ package AMV.Images is
      (Image : aliased in out Ks_Image)
       return Ks_Coordinate_Space_Tree_Reference;
    --  Direct access to the image's tree, so that
-   --  Image.Coordinate_Space_Tree.Add_Space (...) works as in VisionPro.
-   --  When the reference is created and again when it ends (for the form
-   --  above, at the end of the statement), a selection naming a space that
-   --  is no longer in the tree is replaced by "@" (see
-   --  Selected_Space_Name).
+   --  Image.Coordinate_Space_Tree.Add_Space (...) works. When the
+   --  reference is created and again when it ends (for the form above, at
+   --  the end of the statement), a selection naming a space that is no
+   --  longer in the tree is replaced by "@" (see Selected_Space_Name).
 
    function Get_Coordinate_Space_Tree
      (Image : Ks_Image)
@@ -163,7 +162,7 @@ package AMV.Images is
    --  extreme cases described for AMV.Coordinate_Spaces.Get_Transform.
 
    ---------------------------------------------------------------------
-   --  CogImage8Grey
+   --  Ks_Image_8_Grey
    ---------------------------------------------------------------------
 
    type Ks_Image_8_Grey is new Ks_Image with private;
@@ -229,7 +228,7 @@ package AMV.Images is
    --  True when both images are allocated and use the same buffer.
 
    ---------------------------------------------------------------------
-   --  CogImage16Grey
+   --  Ks_Image_16_Grey
    ---------------------------------------------------------------------
 
    type Ks_Image_16_Grey is new Ks_Image with private;
@@ -260,7 +259,7 @@ package AMV.Images is
    function Shares_Pixels (Left, Right : Ks_Image_16_Grey) return Boolean;
 
    ---------------------------------------------------------------------
-   --  CogImage24PlanarColor
+   --  Ks_Image_24_Planar_Color
    ---------------------------------------------------------------------
 
    type Ks_Image_24_Planar_Color is new Ks_Image with private;

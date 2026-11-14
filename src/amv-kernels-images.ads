@@ -1,6 +1,6 @@
---  Kernel of AMV.Images: the pixels of CogImage8Grey and CogImage16Grey
---  (a CogImage24PlanarColor is three 8-bit images, one per plane) and the
---  coordinate space state of an image (ICogImage).
+--  Kernel of AMV.Images: the pixels of 8-bit and 16-bit grey images (a
+--  24-bit planar colour image is three 8-bit images, one per plane) and
+--  the coordinate space state of an image.
 --
 --  Pixel handles. An image's pixels live behind an owned handle
 --  (Ks_Image_8_Grey, Ks_Image_16_Grey; C: ks_image_8_grey *,
@@ -8,17 +8,17 @@
 --  ks_image_*_destroy frees. A handle holds Width and Height (both at least
 --  1, Width * Height at most Max_Pixels) and the pixels, row after row: the
 --  pixel at column X and row Y is Pixels (Y, X), both 0-based. The kernel
---  never shares pixels between handles; assignment sharing as in VisionPro
---  is done by the Ada API, which keeps a handle in a reference-counted box
---  (docs/DESIGN.md 9.1).
+--  never shares pixels between handles; the sharing of pixels by
+--  assignment is done by the Ada API, which keeps a handle in a
+--  reference-counted box (docs/DESIGN.md 9.1).
 --
---  A null handle stands for an image without pixels (VisionPro: an
---  unallocated image): Width and Height give 0, Duplicate gives null,
---  Destroy does nothing, and every operation that needs pixels fails with
+--  A null handle stands for an image without pixels (an unallocated
+--  image): Width and Height give 0, Duplicate gives null, Destroy does
+--  nothing, and every operation that needs pixels fails with
 --  Image_No_Pixels ("Get_Pixel: the image has no pixels"). A handle that
---  is not null must come from create or duplicate and not be destroyed
---  yet (C cannot check that); a record that is inconsistent anyway fails
---  with Bad_Parameter. A coordinate outside the image fails with
+--  is not null must come from create or duplicate and not be destroyed yet
+--  (C cannot check that); a record that is inconsistent anyway fails with
+--  Bad_Parameter. A coordinate outside the image fails with
 --  Index_Out_Of_Range, which the Ada API turns into Constraint_Error.
 --
 --  SPARK does not allow comparing two handles, so an entry point cannot
@@ -182,7 +182,7 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
    with Ghost;
 
    ---------------------------------------------------------------------
-   --  8-bit grey images (CogImage8Grey)
+   --  8-bit grey images
    ---------------------------------------------------------------------
 
    procedure Create
@@ -332,7 +332,7 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
                             and then Result.Pixels.all = Image.Pixels.all
                        else Result = null);
    --  A new image with the same size and pixels, sharing nothing with
-   --  Image (VisionPro: Copy (CopyPixels)); null for null.
+   --  Image; null for null.
 
    procedure Get_Row
      (Image  : access constant Ks_Image_8_Grey_Data;
@@ -367,7 +367,7 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
    --  Copies the Length bytes at Row into row Y; checks as for Get_Row.
 
    ---------------------------------------------------------------------
-   --  16-bit grey images (CogImage16Grey)
+   --  16-bit grey images
    ---------------------------------------------------------------------
 
    --  The same operations and failures as for 8-bit images.
@@ -534,7 +534,7 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
                          | Failure_Bad_Parameter | Failure_Index_Out_Of_Range;
 
    ---------------------------------------------------------------------
-   --  24-bit planar colour images (CogImage24PlanarColor)
+   --  24-bit planar colour images
    ---------------------------------------------------------------------
 
    --  A colour image is three 8-bit images of the same size, Red, Green
@@ -677,7 +677,7 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
    --  Copies of the three planes (three nulls for three nulls).
 
    ---------------------------------------------------------------------
-   --  The coordinate space state of an image (ICogImage)
+   --  The coordinate space state of an image
    ---------------------------------------------------------------------
 
    --  Tree is the image's tree, Selected the selected space name as the

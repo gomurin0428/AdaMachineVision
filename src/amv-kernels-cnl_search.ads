@@ -1,8 +1,7 @@
 --  Kernel of AMV.CNL_Search: normalised correlation search, translation
---  only (CogCNLSearchTool, its pattern CogCNLSearchPattern, its run
---  parameters CogCNLSearchRunParams and its results CogCNLSearchResults).
---  Its entry points are the C API of the tool (include/amv_cnl_search.h,
---  names ks_cnl_search_*).
+--  only (the pattern, the run parameters and the results). Its entry points
+--  are the C API of the tool (include/amv_cnl_search.h, names
+--  ks_cnl_search_*).
 --
 --  The pattern. A pattern lives behind an owned handle
 --  (Ks_CNL_Search_Pattern; C: ks_cnl_search_pattern *, opaque) that
@@ -22,18 +21,18 @@
 --
 --  Training (ks_cnl_search_pattern_train, and _train_masked with a train
 --  image mask). The pattern is the pixel aligned bounding box of the train
---  region's pixels (a pixel region of the train image, AMV.Kernels.Regions;
---  VisionPro's TrainRegionMode PixelAlignedBoundingBox): at least
---  Min_Pattern_Side and at most Max_Pattern_Side pixels along each side.
---  Its origin is OriginX, OriginY mapped into pixel space with
---  Pixel_From_Selected, relative to the centre of the pattern's first
---  pixel; it must lie within Max_Origin pixels of it. A pattern whose
---  cared-for pixels all have one grey level cannot be trained. With
---  LinearCNLPAS among the trained algorithms the pattern is also halved
---  (each pixel the rounded mean of a 2 x 2 block, a trailing odd row or
---  column dropped) while both sides stay at least Min_Coarse_Side, up to
---  Max_Levels levels, and while the halved pattern keeps at least
---  Min_Cared_Pixels cared-for pixels that do not all have one grey level.
+--  region's pixels (a pixel region of the train image,
+--  AMV.Kernels.Regions): at least Min_Pattern_Side and at most
+--  Max_Pattern_Side pixels along each side. Its origin is OriginX, OriginY
+--  mapped into pixel space with Pixel_From_Selected, relative to the centre
+--  of the pattern's first pixel; it must lie within Max_Origin pixels of
+--  it. A pattern whose cared-for pixels all have one grey level cannot be
+--  trained. With LinearCNLPAS among the trained algorithms the pattern is
+--  also halved (each pixel the rounded mean of a 2 x 2 block, a trailing
+--  odd row or column dropped) while both sides stay at least
+--  Min_Coarse_Side, up to Max_Levels levels, and while the halved pattern
+--  keeps at least Min_Cared_Pixels cared-for pixels that do not all have
+--  one grey level.
 --
 --  The score. At a window of the image as large as the pattern, the grey
 --  levels p of the N cared-for pixels of the pattern (every pixel without
@@ -45,89 +44,83 @@
 --
 --  The score is r**2 for r > 0 and 0 otherwise (a window of the opposite
 --  contrast does not match); with IgnorePolarity and the LinearSearch
---  algorithm it is r**2 whatever the sign of r (VisionPro applies
---  IgnorePolarity to LinearSearch only). A flat window scores 0. Every
---  sum is computed exactly in 64-bit integers (without a mask the window
---  sums come from integral images), so the score is within rounding of
---  r**2; it lies in [0, 1]. The contrast of a result is the ratio of the
---  standard deviation of the window to that of the pattern, Sqrt ((N Sum
---  w**2 - (Sum w)**2) / (N Sum p**2 - (Sum p)**2)), within [0, 2**28].
+--  algorithm it is r**2 whatever the sign of r (IgnorePolarity applies to
+--  LinearSearch only). A flat window scores 0. Every sum is computed
+--  exactly in 64-bit integers (without a mask the window sums come from
+--  integral images), so the score is within rounding of r**2; it lies in
+--  [0, 1]. The contrast of a result is the ratio of the standard deviation
+--  of the window to that of the pattern, Sqrt ((N Sum w**2 - (Sum w)**2) /
+--  (N Sum p**2 - (Sum p)**2)), within [0, 2**28].
 --
---  The train image mask (ks_cnl_search_pattern_train_masked; AMV's own
---  meaning of VisionPro's TrainImageMask, TrainImageMaskOffsetX and
---  TrainImageMaskOffsetY). Mask pixel (U, V) covers train image pixel
---  (U + OffsetX, V + OffsetY), in pixel space; a mask pixel of value 0
---  marks that train pixel "don't care", any other value, and every train
---  pixel the mask does not cover, "care". The trained pattern keeps a care
---  flag for each of its pixels at every level: at full resolution the
---  flag of the train pixel, at a halved level the conjunction of the flags
---  of the 2 x 2 block the pixel averages, so that a level pixel is cared
---  for exactly when every train pixel it averages is. The score and the
---  contrast take their sums over the cared-for pixels only (above), so
---  whatever lies in a window under the don't-care pixels changes nothing.
---  Training fails with Bad_Parameter when fewer than Min_Cared_Pixels
---  pixels of the pattern are cared for at full resolution (the pixels of
---  the smallest pattern, Min_Pattern_Side**2). A mask that leaves every
---  pixel cared for gives exactly the scores of no mask; but the masked
---  window sums are computed window by window (about three times the work
---  of the cross sum), where the unmasked ones come from integral images.
+--  The train image mask (ks_cnl_search_pattern_train_masked:
+--  TrainImageMask, TrainImageMaskOffsetX and TrainImageMaskOffsetY). Mask
+--  pixel (U, V) covers train image pixel (U + OffsetX, V + OffsetY), in
+--  pixel space; a mask pixel of value 0 marks that train pixel "don't
+--  care", any other value, and every train pixel the mask does not cover,
+--  "care". The trained pattern keeps a care flag for each of its pixels at
+--  every level: at full resolution the flag of the train pixel, at a halved
+--  level the conjunction of the flags of the 2 x 2 block the pixel
+--  averages, so that a level pixel is cared for exactly when every train
+--  pixel it averages is. The score and the contrast take their sums over
+--  the cared-for pixels only (above), so whatever lies in a window under
+--  the don't-care pixels changes nothing. Training fails with Bad_Parameter
+--  when fewer than Min_Cared_Pixels pixels of the pattern are cared for at
+--  full resolution (the pixels of the smallest pattern,
+--  Min_Pattern_Side**2). A mask that leaves every pixel cared for gives
+--  exactly the scores of no mask; but the masked window sums are computed
+--  window by window (about three times the work of the cross sum), where
+--  the unmasked ones come from integral images.
 --
---  The train region mode (VisionPro's TrainRegionMode). With
---  PixelAlignedBoundingBox every pixel of the box is part of the pattern.
---  With PixelAlignedBoundingBoxAdjustMask (the default) the pixels of the
---  box that the train region does not contain are don't-care pixels of
---  the pattern, as if a train image mask marked them so (and together
---  with the train image mask, when there is one); VisionPro does this for
---  LinearSearch only and treats the region as its box for the CNLPAS
---  algorithms, so a pattern trained for LinearCNLPAS alone is the whole
---  box, and one trained for both is masked (AMV's CNLPAS search then uses
---  the same care flags). A region that fills its box (a rectangle along
---  the axes) gives the same pattern in both modes. With AffineTransform
---  the train region is an affine rectangle resampled into an upright
---  pattern: ks_cnl_search_pattern_train_affine
---  (AMV.Kernels.CNL_Search.Region_Modes); ks_cnl_search_pattern_train
---  and _train_masked, which take a pixel region, reject a pattern in that
---  mode (Bad_Parameter).
+--  The train region mode (TrainRegionMode). With PixelAlignedBoundingBox
+--  every pixel of the box is part of the pattern. With
+--  PixelAlignedBoundingBoxAdjustMask (the default) the pixels of the box
+--  that the train region does not contain are don't-care pixels of the
+--  pattern, as if a train image mask marked them so (and together with the
+--  train image mask, when there is one), when LinearSearch is among the
+--  trained algorithms: a pattern trained for LinearCNLPAS alone is the
+--  whole box, and one trained for both is masked (its CNLPAS search then
+--  uses the same care flags). A region that fills its box (a rectangle
+--  along the axes) gives the same pattern in both modes. With
+--  AffineTransform the train region is an affine rectangle resampled into
+--  an upright pattern: ks_cnl_search_pattern_train_affine
+--  (AMV.Kernels.CNL_Search.Region_Modes); ks_cnl_search_pattern_train and
+--  _train_masked, which take a pixel region, reject a pattern in that mode
+--  (Bad_Parameter).
 --
---  The search (ks_cnl_search_execute). The search area is the bounding
---  box of the search region's pixels (VisionPro's SearchRegionMode
---  PixelAlignedBoundingBox; with SearchRegionMode AffineTransform too,
---  since VisionPro searches the bounding box of every region in that mode
---  but an affine rectangle, which ks_cnl_search_execute_affine of
---  AMV.Kernels.CNL_Search.Region_Modes resamples), which lies in the
---  image. The positions scored
---  are those where the window lies within the search area and, with the
---  partial match limits (below), those where it crosses a side of the area
---  by at most the limit of that side. A null region (the empty region) or
---  a box smaller than the pattern along either axis gives no results (a
---  successful run), whatever the limits. Positions are the pixel
---  coordinates of the window's first pixel (negative for a window that
---  crosses the left or top side of an area at the image's border).
+--  The search (ks_cnl_search_execute). The search area is the bounding box
+--  of the search region's pixels, which lies in the image, with
+--  SearchRegionMode PixelAlignedBoundingBox and with AffineTransform alike
+--  (an affine rectangle in the mode AffineTransform is resampled instead,
+--  by ks_cnl_search_execute_affine of AMV.Kernels.CNL_Search.Region_Modes).
+--  The positions scored are those where the window lies within the search
+--  area and, with the partial match limits (below), those where it crosses
+--  a side of the area by at most the limit of that side. A null region (the
+--  empty region) or a box smaller than the pattern along either axis gives
+--  no results (a successful run), whatever the limits. Positions are the
+--  pixel coordinates of the window's first pixel (negative for a window
+--  that crosses the left or top side of an area at the image's border).
 --
---  Partial matches (AMV's meaning of VisionPro's PartialMatchLimitLeft,
---  PartialMatchLimitRight, PartialMatchLimitUp, PartialMatchLimitDown and
---  PartialMatchReduceScore). Each limit is the number of the pattern's
---  columns (Left, Right) or rows (Up, Down) that may lie outside the
---  search area on that side: 0 .. half the trained pattern's width (Left,
---  Right) or height (Up, Down), rounded down, so that at least half of the
---  pattern's columns and half of its rows always lie inside. The defaults,
---  0, score the windows inside the search area only. As the area is at
---  least as large as the pattern, a window crosses at most one side along
---  each axis. A window that crosses a side (a partial window) is scored as
---  above over its clipped part only: the N_in cared-for pixels of the
---  pattern (of its N) whose window pixel lies inside the search area, and
---  the window's pixels at their positions; its contrast likewise. It
---  scores 0 when N_in is less than N / 4 (possible only with a mask:
---  without one the limits keep at least a quarter of the pattern inside)
---  or when the pattern's cared-for pixels inside all have one grey level.
---  With PartialMatchReduceScore (0 or 1) its score is multiplied by
---  N_in / N, the fraction of the pattern's cared-for pixels inside. The
---  image pixels outside the search area never count, even where the image
---  has pixels there (a region smaller than the image). Partial matches
---  need the LinearSearch algorithm: non-zero limits with LinearCNLPAS are
---  rejected (Bad_Parameter). The pattern's own limits
---  (CogCNLSearchPattern.PartialMatchLimit*, PartialMatchLimitsUsePattern)
---  are not provided.
+--  Partial matches (PartialMatchLimitLeft, PartialMatchLimitRight,
+--  PartialMatchLimitUp, PartialMatchLimitDown and PartialMatchReduceScore).
+--  Each limit is the number of the pattern's columns (Left, Right) or rows
+--  (Up, Down) that may lie outside the search area on that side: 0 .. half
+--  the trained pattern's width (Left, Right) or height (Up, Down), rounded
+--  down, so that at least half of the pattern's columns and half of its
+--  rows always lie inside. The defaults, 0, score the windows inside the
+--  search area only. As the area is at least as large as the pattern, a
+--  window crosses at most one side along each axis. A window that crosses a
+--  side (a partial window) is scored as above over its clipped part only:
+--  the N_in cared-for pixels of the pattern (of its N) whose window pixel
+--  lies inside the search area, and the window's pixels at their positions;
+--  its contrast likewise. It scores 0 when N_in is less than N / 4
+--  (possible only with a mask: without one the limits keep at least a
+--  quarter of the pattern inside) or when the pattern's cared-for pixels
+--  inside all have one grey level. With PartialMatchReduceScore (0 or 1)
+--  its score is multiplied by N_in / N, the fraction of the pattern's
+--  cared-for pixels inside. The image pixels outside the search area never
+--  count, even where the image has pixels there (a region smaller than the
+--  image). Partial matches need the LinearSearch algorithm: non-zero limits
+--  with LinearCNLPAS are rejected (Bad_Parameter).
 --
 --  * LinearSearch: every position is scored. Every local maximum (at
 --    least every later neighbour and above every earlier one, in raster
@@ -240,21 +233,21 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
    --  Codes (C: KS_CNL_SEARCH_*)
    ---------------------------------------------------------------------
 
-   --  CogCNLSearchAlgorithmConstants (VisionPro's values; flags, so that
-   --  a pattern's Algorithms can name several).
+   --  The algorithms (flags, so that a pattern's Algorithms can name
+   --  several).
    Algorithm_Linear_Search     : constant Int32 := 1;
    Algorithm_Linear_CNLPAS     : constant Int32 := 2;
    Algorithm_Non_Linear_CNLPAS : constant Int32 := 4;
 
-   --  CogCNLSearchAccuracyConstants (VisionPro's values; flags, as above).
+   --  The accuracies (flags, as above).
    Accuracy_Very_Fine : constant Int32 := 1;
    Accuracy_Fine      : constant Int32 := 2;
    Accuracy_Coarse    : constant Int32 := 4;
 
-   --  CogCNLSearchEdgeHitConstants (VisionPro's values; flags). A result's
-   --  EdgeHit is the sum of the flags of the sides of the search area its
-   --  window crosses (partial matches), Edge_Hit_None when it crosses none;
-   --  Edge_Hit_Unknown is never reported.
+   --  The edge hit flags. A result's EdgeHit is the sum of the flags of the
+   --  sides of the search area its window crosses (partial matches),
+   --  Edge_Hit_None when it crosses none; Edge_Hit_Unknown is never
+   --  reported.
    Edge_Hit_None    : constant Int32 := 0;
    Edge_Hit_Unknown : constant Int32 := 1;
    Edge_Hit_Left    : constant Int32 := 2;
@@ -262,7 +255,7 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
    Edge_Hit_Right   : constant Int32 := 8;
    Edge_Hit_Bottom  : constant Int32 := 16;
 
-   --  CogRegionModeConstants (VisionPro's values), for SearchRegionMode.
+   --  The region modes, for TrainRegionMode and SearchRegionMode.
    Region_Mode_Pixel_Aligned_Bounding_Box_Adjust_Mask : constant Int32 := 0;
    Region_Mode_Pixel_Aligned_Bounding_Box             : constant Int32 := 1;
    Region_Mode_Affine_Transform                       : constant Int32 := 2;
@@ -272,7 +265,7 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
    ---------------------------------------------------------------------
 
    Min_Pattern_Side  : constant := 8;
-   --  The fewest pixels along each side of a pattern (as VisionPro).
+   --  The fewest pixels along each side of a pattern.
    Max_Pattern_Side  : constant := 1024;
    --  The most pixels along each side of a pattern, so a pattern has at
    --  most 2**20 pixels.
@@ -319,13 +312,13 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
         Region_Mode_Pixel_Aligned_Bounding_Box_Adjust_Mask;
    end record
      with Convention => C;
-   --  The scalar properties of CogCNLSearchPattern, with VisionPro's
-   --  defaults: Algorithms (flags, LinearSearch and LinearCNLPAS only,
-   --  1 .. 3), Accuracies (flags, 1 .. 7), IgnorePolarity (0 or 1),
-   --  OriginX, OriginY (the origin in the train image's selected space,
-   --  finite and within Max_Value), and TrainRegionMode
-   --  (PixelAlignedBoundingBoxAdjustMask, PixelAlignedBoundingBox or
-   --  AffineTransform; see "The train region mode" above).
+   --  The scalar properties of a pattern: Algorithms (flags, LinearSearch
+   --  and LinearCNLPAS only, 1 .. 3), Accuracies (flags, 1 .. 7),
+   --  IgnorePolarity (0 or 1), OriginX, OriginY (the origin in the train
+   --  image's selected space, finite and within Max_Value), and
+   --  TrainRegionMode (PixelAlignedBoundingBoxAdjustMask,
+   --  PixelAlignedBoundingBox or AffineTransform; see "The train region
+   --  mode" above).
 
    function Valid_Train_Params
      (Params : Ks_CNL_Search_Train_Params) return Boolean
@@ -480,22 +473,22 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
       Partial_Match_Reduce_Score : Int32 := False_Value;
    end record
      with Convention => C;
-   --  CogCNLSearchRunParams, with VisionPro's defaults where it states
-   --  them (AcceptThreshold 0.3, ConfusionThreshold 0.5, XYOverlap 1.0)
-   --  and ours otherwise (Algorithm LinearSearch, Accuracy VeryFine,
-   --  MaxResults 1, SearchRegionMode PixelAlignedBoundingBox, the partial
-   --  match limits 0 and PartialMatchReduceScore 0). Algorithm and
-   --  Accuracy must be among the pattern's trained Algorithms and
-   --  Accuracies; MaxResults in 1 .. Max_Results_Limit; the thresholds and
-   --  XYOverlap in [0, 1] with ConfusionThreshold >= AcceptThreshold;
-   --  SearchRegionMode PixelAlignedBoundingBox or AffineTransform (see
-   --  "The search" above: ks_cnl_search_execute searches the bounding box
-   --  of its pixel region in both, ks_cnl_search_execute_affine needs
-   --  AffineTransform); PartialMatchLimitLeft and PartialMatchLimitRight in
-   --  0 .. TrainedPatternWidth / 2, PartialMatchLimitUp and
+   --  The run parameters, with the defaults Algorithm LinearSearch,
+   --  Accuracy VeryFine, MaxResults 1, SearchRegionMode
+   --  PixelAlignedBoundingBox, AcceptThreshold 0.3, ConfusionThreshold 0.5,
+   --  XYOverlap 1.0, the partial match limits 0 and PartialMatchReduceScore
+   --  0. Algorithm and Accuracy must be among the pattern's trained
+   --  Algorithms and Accuracies; MaxResults in 1 .. Max_Results_Limit; the
+   --  thresholds and XYOverlap in [0, 1] with ConfusionThreshold >=
+   --  AcceptThreshold; SearchRegionMode PixelAlignedBoundingBox or
+   --  AffineTransform (see "The search" above: ks_cnl_search_execute
+   --  searches the bounding box of its pixel region in both,
+   --  ks_cnl_search_execute_affine needs AffineTransform);
+   --  PartialMatchLimitLeft and PartialMatchLimitRight in 0 ..
+   --  TrainedPatternWidth / 2, PartialMatchLimitUp and
    --  PartialMatchLimitDown in 0 .. TrainedPatternHeight / 2 (all 0 with
-   --  LinearCNLPAS), PartialMatchReduceScore 0 or 1 (see "Partial
-   --  matches" above).
+   --  LinearCNLPAS), PartialMatchReduceScore 0 or 1 (see "Partial matches"
+   --  above).
 
    function Partial_OK
      (Params        : Ks_CNL_Search_Run_Params;
@@ -531,7 +524,7 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
       Contrast          : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  C: ks_cnl_search_result (CogCNLSearchResult).
+   --  C: ks_cnl_search_result.
 
    type Found is record
       Item     : Ks_CNL_Search_Result;
@@ -1028,17 +1021,17 @@ package AMV.Kernels.CNL_Search with SPARK_Mode, Preelaborate is
                                 Results.Items (I).Item.Edge_Hit
                                   = Edge_Hit_None))
                 else Results = null);
-   --  Searches Image within Region for Pattern (CogCNLSearchTool.Run, see
-   --  above). Returns a new results handle (null on failure).
-   --  Image_No_Pixels for a null image ("InputImage has no pixels");
-   --  Operator_Not_Trained for a null or untrained pattern ("Pattern is
-   --  not trained"); Bad_Parameter for an inconsistent image, pattern or
-   --  region, a region that does not lie in the image, run parameters out
-   --  of range ("RunParams.PartialMatchLimitLeft must be in 0 ..
-   --  TrainedPatternWidth / 2", "RunParams.PartialMatchLimitLeft, Right, Up
-   --  and Down must be 0 with LinearCNLPAS", ...), a transform beyond the
-   --  bound, a search box larger than Max_Search_Pixels and a location
-   --  beyond 1.0E150; Out_Of_Memory.
+   --  Searches Image within Region for Pattern (see above). Returns a new
+   --  results handle (null on failure). Image_No_Pixels for a null image
+   --  ("InputImage has no pixels"); Operator_Not_Trained for a null or
+   --  untrained pattern ("Pattern is not trained"); Bad_Parameter for an
+   --  inconsistent image, pattern or region, a region that does not lie in
+   --  the image, run parameters out of range
+   --  ("RunParams.PartialMatchLimitLeft must be in 0 .. TrainedPatternWidth
+   --  / 2", "RunParams.PartialMatchLimitLeft, Right, Up and Down must be 0
+   --  with LinearCNLPAS", ...), a transform beyond the bound, a search box
+   --  larger than Max_Search_Pixels and a location beyond 1.0E150;
+   --  Out_Of_Memory.
 
    procedure Results_Destroy (Results : in out Ks_CNL_Search_Results)
    with

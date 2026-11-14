@@ -1,18 +1,14 @@
 --  Kernel of AMV.PM_Align: geometric pattern location with rotation and
---  scale (CogPMAlignTool, its pattern CogPMAlignPattern, run parameters
---  CogPMAlignRunParams, zones CogPMAlignZoneAngle and CogPMAlignZoneScale,
---  results CogPMAlignResults and CogPMAlignResult). Its entry points are
---  the C API of the tool (include/amv_pm_align.h, names ks_pm_align_*).
+--  scale (the pattern, the run parameters with their angle and scale zones,
+--  and the results). Its entry points are the C API of the tool
+--  (include/amv_pm_align.h, names ks_pm_align_*).
 --
---  Clean room. PatMax and PatQuick are Cognex's own algorithms, which this
---  kernel does not reproduce. Only the names of the public API follow
---  VisionPro; the method is ours, built from public literature: shape
---  matching on gradient directions (the similarity measure of C. Steger,
---  "Similarity measures for occlusion, clutter, and illumination invariant
---  object recognition", 2001), searched coarse to fine over an image
---  pyramid, and refined by least squares on sub-pixel edge points. The
---  codes PatQuick and PatMax name two variants of that method, as
---  documented below; they do not mean what they mean in VisionPro.
+--  The method is ours, built from public literature: shape matching on
+--  gradient directions (the similarity measure of C. Steger, "Similarity
+--  measures for occlusion, clutter, and illumination invariant object
+--  recognition", 2001), searched coarse to fine over an image pyramid, and
+--  refined by least squares on sub-pixel edge points. The codes PatQuick
+--  and PatMax name two variants of that method, as documented below.
 --
 --  The pattern (C: ks_pm_align_pattern *, opaque) is an owned handle that
 --  ks_pm_align_pattern_create returns and ks_pm_align_pattern_destroy
@@ -23,10 +19,9 @@
 --  which the grey level rises), both in pattern coordinates. Pattern
 --  coordinates are those of the train image's selected space mapped by the
 --  inverse of Origin (Origin is the transform from pattern coordinates to
---  the train image's selected space, as CogPMAlignPattern.Origin). A null
---  pattern reads as an untrained pattern with the default parameters;
---  every operation that changes a pattern needs a handle (Bad_Parameter
---  "Pattern is null").
+--  the train image's selected space). A null pattern reads as an untrained
+--  pattern with the default parameters; every operation that changes a
+--  pattern needs a handle (Bad_Parameter "Pattern is null").
 --
 --  Training (ks_pm_align_pattern_train). The train image is smoothed
 --  (Gaussian, sigma 1) and reduced to a pyramid (level k + 1 is level k
@@ -238,11 +233,11 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
    --  bound of AMV.Kernels.Transforms).
 
    ---------------------------------------------------------------------
-   --  Codes (C: KS_PM_ALIGN_*; VisionPro's numeric values)
+   --  Codes (C: KS_PM_ALIGN_*)
    ---------------------------------------------------------------------
 
-   --  CogPMAlignTrainAlgorithmConstants. Only the first three are
-   --  implemented; all three train the same model (see above).
+   --  Train algorithms. Only the first three are implemented; all three
+   --  train the same model (see above).
    Train_Algorithm_Pat_Max                  : constant Int32 := 0;
    Train_Algorithm_Pat_Quick                : constant Int32 := 1;
    Train_Algorithm_Pat_Max_And_Pat_Quick    : constant Int32 := 2;
@@ -250,15 +245,14 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
    Train_Algorithm_Pat_Max_High_Sensitivity : constant Int32 := 4;
    Train_Algorithm_Pat_Max_Perspective      : constant Int32 := 5;
 
-   --  CogPMAlignRunAlgorithmConstants. PatFlex and PatMaxPerspective are
-   --  not implemented.
+   --  Run algorithms. PatFlex and PatMaxPerspective are not implemented.
    Run_Algorithm_Pat_Max             : constant Int32 := 0;
    Run_Algorithm_Pat_Quick           : constant Int32 := 1;
    Run_Algorithm_Best_Trained        : constant Int32 := 2;
    Run_Algorithm_Pat_Flex            : constant Int32 := 3;
    Run_Algorithm_Pat_Max_Perspective : constant Int32 := 4;
 
-   --  CogPMAlignZoneConstants.
+   --  Zone configurations.
    Zone_Nominal  : constant Int32 := 0;
    Zone_Low_High : constant Int32 := 1;
 
@@ -334,10 +328,10 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
       Grain_Limit_Fine        : Long_Float := 1.0;
    end record
      with Convention => C;
-   --  The train inputs of CogPMAlignPattern other than the image, the
-   --  region and Origin (AMV defaults). Limits: TrainAlgorithm one of the
-   --  three implemented codes; the flags 0 or 1; the grain limits finite,
-   --  1 <= GrainLimitFine <= GrainLimitCoarse <= Max_Grain_Limit.
+   --  The train inputs of a pattern other than the image, the region and
+   --  Origin. Limits: TrainAlgorithm one of the three implemented codes;
+   --  the flags 0 or 1; the grain limits finite, 1 <= GrainLimitFine <=
+   --  GrainLimitCoarse <= Max_Grain_Limit.
 
    type Ks_PM_Align_Zone_Angle is record
       Configuration : Int32 := Zone_Nominal;
@@ -346,9 +340,9 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
       Nominal       : Long_Float := 0.0;
    end record
      with Convention => C;
-   --  CogPMAlignZoneAngle (radians; AMV defaults: Nominal 0, and the whole
-   --  circle for LowHigh). Limits: Configuration a zone code; the angles
-   --  finite and within Max_Zone_Angle; Low <= High for LowHigh.
+   --  The angle zone (radians; by default Nominal 0, and the whole circle
+   --  for LowHigh). Limits: Configuration a zone code; the angles finite
+   --  and within Max_Zone_Angle; Low <= High for LowHigh.
 
    type Ks_PM_Align_Zone_Scale is record
       Configuration : Int32 := Zone_Nominal;
@@ -357,9 +351,8 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
       Nominal       : Long_Float := 1.0;
    end record
      with Convention => C;
-   --  CogPMAlignZoneScale (AMV defaults). Limits: Configuration a zone
-   --  code; the scales in [Min_Zone_Scale, Max_Zone_Scale]; Low <= High
-   --  for LowHigh.
+   --  The scale zone. Limits: Configuration a zone code; the scales in
+   --  [Min_Zone_Scale, Max_Zone_Scale]; Low <= High for LowHigh.
 
    type Ks_PM_Align_Run_Params is record
       Accept_Threshold                : Long_Float := 0.5;
@@ -377,15 +370,15 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
       XY_Overlap                      : Long_Float := 1.0;
    end record
      with Convention => C;
-   --  CogPMAlignRunParams (AMV defaults). Limits: the thresholds
-   --  AcceptThreshold, CoarseAcceptThreshold and OutsideRegionThreshold in
-   --  [0, 1]; ContrastThreshold in [0, Max_Contrast_Threshold]; Timeout in
-   --  [0, Max_Timeout]; ApproximateNumberToFind in 1 ..
-   --  Max_Results_Limit; RunAlgorithm one of PatMax, PatQuick and
-   --  BestTrained; the flags 0 or 1; the zones as above.
+   --  The run parameters. Limits: the thresholds AcceptThreshold,
+   --  CoarseAcceptThreshold and OutsideRegionThreshold in [0, 1];
+   --  ContrastThreshold in [0, Max_Contrast_Threshold]; Timeout in
+   --  [0, Max_Timeout]; ApproximateNumberToFind in 1 .. Max_Results_Limit;
+   --  RunAlgorithm one of PatMax, PatQuick and BestTrained; the flags 0 or
+   --  1; the zones as above.
 
    ---------------------------------------------------------------------
-   --  The pattern (CogPMAlignPattern; C: ks_pm_align_pattern *, opaque)
+   --  The pattern (C: ks_pm_align_pattern *, opaque)
    ---------------------------------------------------------------------
 
    subtype Pattern_Coordinate is Long_Float
@@ -466,7 +459,7 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
      array (Natural range <>) of Ks_PM_Align_Feature;
 
    ---------------------------------------------------------------------
-   --  Results (CogPMAlignResults; C: ks_pm_align_results *, opaque)
+   --  Results (C: ks_pm_align_results *, opaque)
    ---------------------------------------------------------------------
 
    type Ks_PM_Align_Result is record
@@ -484,9 +477,8 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
       Fine_Stage                        : Int32 := 0;
    end record
      with Convention => C;
-   --  C: ks_pm_align_result (CogPMAlignResult): the measures described
-   --  above and the pose (TranslationX/Y, Rotation, Scaling; GetPose
-   --  builds the transform).
+   --  C: ks_pm_align_result: the measures described above and the pose
+   --  (TranslationX/Y, Rotation, Scaling; GetPose builds the transform).
 
    type Result_Array is array (0 .. Max_Results_Limit - 1)
      of Ks_PM_Align_Result;
@@ -569,7 +561,7 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
      Export, Convention => C,
      External_Name => "ks_pm_align_run_params_default",
      Post => Valid (Status) and then Succeeded (Status);
-   --  The defaults of CogPMAlignRunParams (the record's default values).
+   --  The default run parameters (the record's default values).
 
    procedure Check_Run_Params
      (Params : Ks_PM_Align_Run_Params;
@@ -784,9 +776,8 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
                         in Failure_None | Failure_Operator_Not_Trained
                          | Failure_Index_Out_Of_Range;
    --  Feature Index (0-based) of a level of the model (the trained
-   --  features, for display: VisionPro draws them with
-   --  CreateGraphicsCoarse and CreateGraphicsFine). Index_Out_Of_Range
-   --  outside the level or its features.
+   --  features, for display). Index_Out_Of_Range outside the level or its
+   --  features.
 
    ---------------------------------------------------------------------
    --  Entry points: running
@@ -814,10 +805,10 @@ package AMV.Kernels.PM_Align with SPARK_Mode, Preelaborate is
                        then Trained_Pattern (Pattern)
                             and then Gold_Results (Results, Params)
                        else Results = null);
-   --  Runs the search (CogPMAlignTool.Run) on Image within Region (the
-   --  search region of the image's pixels, as AMV.Regions rasterises
-   --  SearchRegion; null, the empty region, gives no results), reporting
-   --  poses in the space that Selected_From_Pixel maps pixel space to.
+   --  Runs the search on Image within Region (the search region of the
+   --  image's pixels, as AMV.Regions rasterises SearchRegion; null, the
+   --  empty region, gives no results), reporting poses in the space that
+   --  Selected_From_Pixel maps pixel space to.
    --  Returns a new results handle (null on failure). Failures, in this
    --  order: Operator_Not_Trained for a pattern that is null or not
    --  trained ("Pattern is not trained"); Bad_Parameter for bad run

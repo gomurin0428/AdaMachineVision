@@ -1,18 +1,15 @@
---  Kernel of AMV.Tool_Group and AMV.Tool_Block: every decision a tool group
---  (Cognex.VisionPro.ToolGroup.CogToolGroup) and a tool block
---  (Cognex.VisionPro.ToolBlock.CogToolBlock) make, so that the Ada API only
---  dispatches Run on the member tools. The C API is declared in
---  include/amv_tool_group.h.
+--  Kernel of AMV.Tool_Group and AMV.Tool_Block: every decision a tool
+--  group and a tool block make, so that the Ada API only dispatches Run on
+--  the member tools. The C API is declared in include/amv_tool_group.h.
 --
 --  Members. A group (C: ks_tool_group *, an owned handle; null is an empty
---  group with the defaults below) holds up to Max_Members members in order.
---  A member is an opaque 64-bit key chosen by the caller (the Ada API uses
---  the address of the tool object; a C caller uses whatever identifies its
---  tool) and a disabled flag (VisionPro's DisabledTools collection: a
---  disabled member is skipped by a run). The group also holds its own key
---  (a member may not be the group itself; 0 unless given to create or
---  set_own_key), AbortRunOnToolFailure (False by default, an AMV choice:
---  the reference does not give the default) and a change counter that
+--  group with the defaults below) holds up to Max_Members members in
+--  order. A member is an opaque 64-bit key chosen by the caller (the Ada
+--  API uses the address of the tool object; a C caller uses whatever
+--  identifies its tool) and a disabled flag (DisabledTools: a disabled
+--  member is skipped by a run). The group also holds its own key (a member
+--  may not be the group itself; 0 unless given to create or set_own_key),
+--  AbortRunOnToolFailure (False by default) and a change counter that
 --  every successful change of the members, their flags, the abort flag or
 --  the own key advances. The entry points that change a group take it in
 --  out and create it when it is null where that makes sense (set_own_key,
@@ -38,19 +35,17 @@
 --
 --  run_begin starts a run (Bad_Parameter when the group is running
 --  already: a group that contains itself through other groups); the
---  script's result and message (the outcome of a script's GroupRun, or
---  Accept and "" without a script) start the run's result and message, and
---  run_tools = 0 (GroupRun returned false) stops the run before any member.
---  run_next offers the next enabled member after the last one offered
---  (more = 1) or reports that none is left (more = 0); after a member
---  reported Error while AbortRunOnToolFailure is set, nothing more is
---  offered. AMV choice: only Error stops a run (the reference does not say
---  whether Reject counts as a failure). run_report records the offered
---  member's result (CogToolResultConstants codes, VisionPro's values:
---  Accept 0, Warning 1, Reject 2, Error -1), its name and its message.
---  run_end ends the run and returns its result, the index of the first
---  member that did not accept (No_Index when every one accepted) and the
---  message.
+--  script's result and message (the outcome of a script, or Accept and ""
+--  without a script) start the run's result and message, and run_tools = 0
+--  (the script's choice) stops the run before any member. run_next offers
+--  the next enabled member after the last one offered (more = 1) or
+--  reports that none is left (more = 0); after a member reported Error
+--  while AbortRunOnToolFailure is set, nothing more is offered. Only Error
+--  stops a run. run_report records the offered member's result (the
+--  Result_* codes: Accept 0, Warning 1, Reject 2, Error -1), its name and
+--  its message. run_end ends the run and returns its result, the index of
+--  the first member that did not accept (No_Index when every one accepted)
+--  and the message.
 --
 --  Result and message. The result is the worst of the script's result and
 --  the reported ones (Error > Reject > Warning > Accept). The message is
@@ -86,20 +81,18 @@
 --
 --  Terminals. A terminal collection (C: ks_tool_block_terminals *, an
 --  owned handle; null is the empty collection) holds up to Max_Terminals
---  named terminals in order (CogToolBlockTerminalCollection, the Inputs and
---  Outputs of a tool block). A terminal has a name of 1 to
---  Max_Name_Length characters, unique within its collection (compared
---  case-sensitively), a value type (the Type_* codes, AMV codes for the
---  .NET types: Real (double), Integer (int64), Boolean, String (a byte
---  string of at most Max_Text_Length bytes), Image_8_Grey, Image_16_Grey,
---  Transform (CogTransform2DLinear) and Shape (any ICogShape)) and a value.
---  The kernel stores the values of the four scalar types (a Real must be
---  finite; any finite double is accepted); for the four object types it
---  stores only whether the terminal has a value, and the caller keeps the
---  object itself in step with the terminal's index (the Ada API keeps
---  them in a vector updated with every add, insert, remove and move).
---  A terminal added by type alone gets 0.0, 0, False or "" (scalars) or no
---  value (objects).
+--  named terminals in order (the Inputs and Outputs of a tool block). A
+--  terminal has a name of 1 to Max_Name_Length characters, unique within
+--  its collection (compared case-sensitively), a value type (the Type_*
+--  codes: Real (double), Integer (int64), Boolean, String (a byte string
+--  of at most Max_Text_Length bytes), Image_8_Grey, Image_16_Grey,
+--  Transform and Shape (any shape)) and a value. The kernel stores the
+--  values of the four scalar types (a Real must be finite; any finite
+--  double is accepted); for the four object types it stores only whether
+--  the terminal has a value, and the caller keeps the object itself in
+--  step with the terminal's index (the Ada API keeps them in a vector
+--  updated with every add, insert, remove and move). A terminal added by
+--  type alone gets 0.0, 0, False or "" (scalars) or no value (objects).
 --
 --  Proved (Gold): names stay unique (Distinct_Names, kept by every entry
 --  point as for the members); a set of a scalar stores exactly the value
@@ -159,7 +152,7 @@ package AMV.Kernels.Tool_Group with SPARK_Mode, Preelaborate is
    No_Index : constant := -1;
    --  "None" for an index (C: KS_TOOL_GROUP_NO_INDEX).
 
-   --  CogToolResultConstants (VisionPro's values).
+   --  The results of a tool.
 
    Result_Error   : constant Int32 := -1;
    Result_Accept  : constant Int32 := 0;
@@ -176,7 +169,7 @@ package AMV.Kernels.Tool_Group with SPARK_Mode, Preelaborate is
      (if Rank (Right) > Rank (Left) then Right else Left);
    --  The worse of two results.
 
-   --  Terminal value types (AMV codes).
+   --  Terminal value types.
 
    Type_Real          : constant Int32 := 0;
    Type_Integer       : constant Int32 := 1;
@@ -673,8 +666,8 @@ package AMV.Kernels.Tool_Group with SPARK_Mode, Preelaborate is
                                        = Group.Members (Natural (Index))
                                            .Disabled
                        else Disabled = False_Value);
-   --  1 when member Index is in VisionPro's DisabledTools (skipped by a
-   --  run), 0 otherwise. Index_Out_Of_Range outside 0 .. Count - 1.
+   --  1 when member Index is in DisabledTools (skipped by a run), 0
+   --  otherwise. Index_Out_Of_Range outside 0 .. Count - 1.
 
    procedure Group_Set_Disabled
      (Group    : Ks_Tool_Group;
@@ -898,10 +891,9 @@ package AMV.Kernels.Tool_Group with SPARK_Mode, Preelaborate is
      Post => Valid (Status) and then Succeeded (Status)
              and then Run in False_Value | True_Value
              and then (Run = False_Value) = Disabled_Member (Group, Key);
-   --  RunTool, first step: whether the tool with key Key runs (Run = 1)
-   --  or not (0: it is a member of Group in DisabledTools). A tool that
-   --  is not a member runs (AMV's choice: VisionPro only says a disabled
-   --  tool does not run).
+   --  RunTool, first step: whether the tool with key Key runs (Run = 1) or
+   --  not (0: it is a member of Group in DisabledTools). A tool that is
+   --  not a member runs.
 
    procedure Run_Tool_End
      (Group      : access constant Ks_Tool_Group_Data;
@@ -936,7 +928,7 @@ package AMV.Kernels.Tool_Group with SPARK_Mode, Preelaborate is
    --  too, when the tool's result is strictly worse (Error > Reject >
    --  Warning > Accept). Abort_Run = 1 when the tool reported Error and
    --  the group has AbortRunOnToolFailure: RunTool then raises.
-   --  Bad_Parameter for a result code outside CogToolResultConstants.
+   --  Bad_Parameter for a result code outside Result_Code.
 
    ---------------------------------------------------------------------
    --  Runs (C: ks_tool_group_cursor)

@@ -1,5 +1,5 @@
---  Tests for AMV.Dimensioning.Create_Shapes (the CogCreate*Tool classes of
---  Cognex.VisionPro.Dimensioning) and its kernel AMV.Kernels.Create_Shapes.
+--  Tests for AMV.Dimensioning.Create_Shapes (the shape creation tools) and
+--  its kernel AMV.Kernels.Create_Shapes.
 --
 --  The expected shapes are worked out by hand in the comments. A fixture
 --  space (a rotation by 0.5 and a translation by (100, 50)) shows that the

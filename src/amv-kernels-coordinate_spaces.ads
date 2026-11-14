@@ -1,14 +1,13 @@
---  Kernel of AMV.Coordinate_Spaces: coordinate space trees, the
---  counterpart of CogCoordinateSpaceTree.
+--  Kernel of AMV.Coordinate_Spaces: coordinate space trees.
 --
 --  A tree holds the root space "@" and up to Max_Spaces - 1 other spaces.
 --  Every space other than the root has a parent and a Parent_From_Child
 --  transform that maps coordinates expressed in the space to coordinates
---  expressed in its parent (the direction of VisionPro's AddSpace
---  argument parentFromNew). Spaces are named by path from the root,
---  components separated by '\': a space "Fixture" added under "@" is
---  called "@\Fixture". A component is a non-empty string without '\' that
---  is not "@", "#" or "."; names are case sensitive. The meaning of every
+--  expressed in its parent (the direction of the Parent_From_New argument
+--  of Add_Space). Spaces are named by path from the root, components
+--  separated by '\': a space "Fixture" added under "@" is called
+--  "@\Fixture". A component is a non-empty string without '\' that is not
+--  "@", "#" or "."; names are case sensitive. The meaning of every
 --  operation is documented in AMV.Coordinate_Spaces.
 --
 --  Representation. A tree is a C-compatible record without pointers (C:
@@ -61,8 +60,8 @@ package AMV.Kernels.Coordinate_Spaces with SPARK_Mode, Pure is
    ---------------------------------------------------------------------
 
    Max_Spaces : constant := 64;
-   --  Spaces in a tree, the root included. VisionPro trees are small; a
-   --  fixed bound keeps the tree a plain C record.
+   --  Spaces in a tree, the root included. A fixed bound keeps the tree a
+   --  plain C record.
 
    Max_Name_Length : constant := 256;
    --  Characters in a full space name.
@@ -105,8 +104,7 @@ package AMV.Kernels.Coordinate_Spaces with SPARK_Mode, Pure is
    Add_Space_Replace_Duplicate  : constant Int32 := 1;
    Add_Space_Ignore_Duplicate   : constant Int32 := 2;
    --  Duplicate_Handling of Add_Space (C: KS_ADD_SPACE_*), the positions
-   --  of AMV.Coordinate_Spaces.Ks_Add_Space_Constants (VisionPro's
-   --  CogAddSpaceConstants has the same values).
+   --  of AMV.Coordinate_Spaces.Ks_Add_Space_Constants.
 
    subtype Add_Space_Code is Int32
      range Add_Space_Duplicate_Is_Error .. Add_Space_Ignore_Duplicate;
@@ -115,10 +113,9 @@ package AMV.Kernels.Coordinate_Spaces with SPARK_Mode, Pure is
    Pathname_Full    : constant Int32 := 1;
    Pathname_Partial : constant Int32 := 2;
    --  Pathname_Format (C: KS_SPACE_TREE_PATHNAME_*), the positions of
-   --  AMV.Coordinate_Spaces.Ks_Space_Tree_Pathname_Constants (VisionPro's
-   --  CogSpaceTreePathnameConstants has the same values). A name is given
-   --  as its last component (None; "@" for the root), as its full name
-   --  (Full), or (Partial), when it is below the space named by the
+   --  AMV.Coordinate_Spaces.Ks_Space_Tree_Pathname_Constants. A name is
+   --  given as its last component (None; "@" for the root), as its full
+   --  name (Full), or (Partial), when it is below the space named by the
    --  operation's Space_Name argument, as its path relative to that space
    --  ("B\C" for "@\A\B\C" below "@\A"), and otherwise (the space itself,
    --  its parent) as its full name.

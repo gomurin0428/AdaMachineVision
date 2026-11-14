@@ -25,9 +25,6 @@
  * Ada side by representation clauses and compile-time checks
  * (src/amv-kernels*.ads, tests/test_kernels.adb) and on the C side by the
  * static assertions below and tests/c/test_c_api.c.
- *
- * AMV is not affiliated with or endorsed by Cognex Corporation; "Cognex"
- * and "VisionPro" are trademarks of Cognex Corporation.
  */
 
 #ifndef AMV_H
@@ -79,7 +76,7 @@ _Static_assert(offsetof(ks_status, message) == 8, "ks_status.message offset");
 int32_t ks_abi_version(void);
 
 /* ------------------------------------------------------------------ */
-/* Misc (CogMisc)                                                      */
+/* Misc                                                                */
 /* ------------------------------------------------------------------ */
 
 /* degrees * pi / 180. */
@@ -104,7 +101,7 @@ void ks_misc_angle_difference(double a, double b, double *result,
 void ks_misc_hypot(double x, double y, double *result, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Transforms (CogTransform2DLinear)                                   */
+/* Transforms                                                          */
 /* ------------------------------------------------------------------ */
 
 /* (x, y) maps to (a x + b y + translation_x, c x + d y + translation_y).
@@ -246,16 +243,15 @@ void ks_transform_2d_linear_is_axis_aligned(
     int32_t *result, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Coordinate space trees (CogCoordinateSpaceTree)                     */
+/* Coordinate space trees                                              */
 /* ------------------------------------------------------------------ */
 
 /* A tree holds the root space "@" and up to KS_MAX_SPACES - 1 other
    spaces, each with a parent and a parent_from_child transform that maps
-   the space's coordinates to its parent's (VisionPro's parentFromNew),
-   stored exactly as given. Spaces are named by path from the root with
-   components separated by '\' ("@\Fixture\Part"); a component is a
-   non-empty string without '\' other than "@", "#" and ".". Name
-   arguments are full names.
+   the space's coordinates to its parent's, stored exactly as given.
+   Spaces are named by path from the root with components separated by
+   '\' ("@\Fixture\Part"); a component is a non-empty string without '\'
+   other than "@", "#" and ".". Name arguments are full names.
 
    The tree is a plain struct: count entries of spaces[] are in use, entry
    0 is the root (name "@", parent -1, identity transform), and the
@@ -280,18 +276,17 @@ void ks_transform_2d_linear_is_axis_aligned(
 #define KS_MAX_SPACES            64
 #define KS_MAX_SPACE_NAME_LENGTH 256
 
-/* duplicate_handling of ks_coordinate_space_tree_add_space
-   (CogAddSpaceConstants): what to do when the space exists already. */
+/* duplicate_handling of ks_coordinate_space_tree_add_space: what to do
+   when the space exists already. */
 #define KS_ADD_SPACE_DUPLICATE_IS_ERROR 0 /* fail, KS_FAILURE_BAD_PARAMETER */
 #define KS_ADD_SPACE_REPLACE_DUPLICATE  1 /* replace its transform only */
 #define KS_ADD_SPACE_IGNORE_DUPLICATE   2 /* change nothing */
 
-/* pathname_format of the functions that return names
-   (CogSpaceTreePathnameConstants): NONE gives the last component ("@" for
-   the root), FULL the full name, PARTIAL the path relative to the
-   function's space_name argument for a space below it ("B\C" for
-   "@\A\B\C" below "@\A") and the full name for any other space (the
-   space itself, its parent). */
+/* pathname_format of the functions that return names: NONE gives the
+   last component ("@" for the root), FULL the full name, PARTIAL the
+   path relative to the function's space_name argument for a space below
+   it ("B\C" for "@\A\B\C" below "@\A") and the full name for any other
+   space (the space itself, its parent). */
 #define KS_SPACE_TREE_PATHNAME_NONE    0
 #define KS_SPACE_TREE_PATHNAME_FULL    1
 #define KS_SPACE_TREE_PATHNAME_PARTIAL 2
@@ -443,7 +438,7 @@ void ks_coordinate_space_tree_get_transform(
     ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Images (CogImage8Grey, CogImage16Grey, CogImage24PlanarColor)       */
+/* Images (8-bit grey, 16-bit grey, 24-bit planar colour)              */
 /* ------------------------------------------------------------------ */
 
 /* An image's pixels live behind an opaque handle that *_create returns
@@ -554,13 +549,13 @@ void ks_image_24_planar_color_duplicate(
     ks_image_8_grey **new_green, ks_image_8_grey **new_blue,
     ks_status *status);
 
-/* The coordinate space state of an image (ICogImage): its tree, its
-   selected space name as stored (selected) and its pixel_from_root
-   transform (from root space "@" to pixel space "#"). "#" is pixel space,
-   "." the selected space, every other name a space of the tree; a stored
-   selection whose space has left the tree reads as "@". Every function
-   first checks the tree (KS_FAILURE_BAD_PARAMETER, as for the tree
-   functions); names returned have NUL characters after their text. */
+/* The coordinate space state of an image: its tree, its selected space
+   name as stored (selected) and its pixel_from_root transform (from root
+   space "@" to pixel space "#"). "#" is pixel space, "." the selected
+   space, every other name a space of the tree; a stored selection whose
+   space has left the tree reads as "@". Every function first checks the
+   tree (KS_FAILURE_BAD_PARAMETER, as for the tree functions); names
+   returned have NUL characters after their text. */
 
 /* The selection as it reads ("#", a space of the tree, or "@"). */
 void ks_image_selected_space_name(const ks_coordinate_space_tree *tree,
@@ -606,7 +601,7 @@ void ks_image_set_pixel_from_root_transform(
     const ks_transform_2d_linear *transform, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Image files (CogImageFile, CogImageFileTool)                        */
+/* Image files                                                         */
 /* ------------------------------------------------------------------ */
 
 /* The PNM and BMP codecs work on bytes in memory; reading and writing
@@ -620,7 +615,7 @@ void ks_image_set_pixel_from_root_transform(
 
 #define KS_IMAGE_FILE_MAX_LENGTH ((int64_t)1 << 56)
 
-/* Modes of CogImageFile (CogImageFileModeConstants). */
+/* The modes of an image file. */
 #define KS_IMAGE_FILE_MODE_CLOSED 1
 #define KS_IMAGE_FILE_MODE_READ   2
 #define KS_IMAGE_FILE_MODE_WRITE  3
@@ -753,8 +748,9 @@ void ks_image_file_count_for_update(int32_t format, const uint8_t *bytes,
                                     int64_t length, int32_t *count,
                                     ks_status *status);
 
-/* The state rules of CogImageFile and CogImageFileTool. check_open_mode:
-   Open takes READ, WRITE or UPDATE (KS_FAILURE_BAD_PARAMETER for CLOSED).
+/* The state rules of an image file and of the image file tool.
+   check_open_mode: Open takes READ, WRITE or UPDATE
+   (KS_FAILURE_BAD_PARAMETER for CLOSED).
    require_open: KS_FAILURE_IMAGE_FILE when the file is closed;
    require_mode: also Item needs READ, Append needs WRITE or UPDATE.
    tool_next_index: the image a Read-mode run outputs (next_index mod
@@ -769,9 +765,7 @@ void ks_image_file_tool_next_index(int32_t next_index, int32_t count,
                                    ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Shapes (CogRectangle, CogRectangleAffine, CogCircle, CogEllipse,    */
-/* CogPolygon, CogCircularAnnulusSection, CogLine, CogLineSegment,     */
-/* CogPointMarker, CogCircularArc; geometry only)                      */
+/* Shapes (geometry only)                                              */
 /* ------------------------------------------------------------------ */
 
 /* The meaning of every property and operation is documented in
@@ -896,7 +890,7 @@ _Static_assert(offsetof(ks_circular_arc, angle_span) == 32,
                "ks_circular_arc.angle_span offset");
 #endif
 
-/* CogRectangle. set_xy_width_height and set_center_width_height build a
+/* ks_rectangle. set_xy_width_height and set_center_width_height build a
    checked rectangle (width and height >= 0); from_bounding_box is
    EnclosingRectangle (min <= max required). map gives a rectangle
    (KS_SHAPE_RECTANGLE, in *rectangle_result) under an axis-aligned
@@ -934,7 +928,7 @@ void ks_rectangle_from_bounding_box(double min_x, double min_y, double max_x,
                                     double max_y, ks_rectangle *result,
                                     ks_status *status);
 
-/* CogRectangleAffine. */
+/* ks_rectangle_affine. */
 void ks_rectangle_affine_set_center_lengths_rotation_skew(
     double center_x, double center_y, double side_x_length,
     double side_y_length, double rotation, double skew,
@@ -967,7 +961,7 @@ void ks_rectangle_affine_map(const ks_rectangle_affine *rectangle,
                              const ks_transform_2d_linear *transform,
                              ks_rectangle_affine *result, ks_status *status);
 
-/* CogCircle. map gives a circle (KS_SHAPE_CIRCLE) under a similarity,
+/* ks_circle. map gives a circle (KS_SHAPE_CIRCLE) under a similarity,
    possibly reflecting, otherwise an ellipse (KS_SHAPE_ELLIPSE). */
 void ks_circle_set_center_radius(double center_x, double center_y,
                                  double radius, ks_circle *result,
@@ -986,7 +980,7 @@ void ks_circle_map(const ks_circle *circle,
                    int32_t *result_type, ks_circle *circle_result,
                    ks_ellipse *ellipse_result, ks_status *status);
 
-/* CogEllipse. */
+/* ks_ellipse. */
 void ks_ellipse_set_center_xy_radius_xy_rotation(double center_x,
                                                  double center_y,
                                                  double radius_x,
@@ -1007,7 +1001,7 @@ void ks_ellipse_map(const ks_ellipse *ellipse,
                     const ks_transform_2d_linear *transform,
                     ks_ellipse *result, ks_status *status);
 
-/* CogPolygon: at most KS_POLYGON_MAX_VERTICES vertices, indexed from 0.
+/* ks_polygon: at most KS_POLYGON_MAX_VERTICES vertices, indexed from 0.
    create gives an empty polygon and add_vertex creates one when
    *polygon is NULL; destroy frees it and sets *polygon to NULL. An index
    outside the vertices gives KS_FAILURE_INDEX_OUT_OF_RANGE (add_vertex
@@ -1043,7 +1037,7 @@ void ks_polygon_map(const ks_polygon *polygon,
                     const ks_transform_2d_linear *transform,
                     ks_polygon **result, ks_status *status);
 
-/* CogCircularAnnulusSection. map: similarities only (possibly
+/* ks_circular_annulus_section. map: similarities only (possibly
    reflecting), KS_FAILURE_BAD_PARAMETER otherwise. */
 void ks_circular_annulus_section_set_center_radius_angle_start_angle_span_radial_scale(
     double center_x, double center_y, double radius, double angle_start,
@@ -1066,7 +1060,7 @@ void ks_circular_annulus_section_map(
     const ks_transform_2d_linear *transform,
     ks_circular_annulus_section *result, ks_status *status);
 
-/* CogLine. set_distance_rotation: (x, y) = distance * (-sin rotation,
+/* ks_line. set_distance_rotation: (x, y) = distance * (-sin rotation,
    cos rotation); get_distance_rotation: distance = y cos rotation -
    x sin rotation. map: KS_FAILURE_TRANSFORM_SINGULAR when the direction
    maps to zero. */
@@ -1084,7 +1078,7 @@ void ks_line_get_distance_rotation(const ks_line *line, double *distance,
 void ks_line_map(const ks_line *line, const ks_transform_2d_linear *transform,
                  ks_line *result, ks_status *status);
 
-/* CogLineSegment. */
+/* ks_line_segment. */
 void ks_line_segment_set_start_end(double start_x, double start_y,
                                    double end_x, double end_y,
                                    ks_line_segment *result,
@@ -1103,7 +1097,7 @@ void ks_line_segment_map(const ks_line_segment *segment,
                          const ks_transform_2d_linear *transform,
                          ks_line_segment *result, ks_status *status);
 
-/* CogPointMarker. */
+/* ks_point_marker. */
 void ks_point_marker_set_xy_rotation(double x, double y, double rotation,
                                      ks_point_marker *result,
                                      ks_status *status);
@@ -1111,7 +1105,7 @@ void ks_point_marker_map(const ks_point_marker *marker,
                          const ks_transform_2d_linear *transform,
                          ks_point_marker *result, ks_status *status);
 
-/* CogCircularArc. map: similarities only, as for the annulus section. */
+/* ks_circular_arc. map: similarities only, as for the annulus section. */
 void ks_circular_arc_set_center_radius_angle_start_angle_span(
     double center_x, double center_y, double radius, double angle_start,
     double angle_span, ks_circular_arc *result, ks_status *status);
@@ -1225,7 +1219,7 @@ void ks_pixel_region_restrict_to_mask(const ks_pixel_region *region,
                                       ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Real images (AMV.Image_Math; no VisionPro counterpart)              */
+/* Real images (AMV.Image_Math)                                        */
 /* ------------------------------------------------------------------ */
 
 /* A floating point image behind an opaque handle that *_create (or any
@@ -1332,7 +1326,7 @@ void ks_real_image_statistics(const ks_real_image *image, double *mean,
                               double *maximum, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Geometry (AMV.Geometry; no VisionPro counterpart)                   */
+/* Geometry (AMV.Geometry)                                             */
 /* ------------------------------------------------------------------ */
 
 /* Every coordinate and radius must be finite and within

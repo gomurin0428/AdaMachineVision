@@ -1,5 +1,5 @@
---  The polar unwrap tool: the counterpart of CogPolarUnwrapTool and its run
---  parameters CogPolarUnwrap (Cognex.VisionPro.ImageProcessing).
+--  The polar unwrap tool, Ks_Polar_Unwrap_Tool, and its run parameters,
+--  Ks_Polar_Unwrap.
 --
 --     Tool.Input_Image := Image;
 --     Tool.Region.Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
@@ -29,7 +29,7 @@
 --  section (Radius > 0, Radial_Scale > 0 and not 1, Angle_Span not 0),
 --  run parameters out of range, an output below 1 or above 32767 pixels
 --  along an axis, and a section that reaches outside the image ("Region
---  lies partly outside InputImage", as VisionPro).
+--  lies partly outside InputImage").
 
 pragma SPARK_Mode (Off);
 pragma Validity_Checks ("F");
@@ -43,12 +43,12 @@ with AMV.Tools;
 package AMV.Image_Processing.Polar_Unwrap is
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogPolarUnwrap)
+   --  Run parameters
    ---------------------------------------------------------------------
 
    subtype Ks_Polar_Unwrap_Sampling_Mode_Constants is
      AMV.Kernels.Int32 range 0 .. 1;
-   --  CogPolarUnwrapSamplingModeConstants, with VisionPro's values.
+   --  The codes of Sampling_Mode.
 
    Bilinear_Interpolation : constant Ks_Polar_Unwrap_Sampling_Mode_Constants
      := AMV.Kernels.Polar_Unwrap.Sampling_Mode_Bilinear_Interpolation;
@@ -57,9 +57,8 @@ package AMV.Image_Processing.Polar_Unwrap is
      := AMV.Kernels.Polar_Unwrap.Sampling_Mode_Nearest_Neighbor;
 
    subtype Ks_Polar_Unwrap is AMV.Kernels.Polar_Unwrap.Ks_Polar_Unwrap;
-   --  The run parameters (CogPolarUnwrap), a record with VisionPro's
-   --  defaults: Scaling_X and Scaling_Y (1.0, AMV range 0.001 .. 1000) and
-   --  Sampling_Mode (Bilinear_Interpolation).
+   --  The run parameters, with their defaults: Scaling_X and Scaling_Y
+   --  (1.0, in 0.001 .. 1000) and Sampling_Mode (Bilinear_Interpolation).
 
    procedure Get_Input_Point_From_Output_Point
      (Params         : Ks_Polar_Unwrap;
@@ -93,15 +92,13 @@ package AMV.Image_Processing.Polar_Unwrap is
    --  the section.
 
    ---------------------------------------------------------------------
-   --  The tool (CogPolarUnwrapTool)
+   --  The tool
    ---------------------------------------------------------------------
 
    type Ks_Polar_Unwrap_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image  : AMV.Images.Ks_Image_8_Grey;
       Region       : AMV.Shapes.Ks_Circular_Annulus_Section;
-      --  In its selected space (default "."). VisionPro's Region is an
-      --  ICogRegion that must be a circular or elliptical annulus section;
-      --  AMV takes the circular one.
+      --  In its selected space (default ".").
       Run_Params   : Ks_Polar_Unwrap;
       Output_Image : AMV.Images.Ks_Image_8_Grey;
       --  Set by Run (read-only by convention); unallocated after a run

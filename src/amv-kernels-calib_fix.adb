@@ -578,7 +578,7 @@ package body AMV.Kernels.Calib_Fix with SPARK_Mode is
       Fit := Identity_Fit;
       if DOF not in DOF_Code then
          Bad (Status, Prefix & "DOFsToCompute must be a "
-                      & "CogNPointToNPointDOFConstants value (0 .. 7)");
+                      & "KS_DOF_* value (0 .. 7)");
          return;
       end if;
       Check_Pairs (Pairs, Status);
@@ -2132,7 +2132,7 @@ package body AMV.Kernels.Calib_Fix with SPARK_Mode is
             return;
          when others =>
             Bad (Status, "ComputationMode must be a "
-                         & "CogCalibFixComputationModeConstants value "
+                         & "KS_COMPUTATION_MODE_* value "
                          & "(1 .. 7)");
             return;
       end case;

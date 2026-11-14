@@ -1,8 +1,8 @@
 --  Kernel of AMV.Geometry: plane geometry and least squares fitting shared
---  by the caliper-based tools, the dimensioning tools and calibration. No
---  VisionPro counterpart. The behaviour of every operation (tolerances,
---  degenerate cases, the fitting methods) is documented in AMV.Geometry;
---  this spec states the C view and the bounds.
+--  by the caliper-based tools, the dimensioning tools and calibration. The
+--  behaviour of every operation (tolerances, degenerate cases, the fitting
+--  methods) is documented in AMV.Geometry; this spec states the C view and
+--  the bounds.
 --
 --  Points, lines and circles are small C structs (ks_point_2d,
 --  ks_line_2d, ks_circle_2d). Point lists are Ada arrays for the Ada-only

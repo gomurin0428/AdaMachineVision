@@ -1,7 +1,7 @@
---  The two-image tools: the counterparts of CogIPTwoImageAddTool,
---  CogIPTwoImageSubtractTool and CogIPTwoImageMinMaxTool and their run
---  parameters CogIPTwoImageAdd, CogIPTwoImageSubtract and
---  CogIPTwoImageMinMax (Cognex.VisionPro.ImageProcessing).
+--  The two-image tools: Ks_IP_Two_Image_Add_Tool,
+--  Ks_IP_Two_Image_Subtract_Tool and Ks_IP_Two_Image_Min_Max_Tool, and
+--  their run parameters Ks_IP_Two_Image_Add, Ks_IP_Two_Image_Subtract and
+--  Ks_IP_Two_Image_Min_Max.
 --
 --     Tool.Input_Image_A := Image;
 --     Tool.Input_Image_B := Background;
@@ -21,9 +21,8 @@
 --  * min/max, Operation: Min (the default) or Max of A and B.
 --
 --  The output keeps Input_Image_A's coordinate space tree, selected space
---  and pixel-from-root transform. VisionPro also takes regions (RegionA,
---  RegionB), an alignment of the images and images of different sizes,
---  and works on their overlap; AMV combines two whole images of one size.
+--  and pixel-from-root transform. The tools combine two whole images of
+--  one size.
 --
 --  The work is done by the SPARK kernel AMV.Kernels.IP_Two_Image (C:
 --  ks_ip_two_image_*, include/amv_ip_geometry.h), which proves that every
@@ -51,10 +50,10 @@ package AMV.Image_Processing.IP_Two_Image is
 
    subtype Ks_IP_Two_Image_Add_Overflow_Mode_Constants is
      AMV.Kernels.Int32 range 0 .. 2;
-   --  CogIPTwoImageAddOverflowModeConstants (Bounded, Wrap, Shift).
+   --  The Overflow_Mode of the add tool (Bounded, Wrap, Shift).
    subtype Ks_IP_Two_Image_Subtract_Overflow_Mode_Constants is
      AMV.Kernels.Int32 range 0 .. 3;
-   --  CogIPTwoImageSubtractOverflowModeConstants (Bounded, Wrap, Shift,
+   --  The Overflow_Mode of the subtract tool (Bounded, Wrap, Shift,
    --  Absolute).
 
    Bounded  : constant AMV.Kernels.Int32 :=
@@ -70,7 +69,7 @@ package AMV.Image_Processing.IP_Two_Image is
 
    subtype Ks_IP_Two_Image_Min_Max_Operation_Constants is
      AMV.Kernels.Int32 range 0 .. 1;
-   --  CogIPTwoImageMinMaxOperationConstants.
+   --  The Operation of the min/max tool (Min, Max).
 
    Min : constant Ks_IP_Two_Image_Min_Max_Operation_Constants :=
      AMV.Kernels.IP_Two_Image.Min_Max_Operation_Min;
@@ -78,13 +77,13 @@ package AMV.Image_Processing.IP_Two_Image is
      AMV.Kernels.IP_Two_Image.Min_Max_Operation_Max;
 
    subtype Ks_IP_Two_Image_Add is AMV.Kernels.IP_Two_Image.Ks_IP_Two_Image_Add;
-   --  CogIPTwoImageAdd: Overflow_Mode (Bounded).
+   --  Overflow_Mode (Bounded).
    subtype Ks_IP_Two_Image_Subtract is
      AMV.Kernels.IP_Two_Image.Ks_IP_Two_Image_Subtract;
-   --  CogIPTwoImageSubtract: Overflow_Mode (Bounded).
+   --  Overflow_Mode (Bounded).
    subtype Ks_IP_Two_Image_Min_Max is
      AMV.Kernels.IP_Two_Image.Ks_IP_Two_Image_Min_Max;
-   --  CogIPTwoImageMinMax: Operation (Min).
+   --  Operation (Min).
 
    ---------------------------------------------------------------------
    --  The tools

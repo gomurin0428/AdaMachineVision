@@ -183,7 +183,7 @@ package body AMV.Images is
    end Raise_Failure;
 
    ---------------------------------------------------------------------
-   --  ICogImage
+   --  Ks_Image
    ---------------------------------------------------------------------
 
    function Effective_Selection (Spaces : Space_State)
@@ -323,7 +323,7 @@ package body AMV.Images is
    end Get_Transform;
 
    ---------------------------------------------------------------------
-   --  CogImage8Grey
+   --  Ks_Image_8_Grey
    ---------------------------------------------------------------------
 
    overriding procedure Adjust (Image : in out Ks_Image_8_Grey) is
@@ -513,7 +513,7 @@ package body AMV.Images is
      (Left.Buffer /= null and then Left.Buffer = Right.Buffer);
 
    ---------------------------------------------------------------------
-   --  CogImage16Grey
+   --  Ks_Image_16_Grey
    ---------------------------------------------------------------------
 
    overriding procedure Adjust (Image : in out Ks_Image_16_Grey) is
@@ -650,7 +650,7 @@ package body AMV.Images is
      (Left.Buffer /= null and then Left.Buffer = Right.Buffer);
 
    ---------------------------------------------------------------------
-   --  CogImage24PlanarColor
+   --  Ks_Image_24_Planar_Color
    ---------------------------------------------------------------------
 
    overriding procedure Adjust (Image : in out Ks_Image_24_Planar_Color) is

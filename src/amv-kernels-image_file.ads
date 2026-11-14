@@ -1,6 +1,6 @@
 --  Kernel of AMV.Image_File: the PNM and BMP codecs, the choice of a write
---  format and encoding, and the state rules of CogImageFile and
---  CogImageFileTool.
+--  format and encoding, and the state rules of an image file and of the
+--  image file tool.
 --
 --  The kernel works on bytes in memory; reading and writing operating
 --  system files is left to the Ada API (AMV.Image_File), which reads a
@@ -87,7 +87,7 @@ package AMV.Kernels.Image_File with SPARK_Mode, Preelaborate is
    --  Codes (C: the KS_IMAGE_FILE_* constants of include/amv.h)
    ---------------------------------------------------------------------
 
-   --  Modes of CogImageFile (CogImageFileModeConstants).
+   --  The modes of an image file.
    Mode_Closed : constant Int32 := 1;
    Mode_Read   : constant Int32 := 2;
    Mode_Write  : constant Int32 := 3;
@@ -117,9 +117,9 @@ package AMV.Kernels.Image_File with SPARK_Mode, Preelaborate is
    Encoding_BMP_24       : constant Int32 := 6;  --  colour, 24 bits
 
    --  Operations whose mode rules Require_Open and Require_Mode check.
-   Operation_Item   : constant Int32 := 1;  --  CogImageFile.Item
-   Operation_Append : constant Int32 := 2;  --  CogImageFile.Append
-   Operation_Run    : constant Int32 := 3;  --  CogImageFileTool.Run
+   Operation_Item   : constant Int32 := 1;  --  Item of an image file
+   Operation_Append : constant Int32 := 2;  --  Append of an image file
+   Operation_Run    : constant Int32 := 3;  --  Run of the image file tool
 
    subtype Mode_Code is Int32 range Mode_Closed .. Mode_Update;
    subtype Format_Code is Int32 range Format_PGM .. Format_BMP;
@@ -692,7 +692,7 @@ package AMV.Kernels.Image_File with SPARK_Mode, Preelaborate is
    --  C form of Decode.
 
    ---------------------------------------------------------------------
-   --  The state rules of CogImageFile and CogImageFileTool
+   --  The state rules of an image file and of the image file tool
    ---------------------------------------------------------------------
 
    procedure Check_Open_Mode
@@ -765,7 +765,7 @@ package AMV.Kernels.Image_File with SPARK_Mode, Preelaborate is
                             and then Index = Next_Index mod Count
                             and then New_Next_Index = (Index + 1) mod Count
                        else Index = 0 and then New_Next_Index = 0);
-   --  The Read mode rule of CogImageFileTool: the image to output is
+   --  The Read mode rule of the image file tool: the image to output is
    --  Next_Index mod Count, and Next_Index then becomes the following one,
    --  back to 0 after the last. Image_File when Count is 0 ("the file
    --  holds no image"); Bad_Parameter when either is negative.

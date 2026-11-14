@@ -40,7 +40,7 @@ package body AMV.Shapes is
    end To_Kernel;
 
    ---------------------------------------------------------------------
-   --  ICogShape
+   --  Ks_Shape
    ---------------------------------------------------------------------
 
    function Selected_Space_Name (Shape : Ks_Shape) return String is
@@ -109,7 +109,7 @@ package body AMV.Shapes is
    end Circle_Or_Ellipse;
 
    ---------------------------------------------------------------------
-   --  CogRectangle
+   --  Ks_Rectangle
    ---------------------------------------------------------------------
 
    function X (Rectangle : Ks_Rectangle) return Real is (Rectangle.Data.X);
@@ -282,7 +282,7 @@ package body AMV.Shapes is
    end Enclosing_Rectangle;
 
    ---------------------------------------------------------------------
-   --  CogRectangleAffine
+   --  Ks_Rectangle_Affine
    ---------------------------------------------------------------------
 
    function Corners
@@ -543,7 +543,7 @@ package body AMV.Shapes is
    end Area;
 
    ---------------------------------------------------------------------
-   --  CogCircle
+   --  Ks_Circle
    ---------------------------------------------------------------------
 
    function Center_X (Circle : Ks_Circle) return Real is
@@ -645,7 +645,7 @@ package body AMV.Shapes is
    end Area;
 
    ---------------------------------------------------------------------
-   --  CogEllipse
+   --  Ks_Ellipse
    ---------------------------------------------------------------------
 
    function Center_X (Ellipse : Ks_Ellipse) return Real is
@@ -771,7 +771,7 @@ package body AMV.Shapes is
    end Area;
 
    ---------------------------------------------------------------------
-   --  CogPolygon
+   --  Ks_Polygon
    ---------------------------------------------------------------------
 
    overriding procedure Adjust (Vertices : in out Polygon_Vertices) is
@@ -981,7 +981,7 @@ package body AMV.Shapes is
    end Area;
 
    ---------------------------------------------------------------------
-   --  CogCircularAnnulusSection
+   --  Ks_Circular_Annulus_Section
    ---------------------------------------------------------------------
 
    function Center_X (Section : Ks_Circular_Annulus_Section) return Real is
@@ -1144,7 +1144,7 @@ package body AMV.Shapes is
    end Area;
 
    ---------------------------------------------------------------------
-   --  CogLineSegment
+   --  Ks_Line_Segment
    ---------------------------------------------------------------------
 
    function Start_X (Segment : Ks_Line_Segment) return Real is
@@ -1277,7 +1277,7 @@ package body AMV.Shapes is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogLine
+   --  Ks_Line
    ---------------------------------------------------------------------
 
    function X (Line : Ks_Line) return Real is (Line.Data.X);
@@ -1373,7 +1373,7 @@ package body AMV.Shapes is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogPointMarker
+   --  Ks_Point_Marker
    ---------------------------------------------------------------------
 
    function X (Marker : Ks_Point_Marker) return Real is (Marker.Data.X);
@@ -1425,7 +1425,7 @@ package body AMV.Shapes is
    end Map;
 
    ---------------------------------------------------------------------
-   --  CogCircularArc
+   --  Ks_Circular_Arc
    ---------------------------------------------------------------------
 
    procedure Get_Start_End

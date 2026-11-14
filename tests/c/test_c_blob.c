@@ -376,7 +376,7 @@ void test_c_blob(void)
                                       &status);
     check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
                      "MorphologyOperations.Add: the operation must be a "
-                     "CogBlobMorphologyConstants value (0 .. 11)")
+                     "KS_BLOB_MORPHOLOGY_* value (0 .. 11)")
           && params.morphology_operations.count == 0,
           "blob: morphology_collection_add rejects 12");
 
@@ -537,7 +537,7 @@ void test_c_blob(void)
           "blob: get_median_y of the rectangle with a hole");
     ks_blob_results_get_median_y(results, 0, 5, &median, &status);
     check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
-                     "GetMedianY: Axis must be a CogBlobAxisConstants "
+                     "GetMedianY: Axis must be a KS_BLOB_AXIS_* "
                      "value (0 .. 4)"),
           "blob: get_median_y of a bad axis");
     ks_blob_results_get_median_x(results, 3, KS_BLOB_AXIS_PRINCIPAL,

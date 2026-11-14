@@ -48,8 +48,6 @@ open an issue before you send a pull request.
   with AMV's results drawn on them. The photographs in them keep their
   own licences too; `docs/images/README.md` names the source and the
   licence of each.
-* "Cognex" and "VisionPro" are trademarks of Cognex Corporation. AMV is
-  not affiliated with or endorsed by Cognex Corporation.
 
 The Japanese version of this page is [`LICENSING.ja.md`](LICENSING.ja.md).
 If the two differ, this English page prevails.

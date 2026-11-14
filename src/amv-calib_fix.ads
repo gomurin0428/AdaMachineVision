@@ -1,8 +1,9 @@
---  The fixture tools and the calibrations: the counterparts of
---  Cognex.VisionPro.CalibFix (CogNPointToNPoint, CogFixture and
---  CogFixtureTool, CogFixtureNPointToNPoint with its result and tool,
---  CogCalibNPointToNPoint with its run parameters and tool,
---  CogCalibCheckerboard with its run parameters and tool).
+--  The fixture tools and the calibrations: the fit of a transform to point
+--  pairs (Ks_N_Point_To_N_Point), the fixture (Ks_Fixture) and its tool,
+--  the N-point fixture (Ks_Fixture_N_Point_To_N_Point) with its result and
+--  tool, and the N-point and checkerboard calibrations
+--  (Ks_Calib_N_Point_To_N_Point, Ks_Calib_Checkerboard) with their run
+--  parameters and tools.
 --
 --     Fixture.Run_Params.Unfixtured_From_Fixtured_Transform := Pose;
 --     Fixture.Input_Image := Image;
@@ -25,9 +26,7 @@
 --  two axes (no skew) or the general affine transform. Closed forms
 --  throughout (AMV.Kernels.Calib_Fix describes them); each DOF needs a
 --  minimum number of pairs (0, 1, 1, 1, 2, 2, 3, 3) and points that
---  determine it (Ks_Bad_Parameter_Exception otherwise: VisionPro raises
---  CogCalibFixNPointTooFewPointsException and
---  CogCalibFixNPointUnstableException there).
+--  determine it (Ks_Bad_Parameter_Exception otherwise).
 --
 --  Output images. A fixture or calibration tool's output image shares the
 --  input's pixels (assignment) and gets the input's coordinate space tree
@@ -38,10 +37,10 @@
 --  Space_To_Output Fixtured_Space / Calibrated_Space (the default) the new
 --  space is selected, otherwise the input's selection stays. A space of
 --  the same name is replaced (its descendants stay); with Enhanced
---  duplicate handling it makes the run fail instead (AMV does not record
---  which tool added a space, so it cannot allow the same tool's space as
---  VisionPro does). When the input's selected space is "#" (pixel space,
---  not a space of the tree), the new space is added under "@" with
+--  duplicate handling it makes the run fail instead (which tool added a
+--  space is not recorded, so a space that the same tool added in an
+--  earlier run counts too). When the input's selected space is "#" (pixel
+--  space, not a space of the tree), the new space is added under "@" with
 --  Get_Transform ("@", "#") composed with the transform, so that it still
 --  means "the given transform from pixel space"; the same rule holds for
 --  every tool here.
@@ -56,9 +55,9 @@
 --  early included, and leaves the target as it was then). The uncalibrated
 --  space of a calibration is the selected space of the image it is
 --  measured in (the checkerboard's corners are mapped into the selected
---  space of the calibration image). The nonlinear computation modes
---  other than Perspective_And_Radial_Warp, fiducials and the other
---  feature finders are not implemented.
+--  space of the calibration image). Fiducials and the nonlinear
+--  computation modes other than Perspective_And_Radial_Warp are not
+--  implemented.
 --
 --  The origin adjustment. The fit maps raw calibrated coordinates (the
 --  raw calibrated points, or the board's tile grid) to the uncalibrated
@@ -78,8 +77,8 @@
 --  of the calibrated x axis, against the raw calibrated x axis
 --  (Raw_Calibrated) or as seen in the uncalibrated space (Uncalibrated);
 --  Swap_Calibrated_Handedness turns the calibrated y axis the other way.
---  The calibrated units are the raw calibrated ones. The defaults (AMV's:
---  Raw_Calibrated, 0, 0, Raw_Calibrated, 0, False) keep the raw
+--  The calibrated units are the raw calibrated ones. The defaults
+--  (Raw_Calibrated, 0, 0, Raw_Calibrated, 0, False) keep the raw
 --  calibrated space. The adjustment does not change the fit: setting it
 --  does not uncalibrate, the transform from raw calibrated coordinates
 --  stays the fit, and the transform from calibrated coordinates and the
@@ -104,9 +103,8 @@
 --  plate points, not a grid. Its raw calibrated points are the plate, its
 --  uncalibrated points their positions in the calibration image's
 --  selected space; the mode needs that image at Calibrate (its size fixes
---  the model, an AMV addition: VisionPro's CogCalibNPointToNPoint has no
---  calibration image), at least 8 point pairs and every uncalibrated
---  point on the image:
+--  the model), at least 8 point pairs and every uncalibrated point on the
+--  image:
 --
 --     Calib.Calibration.Set_Computation_Mode (Perspective_And_Radial_Warp);
 --     Calib.Calibration.Calibrate (Plate_Image);
@@ -128,7 +126,7 @@
 --  warped output image has the input's size and is sampled only inside
 --  the input.
 --
---  Input images are 8-bit grey images (VisionPro takes any ICogImage).
+--  Input images are 8-bit grey images.
 
 pragma SPARK_Mode (Off);
 pragma Validity_Checks ("F");
@@ -159,19 +157,20 @@ package AMV.Calib_Fix is
       Scaling_Rotation_And_Translation,
       Scaling_Aspect_Rotation_And_Translation,
       Scaling_Aspect_Rotation_Skew_And_Translation);
-   --  CogNPointToNPointDOFConstants; the positions are VisionPro's values.
+   --  The degrees of freedom of a fit; 'Pos is the numeric code.
 
    subtype Ks_Calib_Checkerboard_DOF_Constants is
      Ks_N_Point_To_N_Point_DOF_Constants;
-   --  CogCalibCheckerboardDOFConstants has the same members and values.
+   --  The degrees of freedom of a checkerboard calibration: the same type.
 
    type Ks_Fixture_Space_To_Output_Constants is
      (Fixtured_Space, Unfixtured_Space);
-   --  CogFixtureSpaceToOutputConstants (VisionPro's values).
+   --  The space selected in the output image of a fixture tool: the new
+   --  space or the input's selection ('Pos is the numeric code).
 
    type Ks_Calib_Space_To_Output_Constants is
      (Calibrated_Space, Uncalibrated_Space);
-   --  CogCalibSpaceToOutputConstants (VisionPro's values).
+   --  The same for a calibration tool ('Pos is the numeric code).
 
    type Ks_Calib_Fix_Computation_Mode_Constants is
      (Linear,
@@ -189,37 +188,36 @@ package AMV.Calib_Fix is
       Sine_Tan_Law_Projection_Warp => 5,
       Three_Param_Radial_Warp      => 6,
       No_Distortion_Warp           => 7);
-   --  CogCalibFixComputationModeConstants (VisionPro's values). AMV
-   --  implements Linear and Perspective_And_Radial_Warp (both kinds of
+   --  The computation modes of a calibration, with their numeric codes.
+   --  AMV implements Linear and Perspective_And_Radial_Warp (both kinds of
    --  calibration); the others raise Ks_Bad_Parameter_Exception.
 
    type Ks_Calib_N_Point_Adjustment_Space_Constants is
      (Raw_Calibrated, Uncalibrated);
-   --  CogCalibNPointAdjustmentSpaceConstants: the space the calibrated
-   --  origin and the x axis rotation are given in (the positions are
-   --  VisionPro's values).
+   --  The space the calibrated origin and the x axis rotation are given in
+   --  ('Pos is the numeric code).
 
    subtype Ks_Calib_Checkerboard_Adjustment_Space_Constants is
      Ks_Calib_N_Point_Adjustment_Space_Constants;
-   --  CogCalibCheckerboardAdjustmentSpaceConstants has the same members and
-   --  values.
+   --  The same spaces, for a checkerboard calibration.
 
    type Ks_Fixtured_Space_Name_Duplicate_Handling_Constants is
      (Compatibility, Enhanced);
    for Ks_Fixtured_Space_Name_Duplicate_Handling_Constants use
      (Compatibility => 1, Enhanced => 2);
-   --  CogFixturedSpaceNameDuplicateHandlingConstants (VisionPro's values):
-   --  Compatibility replaces an existing space; Enhanced makes the run
-   --  fail (Ks_Bad_Parameter_Exception) when the space exists already.
+   --  What a fixture tool does when a space of the fixtured space's name
+   --  exists already, with the numeric codes: Compatibility replaces the
+   --  existing space; Enhanced makes the run fail
+   --  (Ks_Bad_Parameter_Exception).
 
    ---------------------------------------------------------------------
-   --  CogNPointToNPoint
+   --  Ks_N_Point_To_N_Point
    ---------------------------------------------------------------------
 
    type Ks_N_Point_To_N_Point is tagged private;
    --  Point pairs (group A, group B) and DOFsToCompute. Default: no pairs,
-   --  Scaling_Aspect_Rotation_Skew_And_Translation (VisionPro's default).
-   --  Copies are independent.
+   --  Scaling_Aspect_Rotation_Skew_And_Translation. Copies are
+   --  independent.
 
    function Num_Points (Params : Ks_N_Point_To_N_Point) return Natural;
 
@@ -283,7 +281,7 @@ package AMV.Calib_Fix is
    --  Ks_Bad_Parameter_Exception for too few or degenerate points.
 
    ---------------------------------------------------------------------
-   --  CogFixture and CogFixtureTool
+   --  Ks_Fixture and Ks_Fixture_Tool
    ---------------------------------------------------------------------
 
    type Ks_Fixture is record
@@ -297,19 +295,19 @@ package AMV.Calib_Fix is
       Fixtured_Space_Name_Duplicate_Handling :
         Ks_Fixtured_Space_Name_Duplicate_Handling_Constants := Compatibility;
    end record;
-   --  CogFixture: the transform from the fixtured space into the input's
-   --  selected space (the identity by default), the fixtured space's name
-   --  (a path component: not empty, no '\', not "@", "#" or "."; "Fixture"
-   --  is an AMV default) and the codes above. A public record (the run
-   --  parameters of the other tools are the kernel's C records; a name and
-   --  a transform are easier to set here as an Unbounded_String and an
-   --  AMV.Transforms object).
+   --  The run parameters of the fixture tool: the transform from the
+   --  fixtured space into the input's selected space (the identity by
+   --  default), the fixtured space's name (a path component: not empty, no
+   --  '\', not "@", "#" or "."; "Fixture" by default) and the codes above.
+   --  A public record (the run parameters of the other tools are the
+   --  kernel's C records; a name and a transform are easier to set here as
+   --  an Unbounded_String and an AMV.Transforms object).
 
    function Execute
      (Params      : Ks_Fixture;
       Input_Image : AMV.Images.Ks_Image_8_Grey)
       return AMV.Images.Ks_Image_8_Grey;
-   --  CogFixture.Execute: the output image (see above). Raises
+   --  The fixture's output image for Input_Image (see above). Raises
    --  Ks_Image_No_Pixels_Exception for an unallocated Input_Image,
    --  Ks_Bad_Parameter_Exception for a bad name or transform, a tree that
    --  is full, an existing space with Enhanced, and
@@ -321,20 +319,20 @@ package AMV.Calib_Fix is
       Output_Image : AMV.Images.Ks_Image_8_Grey;
       --  Set by Run; unallocated after a run that failed.
    end record;
-   --  CogFixtureTool.
+   --  The fixture tool.
 
    overriding procedure Execute (Tool : in out Ks_Fixture_Tool);
    overriding procedure Reset_Results (Tool : in out Ks_Fixture_Tool);
 
    ---------------------------------------------------------------------
-   --  CogFixtureNPointToNPoint, its result and its tool
+   --  Ks_Fixture_N_Point_To_N_Point, its result and its tool
    ---------------------------------------------------------------------
 
    type Ks_Fixture_N_Point_To_N_Point is tagged private;
    --  Point pairs (unfixtured, raw fixtured), DOFsToCompute
    --  (Rotation_And_Translation), FixturedSpaceName ("N-Point Fixture"),
-   --  SpaceToOutput and FixturedSpaceNameDuplicateHandling, with
-   --  VisionPro's defaults. Copies are independent.
+   --  SpaceToOutput and FixturedSpaceNameDuplicateHandling, with their
+   --  defaults. Copies are independent.
 
    function Num_Points (Params : Ks_Fixture_N_Point_To_N_Point) return Natural;
 
@@ -397,7 +395,7 @@ package AMV.Calib_Fix is
    --  The name is checked when the fixture runs.
 
    type Ks_Fixture_N_Point_To_N_Point_Result is tagged private;
-   --  CogFixtureNPointToNPointResult. Empty before a run: an unallocated
+   --  The result of an N-point fixture. Empty before a run: an unallocated
    --  image, RMS_Error 0, the identity.
 
    function Output_Image
@@ -415,9 +413,8 @@ package AMV.Calib_Fix is
      (Params      : Ks_Fixture_N_Point_To_N_Point'Class;
       Input_Image : AMV.Images.Ks_Image_8_Grey)
       return Ks_Fixture_N_Point_To_N_Point_Result;
-   --  CogFixtureNPointToNPoint.Execute: fits UnfixturedFromFixtured and
-   --  fixtures the image with it (exceptions as for the fit and for
-   --  Execute of a Ks_Fixture).
+   --  Fits UnfixturedFromFixtured and fixtures the image with it
+   --  (exceptions as for the fit and for Execute of a Ks_Fixture).
 
    type Ks_Fixture_N_Point_To_N_Point_Tool is new AMV.Tools.Ks_Tool with
    record
@@ -426,7 +423,7 @@ package AMV.Calib_Fix is
       Result      : Ks_Fixture_N_Point_To_N_Point_Result;
       --  Set by Run; empty after a run that failed.
    end record;
-   --  CogFixtureNPointToNPointTool.
+   --  The N-point fixture tool.
 
    overriding procedure Execute
      (Tool : in out Ks_Fixture_N_Point_To_N_Point_Tool);
@@ -434,14 +431,14 @@ package AMV.Calib_Fix is
      (Tool : in out Ks_Fixture_N_Point_To_N_Point_Tool);
 
    ---------------------------------------------------------------------
-   --  CogCalibNPointToNPoint and its tool
+   --  Ks_Calib_N_Point_To_N_Point and its tool
    ---------------------------------------------------------------------
 
    type Ks_Calib_N_Point_To_N_Point is tagged private;
    --  Point pairs (uncalibrated, raw calibrated), DOFsToCompute
-   --  (Scaling_Aspect_Rotation_Skew_And_Translation, an AMV default), the
-   --  computation mode (Linear), the origin adjustment and the computed
-   --  state. Copies are independent.
+   --  (Scaling_Aspect_Rotation_Skew_And_Translation), the computation mode
+   --  (Linear), the origin adjustment and the computed state. Copies are
+   --  independent.
 
    function Num_Points (Calibration : Ks_Calib_N_Point_To_N_Point)
       return Natural;
@@ -507,9 +504,9 @@ package AMV.Calib_Fix is
    procedure Calibrate
      (Calibration       : in out Ks_Calib_N_Point_To_N_Point;
       Calibration_Image : AMV.Images.Ks_Image_8_Grey);
-   --  (AMV addition) Calibrate with the image the points were measured in.
-   --  The linear mode does not use it. Perspective_And_Radial_Warp fits
-   --  the perspective and radial distortion model of the checkerboard
+   --  Calibrate with the image the points were measured in. The linear
+   --  mode does not use it. Perspective_And_Radial_Warp fits the
+   --  perspective and radial distortion model of the checkerboard
    --  (AMV.Kernels.Calib_Fix) to the pairs: the raw calibrated points are
    --  the plate points and the uncalibrated points, in the image's
    --  selected space, their positions; the image's size fixes the
@@ -576,14 +573,14 @@ package AMV.Calib_Fix is
      (Calibration : in out Ks_Calib_N_Point_To_N_Point;
       Value       : Boolean);
    --  The origin adjustment (see above; defaults 0.0, 0.0, Raw_Calibrated,
-   --  0.0, Raw_Calibrated, False: AMV's). The setters keep the calibration
+   --  0.0, Raw_Calibrated, False). The setters keep the calibration
    --  calibrated. Ks_Bad_Parameter_Exception for an origin coordinate that
    --  is not finite or beyond 1.0E150 and a rotation that is not finite;
    --  the rotation reads back reduced to (-Pi, Pi].
 
    subtype Ks_Calib_N_Point_To_N_Point_Warp_Model is
      AMV.Kernels.Calib_Fix.Ks_Radial_Warp_Model;
-   --  (AMV name) The fitted model of Perspective_And_Radial_Warp, as for
+   --  The fitted model of Perspective_And_Radial_Warp, as for
    --  Ks_Calib_Checkerboard_Warp_Model, its plate normalisation
    --  (Grid_Center_X, Grid_Center_Y, Grid_Scale) in raw calibrated units.
 
@@ -605,11 +602,11 @@ package AMV.Calib_Fix is
       Input_Y            : Real;
       Output_X, Output_Y : out Real;
       Inside             : out Boolean);
-   --  (AMV names) As for Ks_Calib_Checkerboard: the model, the similarity
-   --  from calibrated coordinates to the warped output's pixels, and the
-   --  maps between output and input pixels (Ks_Operator_Not_Trained_
-   --  Exception when not calibrated, Ks_Bad_Parameter_Exception in the
-   --  linear mode and for coordinates beyond 2**32).
+   --  As for Ks_Calib_Checkerboard: the model, the similarity from
+   --  calibrated coordinates to the warped output's pixels, and the maps
+   --  between output and input pixels (Ks_Operator_Not_Trained_Exception
+   --  when not calibrated, Ks_Bad_Parameter_Exception in the linear mode
+   --  and for coordinates beyond 2**32).
 
    type Ks_Calib_N_Point_To_N_Point_Run_Params is record
       Calibrated_Space_Name : Ada.Strings.Unbounded.Unbounded_String :=
@@ -617,25 +614,26 @@ package AMV.Calib_Fix is
       Space_To_Output       : Ks_Calib_Space_To_Output_Constants :=
         Calibrated_Space;
    end record;
-   --  CogCalibNPointToNPointRunParams, with VisionPro's defaults.
+   --  The run parameters of the N-point calibration tool, with their
+   --  defaults.
 
    type Ks_Calib_N_Point_To_N_Point_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image       : AMV.Images.Ks_Image_8_Grey;
       Calibration_Image : AMV.Images.Ks_Image_8_Grey;
-      --  For display only, as in VisionPro; not used by Run (pass it to
+      --  For display only; not used by Run (pass it to
       --  Calibration.Calibrate for Perspective_And_Radial_Warp).
       Calibration       : Ks_Calib_N_Point_To_N_Point;
       Run_Params        : Ks_Calib_N_Point_To_N_Point_Run_Params;
       Output_Image      : AMV.Images.Ks_Image_8_Grey;
       --  Set by Run; unallocated after a run that failed.
    end record;
-   --  CogCalibNPointToNPointTool. Run fails with
+   --  The N-point calibration tool. Run fails with
    --  Ks_Operator_Not_Trained_Exception when Calibration is not
    --  calibrated. In Perspective_And_Radial_Warp mode the output image is
    --  a new image, the input warped as by Ks_Calib_Checkerboard_Tool (the
    --  input must have the calibration image's size), whose pixels that
-   --  show no input pixel are 0 (VisionPro's run parameters of this tool
-   --  have no UnfilledPelValue).
+   --  show no input pixel are 0 (its run parameters have no
+   --  UnfilledPelValue).
 
    overriding procedure Execute
      (Tool : in out Ks_Calib_N_Point_To_N_Point_Tool);
@@ -643,15 +641,14 @@ package AMV.Calib_Fix is
      (Tool : in out Ks_Calib_N_Point_To_N_Point_Tool);
 
    ---------------------------------------------------------------------
-   --  CogCalibCheckerboard and its tool
+   --  Ks_Calib_Checkerboard and its tool
    ---------------------------------------------------------------------
 
    type Ks_Calib_Checkerboard is tagged private;
    --  CalibrationImage (unallocated), PhysicalTileSizeX and Y (1.0),
    --  DOFsToCompute (Scaling_Aspect_Rotation_Skew_And_Translation), with
-   --  VisionPro's defaults, the origin adjustment and the computed state.
-   --  Copies are independent (the image's pixels are shared, as by
-   --  assignment).
+   --  their defaults, the origin adjustment and the computed state. Copies
+   --  are independent (the image's pixels are shared, as by assignment).
 
    function Calibration_Image (Calibration : Ks_Calib_Checkerboard)
       return AMV.Images.Ks_Image_8_Grey;
@@ -684,10 +681,9 @@ package AMV.Calib_Fix is
    --  within a factor of 1024 of each other (Calibrate raises
    --  Ks_Bad_Parameter_Exception otherwise). Every setter above
    --  uncalibrates. A tile size must be > 0 and at most 1.0E140
-   --  (Ks_Bad_Parameter_Exception; VisionPro raises ArgumentException
-   --  too); it is the physical size of a tile along the grid's x and y
-   --  axes, which run along the tile edges closest to the image's x and y
-   --  axes.
+   --  (Ks_Bad_Parameter_Exception); it is the physical size of a tile
+   --  along the grid's x and y axes, which run along the tile edges
+   --  closest to the image's x and y axes.
 
    procedure Calibrate (Calibration : in out Ks_Calib_Checkerboard);
    --  Calibrate: finds the checkerboard's corners in Calibration_Image
@@ -733,7 +729,7 @@ package AMV.Calib_Fix is
       Index            : Natural;
       Pixel_X, Pixel_Y : out Real;
       Grid_I, Grid_J   : out Integer);
-   --  (AMV name) Corner Index in pixel space and its grid indices.
+   --  Corner Index in pixel space and its grid indices.
 
    function Get_Computed_Uncalibrated_From_Calibrated_Transform
      (Calibration : Ks_Calib_Checkerboard)
@@ -789,28 +785,25 @@ package AMV.Calib_Fix is
 
    subtype Ks_Calib_Checkerboard_Warp_Model is
      AMV.Kernels.Calib_Fix.Ks_Radial_Warp_Model;
-   --  (AMV name) The fitted model of Perspective_And_Radial_Warp: the
-   --  homography (H11 .. H32) and the radial coefficients K1 and K2 in
-   --  normalised coordinates, the distortion centre and the normaliser
-   --  (pixels), the grid's normalisation, the valid radius, the RMS error
-   --  (pixels), the warp's transforms, the size of the calibration image
-   --  and the number of Levenberg-Marquardt steps (AMV.Kernels.Calib_Fix
-   --  gives the formulas).
+   --  The fitted model of Perspective_And_Radial_Warp: the homography
+   --  (H11 .. H32) and the radial coefficients K1 and K2 in normalised
+   --  coordinates, the distortion centre and the normaliser (pixels), the
+   --  grid's normalisation, the valid radius, the RMS error (pixels), the
+   --  warp's transforms, the size of the calibration image and the number
+   --  of Levenberg-Marquardt steps (AMV.Kernels.Calib_Fix gives the
+   --  formulas).
 
    function Get_Computed_Warp_Model (Calibration : Ks_Calib_Checkerboard)
       return Ks_Calib_Checkerboard_Warp_Model;
-   --  (AMV name) The model of a calibration calibrated in
-   --  Perspective_And_Radial_Warp mode (Ks_Operator_Not_Trained_Exception
-   --  when not calibrated, Ks_Bad_Parameter_Exception in the linear
-   --  mode).
+   --  The model of a calibration calibrated in Perspective_And_Radial_Warp
+   --  mode (Ks_Operator_Not_Trained_Exception when not calibrated,
+   --  Ks_Bad_Parameter_Exception in the linear mode).
 
    function Get_Output_Pixel_From_Calibrated_Transform
      (Calibration : Ks_Calib_Checkerboard)
       return AMV.Transforms.Ks_Transform_2D_Linear;
-   --  (AMV name; VisionPro's warp parameters have
-   --  GetOutputImageRootFromCalibratedTransform) The similarity that maps
-   --  calibrated coordinates to the pixels of the warped output image
-   --  (exceptions as Get_Computed_Warp_Model).
+   --  The similarity that maps calibrated coordinates to the pixels of the
+   --  warped output image (exceptions as Get_Computed_Warp_Model).
 
    procedure Map_Output_Pixel
      (Calibration      : Ks_Calib_Checkerboard;
@@ -818,12 +811,11 @@ package AMV.Calib_Fix is
       Output_Y         : Real;
       Input_X, Input_Y : out Real;
       Inside           : out Boolean);
-   --  (AMV name; VisionPro's warp parameters have
-   --  GetInputPixelFromOutputPixelTransform) The pixel of the input image
-   --  that the pixel (Output_X, Output_Y) of the warped output image
-   --  shows; Inside is False (and the pixel 0, 0) when it shows nothing
-   --  (it gets the unfilled value). Output coordinates within 2**32
-   --  (Ks_Bad_Parameter_Exception); exceptions as Get_Computed_Warp_Model.
+   --  The pixel of the input image that the pixel (Output_X, Output_Y) of
+   --  the warped output image shows; Inside is False (and the pixel 0, 0)
+   --  when it shows nothing (it gets the unfilled value). Output
+   --  coordinates within 2**32 (Ks_Bad_Parameter_Exception); exceptions as
+   --  Get_Computed_Warp_Model.
 
    procedure Map_Input_Pixel
      (Calibration        : Ks_Calib_Checkerboard;
@@ -831,15 +823,14 @@ package AMV.Calib_Fix is
       Input_Y            : Real;
       Output_X, Output_Y : out Real;
       Inside             : out Boolean);
-   --  (AMV name) The inverse of Map_Output_Pixel: the pixel of the warped
-   --  output image that shows the input pixel (Input_X, Input_Y); Inside
-   --  is False (and the pixel 0, 0) when the input pixel lies beyond the
-   --  model's valid radius or maps behind the camera. Mapped on into the
-   --  output's calibrated space (Get_Transform of the output image), it
-   --  gives the calibrated coordinates of a point measured in the
-   --  distorted input image, without warping it. Input coordinates within
-   --  2**32 (Ks_Bad_Parameter_Exception); exceptions as
-   --  Get_Computed_Warp_Model.
+   --  The inverse of Map_Output_Pixel: the pixel of the warped output
+   --  image that shows the input pixel (Input_X, Input_Y); Inside is False
+   --  (and the pixel 0, 0) when the input pixel lies beyond the model's
+   --  valid radius or maps behind the camera. Mapped on into the output's
+   --  calibrated space (Get_Transform of the output image), it gives the
+   --  calibrated coordinates of a point measured in the distorted input
+   --  image, without warping it. Input coordinates within 2**32
+   --  (Ks_Bad_Parameter_Exception); exceptions as Get_Computed_Warp_Model.
 
    type Ks_Calib_Checkerboard_Run_Params is record
       Calibrated_Space_Name      : Ada.Strings.Unbounded.Unbounded_String :=
@@ -850,12 +841,11 @@ package AMV.Calib_Fix is
       Unfilled_Pel_Value         : Integer := 0;
       Unfilled_Pel_Value_Enabled : Boolean := False;
    end record;
-   --  CogCalibCheckerboardRunParams: the name and SpaceToOutput (VisionPro's
-   --  defaults), and for the warp of Perspective_And_Radial_Warp the value
-   --  of an output pixel that shows no input pixel: Unfilled_Pel_Value
-   --  (0 .. 255, Ks_Bad_Parameter_Exception otherwise) when
-   --  Unfilled_Pel_Value_Enabled, otherwise 0 (AMV's choice and
-   --  defaults).
+   --  The run parameters of the checkerboard calibration tool: the name
+   --  and SpaceToOutput, and for the warp of Perspective_And_Radial_Warp
+   --  the value of an output pixel that shows no input pixel:
+   --  Unfilled_Pel_Value (0 .. 255, Ks_Bad_Parameter_Exception otherwise)
+   --  when Unfilled_Pel_Value_Enabled, otherwise 0.
 
    type Ks_Calib_Checkerboard_Tool is new AMV.Tools.Ks_Tool with record
       Input_Image  : AMV.Images.Ks_Image_8_Grey;
@@ -864,13 +854,14 @@ package AMV.Calib_Fix is
       Output_Image : AMV.Images.Ks_Image_8_Grey;
       --  Set by Run; unallocated after a run that failed.
    end record;
-   --  CogCalibCheckerboardTool, as Ks_Calib_N_Point_To_N_Point_Tool in the
-   --  linear mode. In Perspective_And_Radial_Warp mode the output image is
-   --  a new image of the input's size (which must be the calibration
-   --  image's: Ks_Bad_Parameter_Exception otherwise), the input warped so
-   --  that the plate is seen undistorted and without perspective, with
-   --  the input's coordinate space tree, selection and pixel-from-root
-   --  transform and the calibrated space added as in the linear mode.
+   --  The checkerboard calibration tool, as
+   --  Ks_Calib_N_Point_To_N_Point_Tool in the linear mode. In
+   --  Perspective_And_Radial_Warp mode the output image is a new image of
+   --  the input's size (which must be the calibration image's:
+   --  Ks_Bad_Parameter_Exception otherwise), the input warped so that the
+   --  plate is seen undistorted and without perspective, with the input's
+   --  coordinate space tree, selection and pixel-from-root transform and
+   --  the calibrated space added as in the linear mode.
 
    overriding procedure Execute (Tool : in out Ks_Calib_Checkerboard_Tool);
    overriding procedure Reset_Results

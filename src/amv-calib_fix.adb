@@ -225,7 +225,7 @@ package body AMV.Calib_Fix is
    end Set;
 
    ---------------------------------------------------------------------
-   --  CogNPointToNPoint
+   --  Ks_N_Point_To_N_Point
    ---------------------------------------------------------------------
 
    function Num_Points (Params : Ks_N_Point_To_N_Point) return Natural is
@@ -337,7 +337,7 @@ package body AMV.Calib_Fix is
    end Compute_Group_A_From_Group_B_Transform;
 
    ---------------------------------------------------------------------
-   --  CogFixture and CogFixtureTool
+   --  Ks_Fixture and Ks_Fixture_Tool
    ---------------------------------------------------------------------
 
    function Execute
@@ -379,7 +379,7 @@ package body AMV.Calib_Fix is
    end Reset_Results;
 
    ---------------------------------------------------------------------
-   --  CogFixtureNPointToNPoint
+   --  Ks_Fixture_N_Point_To_N_Point
    ---------------------------------------------------------------------
 
    function Num_Points (Params : Ks_Fixture_N_Point_To_N_Point) return Natural
@@ -1089,7 +1089,7 @@ package body AMV.Calib_Fix is
    end Output_Of;
 
    ---------------------------------------------------------------------
-   --  CogCalibNPointToNPoint and its tool
+   --  Ks_Calib_N_Point_To_N_Point and its tool
    ---------------------------------------------------------------------
 
    function Num_Points (Calibration : Ks_Calib_N_Point_To_N_Point)
@@ -1384,7 +1384,7 @@ package body AMV.Calib_Fix is
    end Reset_Results;
 
    ---------------------------------------------------------------------
-   --  CogCalibCheckerboard and its tool
+   --  Ks_Calib_Checkerboard and its tool
    ---------------------------------------------------------------------
 
    function Calibration_Image (Calibration : Ks_Calib_Checkerboard)

@@ -1,5 +1,4 @@
---  Tests for AMV.CNL_Search (CogCNLSearchTool, CogCNLSearchPattern) and
---  its kernel AMV.Kernels.CNL_Search.
+--  Tests for AMV.CNL_Search and its kernel AMV.Kernels.CNL_Search.
 --
 --  The scenes are drawn with AMV_Test_Images: a composite of rectangles
 --  turned by generic angles, circles and a triangle, placed at whole and
@@ -2898,7 +2897,7 @@ procedure Test_CNL_Search is
       Check (FB and then B.Score < 0.95,
              "Pixel_Aligned_Bounding_Box: they lower the score:"
              & B.Score'Image);
-      --  LinearCNLPAS alone treats the region as its box, as VisionPro.
+      --  LinearCNLPAS alone treats the region as its box.
       Search (Pattern_Of (Disc, Adjust, Linear_CNLPAS), Corners,
               Linear_CNLPAS, A, FA);
       Search (Pattern_Of (Disc, Box, Linear_CNLPAS), Corners, Linear_CNLPAS,
@@ -3483,7 +3482,7 @@ procedure Test_CNL_Search is
              and then Tool.Results.Count = 0,
              "a rectangle narrower than the pattern: no results");
 
-      --  Any other region is searched in its bounding box (VisionPro).
+      --  Any other region is searched in its bounding box.
       declare
          Circle : Ks_Circle;
          Other  : Ks_CNL_Search_Tool := Tool;

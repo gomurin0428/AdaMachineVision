@@ -1,11 +1,9 @@
 --  AdaMachineVision (AMV)
 --
---  A machine vision library whose public interface follows the object model
---  and naming of the Cognex VisionPro .NET API, mapped to Ada conventions
---  (see docs/DESIGN.md and docs/API_MAPPING.md). The implementation behind
---  that interface is independent. AMV is not affiliated with or endorsed by
---  Cognex Corporation; "Cognex" and "VisionPro" are trademarks of Cognex
---  Corporation.
+--  A machine vision library: images with coordinate space trees, shapes and
+--  regions, and vision tools that share one object model (see
+--  docs/DESIGN.md). The logic is in the SPARK kernels, AMV.Kernels and its
+--  children, which are also the C API.
 
 package AMV with SPARK_Mode is
    pragma Pure;
@@ -32,7 +30,7 @@ package AMV with SPARK_Mode is
 
    Ks_Operator_Not_Trained_Exception : exception;
    --  A pattern, calibration or other trainable object is used before it
-   --  was trained successfully (VisionPro: CogOperatorNotTrainedException).
+   --  was trained successfully.
 
    Ks_Transform_Singular_Exception : exception;
    --  A transform that has to be inverted is singular.
@@ -43,9 +41,7 @@ package AMV with SPARK_Mode is
 
    Ks_Bad_Parameter_Exception : exception;
    --  A parameter value is outside its valid range or inconsistent with
-   --  other parameters. It stands for .NET's System.ArgumentException,
-   --  which VisionPro raises for a bad argument (VisionPro has no Cog
-   --  exception of its own for this). An index beyond a collection raises
+   --  other parameters. An index beyond a collection raises
    --  Constraint_Error instead.
 
 end AMV;

@@ -1,19 +1,15 @@
---  Kernel of AMV.Image_Processing.Image_Convert: the image convert tool
---  (CogImageConvertTool, whose run parameters are a
---  CogImageConvertRunParams). The C API is declared in
---  include/amv_ip_geometry.h.
+--  Kernel of AMV.Image_Processing.Image_Convert: the image convert tool,
+--  whose run parameters are a Ks_Image_Convert_Run_Params. The C API is
+--  declared in include/amv_ip_geometry.h.
 --
---  Execute converts an image of any type (ICogImage: an 8-bit grey image,
---  a 16-bit grey image or a colour image given as its three planes) into
---  a new 8-bit grey image of the same size. Exactly one kind of input is
---  given; the other handles are null. RunMode
---  (CogImageConvertRunModeConstants, VisionPro's values) selects the
---  conversion:
+--  Execute converts an image of any type (an 8-bit grey image, a 16-bit
+--  grey image or a colour image given as its three planes) into a new 8-bit
+--  grey image of the same size. Exactly one kind of input is given; the
+--  other handles are null. RunMode selects the conversion:
 --
---  * Intensity (1, AMV's default; VisionPro states none): an 8-bit image
---    is copied; a 16-bit image gives its high byte (V / 256, rounded
---    down: VisionPro shifts by the image's encoding, and AMV's 16-bit
---    images use all 16 bits); a colour image gives
+--  * Intensity (1, the default): an 8-bit image is copied; a 16-bit image
+--    gives its high byte (V / 256, rounded down: AMV's 16-bit images use
+--    all 16 bits); a colour image gives
 --    round (0.299 R + 0.587 G + 0.114 B), computed exactly as
 --    (299 R + 587 G + 114 B + 500) / 1000 in integers (halves up).
 --  * Plane0, Plane1, Plane2 (6, 7, 8): the red, green or blue plane of a
@@ -61,8 +57,7 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
    use type KI.Grey_8_Matrix;
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogImageConvertRunParams; C:
-   --  ks_image_convert_run_params)
+   --  Run parameters (C: ks_image_convert_run_params)
    ---------------------------------------------------------------------
 
    Run_Mode_Intensity                   : constant Int32 := 1;
@@ -77,13 +72,13 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
    Run_Mode_Intensity_From_Weighted_RGB : constant Int32 := 10;
    Run_Mode_Pixel_From_Range            : constant Int32 := 11;
    Run_Mode_Mask_From_Range             : constant Int32 := 12;
-   --  CogImageConvertRunModeConstants (C: KS_IMAGE_CONVERT_RUN_MODE_*).
+   --  The RunMode codes (C: KS_IMAGE_CONVERT_RUN_MODE_*).
 
    Bayer_Type_GR : constant Int32 := 0;
    Bayer_Type_RG : constant Int32 := 1;
    Bayer_Type_BG : constant Int32 := 2;
    Bayer_Type_GB : constant Int32 := 3;
-   --  CogImageConvertBayerTypeConstants (C: KS_IMAGE_CONVERT_BAYER_TYPE_*).
+   --  The BayerType codes (C: KS_IMAGE_CONVERT_BAYER_TYPE_*).
 
    Max_Weight : constant := 1.0E150;
    --  The bound of every weight and scale.
@@ -103,9 +98,7 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
       Color_From_Bayer_Blue_Scale              : Long_Float := 1.0;
    end record
      with Convention => C;
-   --  C: ks_image_convert_run_params. VisionPro states no defaults; these
-   --  are AMV's (the weights are those VisionPro's CogImageConvert
-   --  documents for its Bayer conversion).
+   --  C: ks_image_convert_run_params, with the defaults.
 
    for Ks_Image_Convert_Run_Params use record
       Run_Mode                                 at 0 range 0 .. 31;
@@ -239,16 +232,15 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
                                                  Blue.Pixels (Y, X)))));
    --  The converted image (see above). The checks, in order: the input
    --  (Image_No_Pixels "InputImage has no pixels" when every handle is
-   --  null; Bad_Parameter "InputImage must be one image: an 8-bit, a
-   --  16-bit or a colour image" for more than one kind, "InputImage:
-   --  Red, Green and Blue must be planes of the same size", "InputImage is
-   --  not a valid image handle"), the run parameters ("RunParams.RunMode
-   --  must be a CogImageConvertRunModeConstants value (1 .. 12)",
-   --  "RunParams.RunMode HSI is not implemented", "RunParams.BayerType
-   --  must be in 0 .. 3", "RunParams.IntensityFromWeightedRGBRedWeight
-   --  must be finite and within 1.0E150", ...), the mode against the
-   --  input ("RunParams.RunMode Plane0 needs a colour InputImage"), then
-   --  Out_Of_Memory. Output is a new handle the caller owns, null when the
-   --  call fails.
+   --  null; Bad_Parameter "InputImage must be one image: an 8-bit, a 16-bit
+   --  or a colour image" for more than one kind, "InputImage: Red, Green
+   --  and Blue must be planes of the same size", "InputImage is not a valid
+   --  image handle"), the run parameters ("RunParams.RunMode must be a
+   --  KS_IMAGE_CONVERT_RUN_MODE_* value (1 .. 12)", "RunParams.RunMode HSI
+   --  is not implemented", "RunParams.BayerType must be in 0 .. 3",
+   --  "RunParams.IntensityFromWeightedRGBRedWeight must be finite and
+   --  within 1.0E150", ...), the mode against the input ("RunParams.RunMode
+   --  Plane0 needs a colour InputImage"), then Out_Of_Memory. Output is a
+   --  new handle the caller owns, null when the call fails.
 
 end AMV.Kernels.Image_Convert;

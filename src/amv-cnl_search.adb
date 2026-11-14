@@ -539,7 +539,7 @@ package body AMV.CNL_Search is
       then
          --  An affine rectangle in the mode AffineTransform: resampled by
          --  the kernel. Any other region is searched in its bounding box
-         --  in both modes (below), as VisionPro documents.
+         --  in both modes (below).
          declare
             Region : AMV.Shapes.Ks_Region'Class renames
               Tool.Search_Region.Constant_Reference.Element.all;

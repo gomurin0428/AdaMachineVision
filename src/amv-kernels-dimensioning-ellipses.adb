@@ -279,7 +279,7 @@ package body AMV.Kernels.Dimensioning.Ellipses with SPARK_Mode is
       Local (Q, E, U, V);
       if U = 0.0 and then V = 0.0 and then E.Radius_X = E.Radius_Y then
          --  The centre of a circle: +Radius and the point at the angle of
-         --  the rotation, as the reference documents.
+         --  the rotation.
          D := E.Radius_X;
          P.Point_Towards (E.Center, E.Radius_X, E.C, E.S, Near, Fits);
          return;

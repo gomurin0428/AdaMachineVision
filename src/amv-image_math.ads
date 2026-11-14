@@ -1,7 +1,6 @@
 --  Floating point images and the numeric building blocks shared by the
 --  tools: sampling, resampling through a transform, separable Gaussian
---  smoothing, gradients and pyramids. This package has no VisionPro
---  counterpart.
+--  smoothing, gradients and pyramids.
 --
 --  A Real_Image is a heap-allocated Width x Height array of Real with value
 --  semantics (assignment copies the pixels). Pixel (X, Y) has its centre at

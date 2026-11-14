@@ -1,6 +1,6 @@
---  The checkerboard detector of AMV.Kernels.Calib_Fix (CogCalibCheckerboard
---  with its standard feature finder; our own method, from the public
---  literature on X-corner detection and checkerboard grid recovery).
+--  The checkerboard detector of AMV.Kernels.Calib_Fix (our own method,
+--  from the public literature on X-corner detection and checkerboard grid
+--  recovery).
 --
 --  1. Smoothing: the image is converted to floating point and smoothed
 --     with a Gaussian of Sigma 1.5 pixels (AMV.Kernels.Image_Math).

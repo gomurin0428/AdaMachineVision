@@ -1,7 +1,6 @@
---  Kernel of AMV.Image_Processing.Histogram: the histogram tool
---  (CogHistogramTool, whose run parameters are a CogHistogram and whose
---  result is a CogHistogramResult). The C API is declared in
---  include/amv_image_processing.h.
+--  Kernel of AMV.Image_Processing.Histogram: the histogram tool, whose run
+--  parameters are a Ks_Histogram and whose result is a Ks_Histogram_Result.
+--  The C API is declared in include/amv_image_processing.h.
 --
 --  Inputs. The tool counts the pixels of an 8-bit image (a handle of
 --  AMV.Kernels.Images; null fails with Image_No_Pixels, "InputImage has no
@@ -15,8 +14,7 @@
 --  the region before this kernel runs (ks_pixel_region_restrict_to_mask,
 --  as the Ada API does).
 --
---  Bins (CogHistogramBinModeConstants, the C codes are VisionPro's
---  values). A grey level V (0 .. 255) is counted in bin Bin_Of (V):
+--  Bins (BinMode). A grey level V (0 .. 255) is counted in bin Bin_Of (V):
 --
 --  * Auto (3, the default): 256 bins, one per grey level (Num_Bins is
 --    ignored, but must still be valid);
@@ -32,14 +30,13 @@
 --  Mean) and Standard_Deviation its square root; Median is
 --  Inverse_Cumulative_Grey_Level (50), Mode the most frequent grey level
 --  (the smallest one on a tie). Inverse_Cumulative_Grey_Level (P) is the
---  smallest grey level L such that at least P percent of the samples are
---  <= L (VisionPro's GetInverseCumulativeGreyLevel). Without samples every
---  statistic is 0. Minimum_WGV_Threshold (GetMinimumWGVThreshold) is
---  Otsu's threshold on the counts per grey level (AMV.Kernels.Otsu: the T
---  in 1 .. 255 that minimises the within-group variance of the samples <
---  T and >= T, the same threshold as the Blob tool's
---  HardDynamicThreshold); Minimum when the samples hold one grey level,
---  0 without samples.
+--  smallest grey level L such that at least P percent of the samples are <=
+--  L (GetInverseCumulativeGreyLevel). Without samples every statistic is 0.
+--  Minimum_WGV_Threshold (GetMinimumWGVThreshold) is Otsu's threshold on
+--  the counts per grey level (AMV.Kernels.Otsu: the T in 1 .. 255 that
+--  minimises the within-group variance of the samples < T and >= T, the
+--  same threshold as the Blob tool's HardDynamicThreshold); Minimum when
+--  the samples hold one grey level, 0 without samples.
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any handles and
 --  parameters; no memory leaks; Gold: every bin of a result holds exactly
@@ -73,13 +70,13 @@ package AMV.Kernels.Histogram with SPARK_Mode, Preelaborate is
    --  Products of two Int64 values, for contracts.
 
    ---------------------------------------------------------------------
-   --  Run parameters (CogHistogram; C: ks_histogram)
+   --  Run parameters (C: ks_histogram)
    ---------------------------------------------------------------------
 
    Bin_Mode_Compatibility : constant Int32 := 1;
    Bin_Mode_Uniform       : constant Int32 := 2;
    Bin_Mode_Auto          : constant Int32 := 3;
-   --  CogHistogramBinModeConstants (C: KS_HISTOGRAM_BIN_MODE_*).
+   --  The BinMode codes (C: KS_HISTOGRAM_BIN_MODE_*).
 
    Grey_Levels : constant := 256;
    --  The number of grey levels of an 8-bit image.
@@ -92,8 +89,7 @@ package AMV.Kernels.Histogram with SPARK_Mode, Preelaborate is
       Num_Bins : Int32 := Grey_Levels;
    end record
      with Convention => C;
-   --  C: ks_histogram. VisionPro's NumBins (default 256) and BinMode
-   --  (default Auto).
+   --  C: ks_histogram: NumBins (default 256) and BinMode (default Auto).
 
    for Ks_Histogram use record
       Bin_Mode at 0 range 0 .. 31;
@@ -282,7 +278,7 @@ package AMV.Kernels.Histogram with SPARK_Mode, Preelaborate is
    --  Gold: the number of pixels of the image the region contains.
 
    ---------------------------------------------------------------------
-   --  Results (CogHistogramResult; C: ks_histogram_result *, opaque)
+   --  Results (C: ks_histogram_result *, opaque)
    ---------------------------------------------------------------------
 
    subtype Count_32 is Int32 range 0 .. Int32'Last;

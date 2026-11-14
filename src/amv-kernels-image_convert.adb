@@ -119,7 +119,7 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
    function Mode_Name (Mode : Int32) return String
    with Post => Mode_Name'Result'First = 1
                 and then Mode_Name'Result'Length <= 24;
-   --  VisionPro's name of a run mode ("" for an unknown code).
+   --  The name of a run mode ("" for an unknown code).
 
    function Mode_Name (Mode : Int32) return String is
    begin
@@ -179,7 +179,7 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
       then
          Set_Failure (Status, Failure_Bad_Parameter,
                       "RunParams.RunMode must be a "
-                      & "CogImageConvertRunModeConstants value (1 .. 12)");
+                      & "KS_IMAGE_CONVERT_RUN_MODE_* value (1 .. 12)");
          return;
       elsif Params.Run_Mode
               not in Run_Mode_Intensity | Run_Mode_Plane_0 | Run_Mode_Plane_1

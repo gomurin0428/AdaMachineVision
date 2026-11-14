@@ -1,42 +1,38 @@
---  The AffineTransform region mode of the CNL search tool, in both places
---  VisionPro has it (CogRegionModeConstants AffineTransform):
---  CogCNLSearchPattern.TrainRegionMode (Train_Affine) and
---  CogCNLSearchRunParams.SearchRegionMode (Execute_Affine). In both, the
---  region is an affine rectangle resampled into an upright image by
+--  The AffineTransform region mode of the CNL search tool, for training
+--  (the pattern's TrainRegionMode, Train_Affine) and for searching (the run
+--  parameters' SearchRegionMode, Execute_Affine). In both, the region is an
+--  affine rectangle resampled into an upright image by
 --  AMV.Kernels.Affine_Transform with that kernel's default run parameters
 --  (one output pixel per input pixel along each side: a side of length L
 --  pixels gives round (L) pixels; bilinear sampling), as the region modes
---  of the IP one-image and Sobel edge tools do; the pattern is trained,
---  or searched for, in that image. The C API is declared in
+--  of the IP one-image and Sobel edge tools do; the pattern is trained, or
+--  searched for, in that image. The C API is declared in
 --  include/amv_cnl_search.h.
 --
 --  Training (Train_Affine, ks_cnl_search_pattern_train_affine). The
 --  pattern's TrainRegionMode must be AffineTransform. Its pixels are the
---  resampled train region: output x runs along the rectangle's side X
---  from its corner origin, output y along side Y, so a rotated or skewed
---  part is trained upright. As in VisionPro, the train region must be an
---  affine rectangle (the Ada API rejects other shapes and an empty
---  region, Check_Affine_Train_Region) and must lie entirely in the train
---  image: every sample point of the resampled image within the area its
---  pixels cover (VisionPro may also reject a region a few pixels from the
---  edge; AMV needs no margin, since the bilinear sampling repeats the
---  border pixels within the outer half pixel). The resampled pattern must
---  have 8 .. 1024 pixels along each side.
+--  resampled train region: output x runs along the rectangle's side X from
+--  its corner origin, output y along side Y, so a rotated or skewed part is
+--  trained upright. The train region must be an affine rectangle (the Ada
+--  API rejects other shapes and an empty region, Check_Affine_Train_Region)
+--  and must lie entirely in the train image: every sample point of the
+--  resampled image within the area its pixels cover (no margin is needed,
+--  since the bilinear sampling repeats the border pixels within the outer
+--  half pixel). The resampled pattern must have 8 .. 1024 pixels along each
+--  side.
 --
---  The origin (AMV's rule; VisionPro states only that a result's location
---  is the position of the origin in the search image, and that OriginX,
---  OriginY are in the train image's selected space). The origin is the
---  point OriginX, OriginY of the train image's selected space, carried
---  into the resampled pattern by the resampling: mapped into the train
---  image's pixel space (Pixel_From_Selected) and then into the pattern's
---  pixels by the inverse of the resampling map (the pattern's
---  pixel-from-root transform that AMV.Kernels.Affine_Transform returns
---  when it is given Pixel_From_Selected as the root). It therefore marks
---  the same physical point of the trained part wherever the rectangle
---  lies and however it is turned, and a result's location is that point
---  in the search image: a part trained from a rectangle turned by 30
---  degrees and found upright in a scene is reported at the place of the
---  trained point, not at the corner of a window.
+--  The origin (AMV's rule). The origin is the point OriginX, OriginY of the
+--  train image's selected space, carried into the resampled pattern by the
+--  resampling: mapped into the train image's pixel space
+--  (Pixel_From_Selected) and then into the pattern's pixels by the inverse
+--  of the resampling map (the pattern's pixel-from-root transform that
+--  AMV.Kernels.Affine_Transform returns when it is given
+--  Pixel_From_Selected as the root). It therefore marks the same physical
+--  point of the trained part wherever the rectangle lies and however it is
+--  turned, and a result's location is that point in the search image: a
+--  part trained from a rectangle turned by 30 degrees and found upright in
+--  a scene is reported at the place of the trained point, not at the corner
+--  of a window.
 --
 --  The train image mask (AMV's rule). Mask pixel (U, V) still covers
 --  train image pixel (U + OffsetX, V + OffsetY). The mask is resampled
@@ -52,25 +48,25 @@
 --  SearchRegionMode must be AffineTransform. The search region, an affine
 --  rectangle, is resampled as above and searched whole, exactly as
 --  ks_cnl_search_execute searches a pixel-aligned box: every window of the
---  resampled image, the partial match limits counting from its sides.
---  Each result's location (the pattern's origin at the match) is mapped
---  back from the resampled image into the input image's pixel space by
---  the resampling map and then by Selected_From_Pixel, so it is reported
---  in the input image's selected space like any other result; the score,
---  contrast and EdgeHit are those of the resampled image, where Left is
---  the rectangle's side through its corner origin along side Y, Top the
---  side through it along side X, and Right and Bottom the opposite sides.
---  CNL results have no angle: the pattern is searched for in the
---  rectangle's frame, so a turned rectangle finds the parts turned (and
---  skewed) with it relative to the trained pattern, and a part upright in
---  the image only when the rectangle is upright too; the location is the
---  only result mapped back. Samples outside the input image are 0 (the
---  resampling's default), so windows there are compared with black; keep
---  the rectangle in the image. A rectangle whose resampled image is
---  smaller than the pattern along either axis gives no results (a
---  successful run), as a pixel-aligned box does. VisionPro searches the
---  pixel-aligned bounding box of any other region in this mode (the Ada
---  API does so through ks_cnl_search_execute).
+--  resampled image, the partial match limits counting from its sides. Each
+--  result's location (the pattern's origin at the match) is mapped back
+--  from the resampled image into the input image's pixel space by the
+--  resampling map and then by Selected_From_Pixel, so it is reported in the
+--  input image's selected space like any other result; the score, contrast
+--  and EdgeHit are those of the resampled image, where Left is the
+--  rectangle's side through its corner origin along side Y, Top the side
+--  through it along side X, and Right and Bottom the opposite sides. CNL
+--  results have no angle: the pattern is searched for in the rectangle's
+--  frame, so a turned rectangle finds the parts turned (and skewed) with it
+--  relative to the trained pattern, and a part upright in the image only
+--  when the rectangle is upright too; the location is the only result
+--  mapped back. Samples outside the input image are 0 (the resampling's
+--  default), so windows there are compared with black; keep the rectangle
+--  in the image. A rectangle whose resampled image is smaller than the
+--  pattern along either axis gives no results (a successful run), as a
+--  pixel-aligned box does. Any other region is searched in its
+--  pixel-aligned bounding box in this mode (the Ada API does so through
+--  ks_cnl_search_execute).
 --
 --  Bounds: the rectangle's values as in AMV.Kernels.Shapes (the centre and
 --  the angles finite and within 1.0E150, the sides in 0 .. 4.0E150) and

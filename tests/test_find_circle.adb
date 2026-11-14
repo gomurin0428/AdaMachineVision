@@ -1,4 +1,4 @@
---  Tests for AMV.Caliper.Find_Circle (CogFindCircleTool) and its kernel
+--  Tests for AMV.Caliper.Find_Circle and its kernel
 --  AMV.Kernels.Find_Circle.
 --
 --  The scenes are anti-aliased discs and rings (AMV_Test_Images) of radius
@@ -119,7 +119,7 @@ procedure Test_Find_Circle is
              and then P.Radius_Constraint = 100.0
              and then P.Caliper_Search_Length = 30.0
              and then P.Caliper_Projection_Length = 10.0,
-             "the defaults of CogFindCircle");
+             "the defaults of the run parameters");
       Check (P.Expected_Circular_Arc.Radius = 50.0
              and then abs (P.Expected_Circular_Arc.Angle_Span - Pi) < 1.0E-15,
              "the default arc");

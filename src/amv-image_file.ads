@@ -1,5 +1,6 @@
---  Image files: the counterparts of CogImageFile, CogImageFileModeConstants
---  and CogImageFileTool.
+--  Image files: the image file Ks_Image_File, its modes
+--  (Ks_Image_File_Mode_Constants) and the image file tool
+--  Ks_Image_File_Tool.
 --
 --  Supported formats, all implemented here in Ada:
 --
@@ -75,20 +76,17 @@ private with AMV.Kernels.Image_File;
 package AMV.Image_File is
 
    type Ks_Image_File_Mode_Constants is (Closed, Read, Write, Update);
-   --  CogImageFileModeConstants.
+   --  The modes of an image file.
    --  Closed: the file is not open. Only Open_Mode reports it; it is not
    --          a mode to open a file with (Open rejects it).
    --  Read:   every image of an existing file is decoded into memory when
    --          the file is opened.
    --  Write:  the file is created, or emptied if it exists, when opened.
    --  Update: images are added after those already in the file; a missing
-   --          file is created. VisionPro's Update opens an existing file
-   --          for reading and writing; AMV's Update only appends (Item
-   --          needs Read mode) and also accepts a missing file, which it
-   --          creates.
+   --          file is created. Update only appends (Item needs Read mode).
 
    ---------------------------------------------------------------------
-   --  CogImageFile
+   --  Ks_Image_File
    ---------------------------------------------------------------------
 
    type Ks_Image_File is tagged private;
@@ -113,8 +111,7 @@ package AMV.Image_File is
    --  In Write and Update mode an unsupported extension is rejected here.
    --  On any failure Ks_Image_File_Exception is raised and File stays
    --  closed. Mode Closed is rejected first, with
-   --  Ks_Bad_Parameter_Exception (VisionPro: ArgumentException), and
-   --  leaves File unchanged.
+   --  Ks_Bad_Parameter_Exception, and leaves File unchanged.
 
    procedure Close (File : in out Ks_Image_File);
    --  Returns File to its default (closed) state and drops the decoded
@@ -122,7 +119,7 @@ package AMV.Image_File is
    --  closed file does nothing.
 
    function Is_Open (File : Ks_Image_File) return Boolean;
-   --  Open_Mode (File) /= Closed (an AMV addition).
+   --  Open_Mode (File) /= Closed.
 
    function File_Name (File : Ks_Image_File) return String;
    --  The name given to Open; "" when closed.
@@ -193,7 +190,7 @@ package AMV.Image_File is
    --  before an existing file is truncated.
 
    ---------------------------------------------------------------------
-   --  CogImageFileTool
+   --  Ks_Image_File_Tool
    ---------------------------------------------------------------------
 
    type Ks_Image_File_Tool is new AMV.Tools.Ks_Tool with record

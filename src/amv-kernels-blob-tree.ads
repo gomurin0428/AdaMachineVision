@@ -1,6 +1,6 @@
---  The feature tree of AMV.Kernels.Blob's results: the counterparts of
---  CogBlobResults.GetChildren, GetSiblings, GetTopLevelBlobs, GetBlobIDs,
---  GetBlobMeasure and GetBlobMeasures (include/amv_blob.h).
+--  The feature tree of AMV.Kernels.Blob's results: GetChildren,
+--  GetSiblings, GetTopLevelBlobs, GetBlobIDs, GetBlobMeasure and
+--  GetBlobMeasures (include/amv_blob.h).
 --
 --  A query picks features by a relation (AMV's definitions):
 --  * Relation_All: every feature (GetBlobs, GetBlobIDs);

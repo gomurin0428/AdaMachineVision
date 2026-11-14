@@ -1,10 +1,8 @@
 /*
- * AdaMachineVision (AMV) C API: the dimensioning tools
- * (Cognex.VisionPro.Dimensioning: CogDistance*Tool, CogAngle*Tool,
- * CogIntersect*Tool) and the fitting tools (CogFitLineTool,
- * CogFitCircleTool, CogFitEllipseTool, which VisionPro keeps in
- * Cognex.VisionPro). Included by amv.h; the entry points belong to the
- * SPARK kernels AMV.Kernels.Dimensioning and
+ * AdaMachineVision (AMV) C API: the dimensioning tools (distances, angles
+ * and intersections: ks_distance_*, ks_angle_*, ks_intersect_*) and the
+ * fitting tools (ks_fit_*). Included by amv.h; the entry points belong to
+ * the SPARK kernels AMV.Kernels.Dimensioning and
  * AMV.Kernels.Dimensioning.Fitting, whose specs describe every result,
  * tolerance and bound in full.
  *
@@ -17,11 +15,11 @@
  * Every coordinate and radius must be finite and within 1.0e150
  * (KS_DIMENSIONING_MAX_VALUE), and every result lies within the bounds:
  * coordinates 1.0e150, distances 4.0e150, angles in (-pi, pi]. Signs and
- * degenerate cases follow the VisionPro reference: distances are negative
- * where one shape lies inside a circle or an ellipse, touching or crossing
- * shapes are at distance 0 with points (0, 0), num_points is -1
- * (intersects 1) for coincident shapes, and points that are not reported
- * are (0, 0). Every result of a failed call is 0.
+ * degenerate cases: distances are negative where one shape lies inside a
+ * circle or an ellipse, touching or crossing shapes are at distance 0 with
+ * points (0, 0), num_points is -1 (intersects 1) for coincident shapes,
+ * and points that are not reported are (0, 0). Every result of a failed
+ * call is 0.
  */
 
 #ifndef AMV_DIMENSIONING_H
@@ -40,41 +38,41 @@ extern "C" {
 /* Results of the measuring tools (their read-only properties)         */
 /* ------------------------------------------------------------------ */
 
-/* CogDistancePointPointTool. */
+/* The result of ks_distance_point_point_execute. */
 typedef struct {
     double  distance;
     double  angle;
 } ks_distance_point_point_result;
 
-/* CogDistancePointLineTool. */
+/* The result of ks_distance_point_line_execute. */
 typedef struct {
     double  distance;
     double  line_x;
     double  line_y;
 } ks_distance_point_line_result;
 
-/* CogDistancePointSegmentTool. */
+/* The result of ks_distance_point_segment_execute. */
 typedef struct {
     double  distance;
     double  segment_x;
     double  segment_y;
 } ks_distance_point_segment_result;
 
-/* CogDistancePointCircleTool. */
+/* The result of ks_distance_point_circle_execute. */
 typedef struct {
     double  distance;
     double  circle_x;
     double  circle_y;
 } ks_distance_point_circle_result;
 
-/* CogDistancePointEllipseTool. */
+/* The result of ks_distance_point_ellipse_execute. */
 typedef struct {
     double  distance;
     double  ellipse_x;
     double  ellipse_y;
 } ks_distance_point_ellipse_result;
 
-/* CogDistanceSegmentSegmentTool. */
+/* The result of ks_distance_segment_segment_execute. */
 typedef struct {
     double  distance;
     double  segment_a_x;
@@ -83,7 +81,7 @@ typedef struct {
     double  segment_b_y;
 } ks_distance_segment_segment_result;
 
-/* CogDistanceSegmentLineTool. */
+/* The result of ks_distance_segment_line_execute. */
 typedef struct {
     double  distance;
     double  segment_x;
@@ -92,7 +90,7 @@ typedef struct {
     double  line_y;
 } ks_distance_segment_line_result;
 
-/* CogDistanceLineCircleTool. */
+/* The result of ks_distance_line_circle_execute. */
 typedef struct {
     double  distance;
     double  line_x;
@@ -101,7 +99,7 @@ typedef struct {
     double  circle_y;
 } ks_distance_line_circle_result;
 
-/* CogDistanceSegmentCircleTool. */
+/* The result of ks_distance_segment_circle_execute. */
 typedef struct {
     double  distance;
     double  segment_x;
@@ -110,7 +108,7 @@ typedef struct {
     double  circle_y;
 } ks_distance_segment_circle_result;
 
-/* CogDistanceCircleCircleTool. */
+/* The result of ks_distance_circle_circle_execute. */
 typedef struct {
     double  distance;
     double  circle_a_x;
@@ -119,7 +117,7 @@ typedef struct {
     double  circle_b_y;
 } ks_distance_circle_circle_result;
 
-/* CogDistanceLineEllipseTool. */
+/* The result of ks_distance_line_ellipse_execute. */
 typedef struct {
     double  distance;
     double  line_x;
@@ -128,7 +126,7 @@ typedef struct {
     double  ellipse_y;
 } ks_distance_line_ellipse_result;
 
-/* CogDistanceSegmentEllipseTool. */
+/* The result of ks_distance_segment_ellipse_execute. */
 typedef struct {
     double  distance;
     double  segment_x;
@@ -137,7 +135,7 @@ typedef struct {
     double  ellipse_y;
 } ks_distance_segment_ellipse_result;
 
-/* CogIntersectLineLineTool. */
+/* The result of ks_intersect_line_line_execute. */
 typedef struct {
     int32_t intersects;
     int32_t num_points;
@@ -146,7 +144,7 @@ typedef struct {
     double  angle;
 } ks_intersect_line_line_result;
 
-/* CogIntersectSegmentLineTool. */
+/* The result of ks_intersect_segment_line_execute. */
 typedef struct {
     int32_t intersects;
     int32_t num_points;
@@ -154,7 +152,7 @@ typedef struct {
     double  y;
 } ks_intersect_segment_line_result;
 
-/* CogIntersectSegmentSegmentTool. */
+/* The result of ks_intersect_segment_segment_execute. */
 typedef struct {
     int32_t intersects;
     int32_t num_points;
@@ -162,7 +160,7 @@ typedef struct {
     double  y;
 } ks_intersect_segment_segment_result;
 
-/* CogIntersectCircleCircleTool. */
+/* The result of ks_intersect_circle_circle_execute. */
 typedef struct {
     int32_t intersects;
     int32_t num_points;
@@ -176,9 +174,8 @@ typedef struct {
     double  y3;
 } ks_intersect_circle_circle_result;
 
-/* CogIntersectLineCircleTool, CogIntersectSegmentCircleTool,
-   CogIntersectLineEllipseTool and CogIntersectSegmentEllipseTool: at most
-   two points, (x0, y0) first. */
+/* The result of the intersections of a line or a segment with a circle or
+   an ellipse: at most two points, (x0, y0) first. */
 typedef struct {
     int32_t intersects;
     int32_t num_points;
@@ -212,147 +209,147 @@ _Static_assert(sizeof(ks_intersect_circle_circle_result) == 72,
 /* The measuring tools                                                 */
 /* ------------------------------------------------------------------ */
 
-/* CogDistancePointPointTool. */
+/* The distance between two points. */
 void ks_distance_point_point_execute(double start_x, double start_y,
                                      double end_x, double end_y,
                                      ks_distance_point_point_result *result,
                                      ks_status *status);
 
-/* CogAnglePointPointTool. */
+/* The direction from one point to another. */
 void ks_angle_point_point_execute(double start_x, double start_y, double end_x,
                                   double end_y, double *angle,
                                   ks_status *status);
 
-/* CogAngleLineLineTool. */
+/* The angle from one line to another. */
 void ks_angle_line_line_execute(
     const ks_line *line_a, const ks_line *line_b,
     const ks_transform_2d_linear *selected_from_line_a,
     const ks_transform_2d_linear *selected_from_line_b, double *angle,
     ks_status *status);
 
-/* CogDistancePointLineTool. */
+/* The distance between a point and a line. */
 void ks_distance_point_line_execute(
     double x, double y, const ks_line *line,
     const ks_transform_2d_linear *selected_from_line,
     ks_distance_point_line_result *result, ks_status *status);
 
-/* CogDistancePointSegmentTool. */
+/* The distance between a point and a segment. */
 void ks_distance_point_segment_execute(
     double x, double y, const ks_line_segment *segment,
     const ks_transform_2d_linear *selected_from_segment,
     ks_distance_point_segment_result *result, ks_status *status);
 
-/* CogDistancePointCircleTool. */
+/* The distance between a point and a circle. */
 void ks_distance_point_circle_execute(
     double x, double y, const ks_circle *input_circle,
     const ks_transform_2d_linear *selected_from_input_circle,
     ks_distance_point_circle_result *result, ks_status *status);
 
-/* CogDistancePointEllipseTool. */
+/* The distance between a point and an ellipse. */
 void ks_distance_point_ellipse_execute(
     double x, double y, const ks_ellipse *ellipse,
     const ks_transform_2d_linear *selected_from_ellipse,
     ks_distance_point_ellipse_result *result, ks_status *status);
 
-/* CogDistanceSegmentSegmentTool. */
+/* The distance between two segments. */
 void ks_distance_segment_segment_execute(
     const ks_line_segment *segment_a, const ks_line_segment *segment_b,
     const ks_transform_2d_linear *selected_from_segment_a,
     const ks_transform_2d_linear *selected_from_segment_b,
     ks_distance_segment_segment_result *result, ks_status *status);
 
-/* CogDistanceSegmentLineTool. */
+/* The distance between a segment and a line. */
 void ks_distance_segment_line_execute(
     const ks_line_segment *segment, const ks_line *line,
     const ks_transform_2d_linear *selected_from_segment,
     const ks_transform_2d_linear *selected_from_line,
     ks_distance_segment_line_result *result, ks_status *status);
 
-/* CogDistanceLineCircleTool. */
+/* The distance between a line and a circle. */
 void ks_distance_line_circle_execute(
     const ks_line *line, const ks_circle *input_circle,
     const ks_transform_2d_linear *selected_from_line,
     const ks_transform_2d_linear *selected_from_input_circle,
     ks_distance_line_circle_result *result, ks_status *status);
 
-/* CogDistanceSegmentCircleTool. */
+/* The distance between a segment and a circle. */
 void ks_distance_segment_circle_execute(
     const ks_line_segment *segment, const ks_circle *input_circle,
     const ks_transform_2d_linear *selected_from_segment,
     const ks_transform_2d_linear *selected_from_input_circle,
     ks_distance_segment_circle_result *result, ks_status *status);
 
-/* CogDistanceCircleCircleTool. */
+/* The distance between two circles. */
 void ks_distance_circle_circle_execute(
     const ks_circle *circle_a, const ks_circle *circle_b,
     const ks_transform_2d_linear *selected_from_circle_a,
     const ks_transform_2d_linear *selected_from_circle_b,
     ks_distance_circle_circle_result *result, ks_status *status);
 
-/* CogDistanceLineEllipseTool. */
+/* The distance between a line and an ellipse. */
 void ks_distance_line_ellipse_execute(
     const ks_line *line, const ks_ellipse *ellipse,
     const ks_transform_2d_linear *selected_from_line,
     const ks_transform_2d_linear *selected_from_ellipse,
     ks_distance_line_ellipse_result *result, ks_status *status);
 
-/* CogDistanceSegmentEllipseTool. */
+/* The distance between a segment and an ellipse. */
 void ks_distance_segment_ellipse_execute(
     const ks_line_segment *segment, const ks_ellipse *ellipse,
     const ks_transform_2d_linear *selected_from_segment,
     const ks_transform_2d_linear *selected_from_ellipse,
     ks_distance_segment_ellipse_result *result, ks_status *status);
 
-/* CogIntersectLineLineTool. */
+/* The intersection of two lines. */
 void ks_intersect_line_line_execute(
     const ks_line *line_a, const ks_line *line_b,
     const ks_transform_2d_linear *selected_from_line_a,
     const ks_transform_2d_linear *selected_from_line_b,
     ks_intersect_line_line_result *result, ks_status *status);
 
-/* CogIntersectSegmentLineTool. */
+/* The intersection of a segment and a line. */
 void ks_intersect_segment_line_execute(
     const ks_line_segment *segment, const ks_line *line,
     const ks_transform_2d_linear *selected_from_segment,
     const ks_transform_2d_linear *selected_from_line,
     ks_intersect_segment_line_result *result, ks_status *status);
 
-/* CogIntersectSegmentSegmentTool. */
+/* The intersection of two segments. */
 void ks_intersect_segment_segment_execute(
     const ks_line_segment *segment_a, const ks_line_segment *segment_b,
     const ks_transform_2d_linear *selected_from_segment_a,
     const ks_transform_2d_linear *selected_from_segment_b,
     ks_intersect_segment_segment_result *result, ks_status *status);
 
-/* CogIntersectLineCircleTool. */
+/* The intersection of a line and a circle. */
 void ks_intersect_line_circle_execute(
     const ks_line *line, const ks_circle *input_circle,
     const ks_transform_2d_linear *selected_from_line,
     const ks_transform_2d_linear *selected_from_input_circle,
     ks_intersect_line_circle_result *result, ks_status *status);
 
-/* CogIntersectSegmentCircleTool. */
+/* The intersection of a segment and a circle. */
 void ks_intersect_segment_circle_execute(
     const ks_line_segment *segment, const ks_circle *input_circle,
     const ks_transform_2d_linear *selected_from_segment,
     const ks_transform_2d_linear *selected_from_input_circle,
     ks_intersect_segment_circle_result *result, ks_status *status);
 
-/* CogIntersectCircleCircleTool. */
+/* The intersection of two circles. */
 void ks_intersect_circle_circle_execute(
     const ks_circle *circle_a, const ks_circle *circle_b,
     const ks_transform_2d_linear *selected_from_circle_a,
     const ks_transform_2d_linear *selected_from_circle_b,
     ks_intersect_circle_circle_result *result, ks_status *status);
 
-/* CogIntersectLineEllipseTool. */
+/* The intersection of a line and an ellipse. */
 void ks_intersect_line_ellipse_execute(
     const ks_line *line, const ks_ellipse *ellipse,
     const ks_transform_2d_linear *selected_from_line,
     const ks_transform_2d_linear *selected_from_ellipse,
     ks_intersect_line_ellipse_result *result, ks_status *status);
 
-/* CogIntersectSegmentEllipseTool. */
+/* The intersection of a segment and an ellipse. */
 void ks_intersect_segment_ellipse_execute(
     const ks_line_segment *segment, const ks_ellipse *ellipse,
     const ks_transform_2d_linear *selected_from_segment,
@@ -360,16 +357,15 @@ void ks_intersect_segment_ellipse_execute(
     ks_intersect_segment_ellipse_result *result, ks_status *status);
 
 /* ------------------------------------------------------------------ */
-/* Fitting (CogFitLineTool, CogFitCircleTool, CogFitEllipseTool)       */
+/* Fitting of lines, circles and ellipses                              */
 /* ------------------------------------------------------------------ */
 
-/* The points of a fit: a polygon handle whose vertices are the points
-   (AddPoint, DeletePoint, NumPoints, ... of CogFitLine, CogFitCircle and
-   CogFitEllipse). NULL is a list without points; ks_fit_points_add_point
-   and ks_fit_points_set_num_points create the handle. At most
-   KS_FIT_MAX_POINTS points, each coordinate finite and within 1.0e150.
-   An index outside 0 .. NumPoints - 1 gives KS_FAILURE_INDEX_OUT_OF_RANGE;
-   a failed call changes nothing. */
+/* The points of a fit: a polygon handle whose vertices are the points.
+   NULL is a list without points; ks_fit_points_add_point and
+   ks_fit_points_set_num_points create the handle. At most
+   KS_FIT_MAX_POINTS points, each coordinate finite and within 1.0e150. An
+   index outside 0 .. NumPoints - 1 gives KS_FAILURE_INDEX_OUT_OF_RANGE; a
+   failed call changes nothing. */
 typedef ks_polygon ks_fit_points;
 
 #define KS_FIT_MAX_POINTS 1048576
@@ -396,10 +392,9 @@ void ks_fit_points_duplicate(const ks_fit_points *points,
                              ks_fit_points **copy, ks_status *status);
 void ks_fit_points_destroy(ks_fit_points **points);
 
-/* CogFitLine, CogFitCircle and CogFitEllipse without their points.
-   num_to_ignore >= 0; the flags 0 or 1; radius_constraint in
-   (0, 1.0e150] when enabled; rotation_constraint (radians) within
-   1.0e150. */
+/* The run parameters of the three fits. num_to_ignore >= 0; the flags
+   0 or 1; radius_constraint in (0, 1.0e150] when enabled;
+   rotation_constraint (radians) within 1.0e150. */
 typedef struct {
     int32_t num_to_ignore;                /* 0 */
 } ks_fit_line_run_params;
@@ -434,9 +429,8 @@ void ks_fit_circle_run_params_default(ks_fit_circle_run_params *params,
 void ks_fit_ellipse_run_params_default(ks_fit_ellipse_run_params *params,
                                        ks_status *status);
 
-/* The result of a fit (CogFitLineResult, CogFitCircleResult,
-   CogFitEllipseResult): an owned handle that the execute functions
-   return (NULL on failure) and ks_fit_result_destroy frees. */
+/* The result of a fit: an owned handle that the execute functions return
+   (NULL on failure) and ks_fit_result_destroy frees. */
 typedef struct ks_fit_result ks_fit_result;   /* opaque */
 
 /* The kind of a result. */
@@ -444,11 +438,10 @@ typedef struct ks_fit_result ks_fit_result;   /* opaque */
 #define KS_FIT_CIRCLE  2
 #define KS_FIT_ELLIPSE 3
 
-/* CogFitLine.Execute, CogFitCircle.Execute, CogFitEllipse.Execute: the fit
-   of the points (see AMV.Kernels.Dimensioning.Fitting for the methods and
-   for how num_to_ignore points are left out). Too few points for the fit
-   after num_to_ignore (2, 3, 5, or 4 for an ellipse with its rotation
-   fixed), degenerate points and bad parameters give
+/* The fit of the points (see AMV.Kernels.Dimensioning.Fitting for the
+   methods and for how num_to_ignore points are left out). Too few points
+   for the fit after num_to_ignore (2, 3, 5, or 4 for an ellipse with its
+   rotation fixed), degenerate points and bad parameters give
    KS_FAILURE_BAD_PARAMETER. */
 void ks_fit_line_execute(const ks_fit_points *points,
                          const ks_fit_line_run_params *params,
@@ -464,8 +457,8 @@ void ks_fit_result_destroy(ks_fit_result **result);
 /* KS_FIT_LINE, KS_FIT_CIRCLE or KS_FIT_ELLIPSE (0 for NULL). */
 void ks_fit_result_kind(const ks_fit_result *result, int32_t *kind,
                         ks_status *status);
-/* NumPoints (the points given), the number of points used (AMV), RMSError
-   (over the used points); 0 for NULL. */
+/* NumPoints (the points given), the number of points used, RMSError (over
+   the used points); 0 for NULL. */
 void ks_fit_result_num_points(const ks_fit_result *result, int32_t *count,
                               ks_status *status);
 void ks_fit_result_num_points_used(const ks_fit_result *result,

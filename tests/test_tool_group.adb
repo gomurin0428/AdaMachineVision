@@ -1242,7 +1242,7 @@ procedure Test_Tool_Group is
          Check (Status.Failure = Failure_Bad_Parameter
                 and then String (Status.Message (1 .. Natural (Status.Length)))
                            = "RunTool: the tool's result must be a "
-                             & "CogToolResultConstants value (-1 .. 2)"
+                             & "KS_TOOL_RESULT_* value (-1 .. 2)"
                 and then Worst = KG.Result_Error,
                 "run_tool_end: a bad tool result");
          Worst := -2;

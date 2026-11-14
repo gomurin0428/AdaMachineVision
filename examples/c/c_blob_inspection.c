@@ -97,9 +97,9 @@ int main(void)
     disc(image, 260.0, 145.0, 22.0, 0.0);
     disc(image, 112.0, 100.0, 2.0, 0.0);
 
-    /* The run parameters: VisionPro's defaults, then light blobs, an area
-       filter of 500 to 5000 square pixels (washers, not dust and not
-       holes) and no sorting (row by row order). */
+    /* The run parameters: the defaults, then light blobs, an area filter
+       of 500 to 5000 square pixels (washers, not dust and not holes) and
+       no sorting (row by row order). */
     ks_blob_run_params_default(&params, &status);
     check(&status, "ks_blob_run_params_default");
     params.segmentation_params.polarity = KS_BLOB_POLARITY_LIGHT_BLOBS;
