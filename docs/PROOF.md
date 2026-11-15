@@ -199,12 +199,13 @@ kernel), took three hours with two on
 a heavily loaded machine (another proof run sharing it).
 
 The code reader kernel (`AMV.Kernels.Code_Reader` with its private
-children `Linear` and `Profiles`, 1270 checks: 1097 discharged by the
-provers, 494 of them in `AMV.Kernels.Code_Reader`, 397 in `Linear` and
-206 in `Profiles`, and 173 by flow analysis) takes about seven minutes
-from cold with three prover processes on a lightly loaded machine (its
-slowest check, the precondition of a product in `Covers`, the test of
-two candidates for the same symbol, about 12 seconds).
+children `Linear` and `Profiles`, 1281 checks: 1096 discharged by the
+provers, 490 of them in `AMV.Kernels.Code_Reader`, 397 in `Linear` and
+209 in `Profiles`, and 185 by flow analysis) takes about five minutes
+from cold with three prover processes on a lightly loaded machine. None
+of its checks needs more than a second there, counting for each part of
+a check the quickest prover that proves it (the provers run side by
+side, and the others are stopped when one succeeds).
 
 `amv.gpr` proves every unit at `--level=2`, except the units its `Prove`
 package raises.
@@ -263,8 +264,8 @@ entry point returns exactly that function's result once its arguments
 pass; the `ks_*_boundary_slack` postconditions say that the region is
 valid when they succeed.
 
-Total (2026-11-15): 35784 checks, the 34514 of `main` at 2026-11-12 and
-the 1270 of the code reader kernel, which was proved as its own group
+Total (2026-11-15): 35795 checks, the 34514 of `main` at 2026-11-12 and
+the 1281 of the code reader kernel, which was proved as its own group
 (33720 before the four additions before it: the region modes of the IP
 one-image tool added 296, the soft segmentation of the blob tool 335,
 the region modes of the Sobel edge tool 129, and the train region mode
@@ -1771,6 +1772,25 @@ decoded text is tested, not proved):
   everything by the length of the symbol instead of dividing by it, with
   points in a subtype (within 2**41), so its products stay within the
   preconditions of `AMV.Kernels.Numerics`.
+* The floating point expressions of the scan (the extent of the box
+  along a direction, the first sample of a line, the angle of a
+  direction) and the sums and differences of points first stood where
+  they are used, in subprograms that also carry the arrays of a line and
+  the candidate table. Their overflow checks and the preconditions of
+  the products after them then needed 1 to 7 seconds each, and one of
+  them, the distance of a line from the middle one, passed the time
+  limit on the hosted runner of the CI, which is several times slower.
+  They are now small functions with a body of their own (`Middle`,
+  `Half_Of`, `From_Middle`, `Extent`, `Line_Count`, `Start_X`,
+  `Start_Y`, `Turn_Of`, `Between`, `Sum`, and `Weighted_Grey` and
+  `Weighted` in `Profiles`): each is proved alone, and its callers get
+  only its bounds, from its postcondition or its result subtype. The
+  operations and their order are those of the expressions they replace,
+  so no computed value changes.
+* The time a check needs is that of the quickest prover that proves each
+  of its parts. The slowest attempt recorded for a check is often a
+  prover that was stopped because another one had finished, and says
+  little.
 
 ## Assumptions and limits
 

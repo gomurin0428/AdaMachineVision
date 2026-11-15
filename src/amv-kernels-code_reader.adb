@@ -445,6 +445,44 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  The first sample of a line lies within a few image sizes of the
    --  image; the limit never acts.
 
+   --  The functions below that have a body of their own are not
+   --  expression functions, so that the proof of a caller gets their
+   --  bounds and nothing else.
+
+   function Middle (Lo, Hi : Natural) return Long_Float
+   with Post => Middle'Result >= 0.0 and then Middle'Result <= 2.0 ** 31;
+   --  The middle of two pixel coordinates.
+
+   function Middle (Lo, Hi : Natural) return Long_Float is
+   begin
+      return (Long_Float (Lo) + Long_Float (Hi)) / 2.0;
+   end Middle;
+
+   function Half_Of (Count : Positive) return Long_Float
+   with
+     Pre  => Count <= Max_Line_Samples,
+     Post => Half_Of'Result >= 0.0 and then Half_Of'Result <= 2.0 ** 19;
+   --  From the first of Count items in a row to the middle of the row,
+   --  in items.
+
+   function Half_Of (Count : Positive) return Long_Float is
+   begin
+      return Long_Float (Count - 1) / 2.0;
+   end Half_Of;
+
+   function From_Middle (Index : Natural; Count : Positive) return Long_Float
+   with
+     Pre  => Index < Count and then Count <= Max_Line_Samples,
+     Post => abs From_Middle'Result <= 2.0 ** 20;
+   --  From the middle of a row of Count items to its item Index (the
+   --  first one is item 0), in items.
+
+   function From_Middle (Index : Natural; Count : Positive) return Long_Float
+   is
+   begin
+      return Long_Float (Index) - Half_Of (Count);
+   end From_Middle;
+
    function Count_Of
      (Extent : Long_Float;
       Max    : Positive) return Positive
@@ -458,6 +496,86 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  Floor (Extent) + 1, the number of steps of one unit that fit in
    --  Extent and one more, limited to 1 .. Max. The minimum never acts:
    --  Extent is below Max - 1 there, and so is its floor.
+
+   function Extent (W, H : Long_Float; U, V : Unit) return Long_Float
+   with
+     Pre  => W >= 0.0 and then W <= 2.0 ** 31
+             and then H >= 0.0 and then H <= 2.0 ** 31,
+     Post => Extent'Result >= 0.0 and then Extent'Result <= 2.0 ** 32;
+   --  The extent of a box of W by H along the direction (U, V).
+
+   function Extent (W, H : Long_Float; U, V : Unit) return Long_Float is
+   begin
+      return N.Times_Unit (W, abs U) + N.Times_Unit (H, abs V);
+   end Extent;
+
+   function Line_Count
+     (Across  : Long_Float;
+      Spacing : Long_Float;
+      Max     : Positive) return Positive
+   with
+     Pre  => Across >= 0.0 and then Across <= 2.0 ** 32
+             and then Spacing >= 1.0 and then Spacing <= Max_Line_Spacing
+             and then Max <= Max_Line_Samples,
+     Post => Line_Count'Result <= Max;
+   --  The number of lines, Spacing apart, of a box that is Across wide.
+
+   function Line_Count
+     (Across  : Long_Float;
+      Spacing : Long_Float;
+      Max     : Positive) return Positive is
+   begin
+      return Count_Of (Across / Spacing, Max);
+   end Line_Count;
+
+   Offset_Limit : constant := 2.0 ** 20 * Max_Line_Spacing;
+   --  The middle line of a direction to any of its lines, at most.
+
+   function Start_X
+     (CX, Offset, Half : Long_Float;
+      UX, UY           : Unit) return Origin
+   with
+     Pre => CX >= 0.0 and then CX <= 2.0 ** 31
+            and then abs Offset <= Offset_Limit
+            and then Half >= 0.0 and then Half <= 2.0 ** 19;
+   --  The first sample of a scan line of the direction (UX, UY): from the
+   --  centre of the box (CX, and CY below) Offset across the direction
+   --  and Half back along it.
+
+   function Start_X
+     (CX, Offset, Half : Long_Float;
+      UX, UY           : Unit) return Origin is
+   begin
+      return To_Origin (CX - N.Times_Unit (Offset, UY)
+                        - N.Times_Unit (Half, UX));
+   end Start_X;
+
+   function Start_Y
+     (CY, Offset, Half : Long_Float;
+      UX, UY           : Unit) return Origin
+   with
+     Pre => CY >= 0.0 and then CY <= 2.0 ** 31
+            and then abs Offset <= Offset_Limit
+            and then Half >= 0.0 and then Half <= 2.0 ** 19;
+
+   function Start_Y
+     (CY, Offset, Half : Long_Float;
+      UX, UY           : Unit) return Origin is
+   begin
+      return To_Origin (CY + N.Times_Unit (Offset, UX)
+                        - N.Times_Unit (Half, UY));
+   end Start_Y;
+
+   function Turn_Of (Index : Natural; Count : Positive) return Long_Float
+   with
+     Pre  => Index < Count and then Count <= Max_Directions,
+     Post => Turn_Of'Result >= 0.0 and then Turn_Of'Result <= 4.0;
+   --  Pi * Index / Count: the part Index of Count of half a turn.
+
+   function Turn_Of (Index : Natural; Count : Positive) return Long_Float is
+   begin
+      return N.Pi * Long_Float (Index) / Long_Float (Count);
+   end Turn_Of;
 
    function Position_At
      (First : Natural;
@@ -474,6 +592,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    begin
       pragma Assert (Long_Float (Pos) <= 2.0 ** 28);
       pragma Assert (Part >= 0.0 and then Part <= 2.0 ** 20);
+      pragma Assert (Long_Float (First) <= 2.0 ** 20);
       return Long_Float (First) + Part;
    end Position_At;
 
@@ -933,23 +1052,18 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       EH : constant Long_Float := Long_Float (Box.Y_Hi - Box.Y_Lo);
 
       --  The extent of the box along the scan direction and across it.
-      Length : constant Long_Float :=
-        N.Times_Unit (EW, abs UX) + N.Times_Unit (EH, abs UY);
-      Across : constant Long_Float :=
-        N.Times_Unit (EW, abs UY) + N.Times_Unit (EH, abs UX);
+      Length : constant Long_Float := Extent (EW, EH, UX, UY);
+      Across : constant Long_Float := Extent (EW, EH, UY, UX);
 
       Samples : constant Positive := Count_Of (Length, Levels'Length);
       Lines   : constant Positive :=
-        Count_Of (Across / Settings.Spacing, Levels'Length);
+        Line_Count (Across, Settings.Spacing, Levels'Length);
 
       --  The centre of the box, and the middle sample and the middle
       --  line, which lie on it.
-      CX   : constant Long_Float :=
-        (Long_Float (Box.X_Lo) + Long_Float (Box.X_Hi)) / 2.0;
-      CY   : constant Long_Float :=
-        (Long_Float (Box.Y_Lo) + Long_Float (Box.Y_Hi)) / 2.0;
-      Half : constant Long_Float := Long_Float (Samples - 1) / 2.0;
-      Mid  : constant Long_Float := Long_Float (Lines - 1) / 2.0;
+      CX   : constant Long_Float := Middle (Box.X_Lo, Box.X_Hi);
+      CY   : constant Long_Float := Middle (Box.Y_Lo, Box.Y_Hi);
+      Half : constant Long_Float := Half_Of (Samples);
 
       Open : constant Natural := Count;
    begin
@@ -958,17 +1072,12 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          pragma Loop_Invariant (Table_OK (Table, Open, Count));
          declare
             Offset : constant Long_Float :=
-              N.Mul_Within (Long_Float (J) - Mid, Settings.Spacing,
+              N.Mul_Within (From_Middle (J, Lines), Settings.Spacing,
                             2.0 ** 20, Max_Line_Spacing);
-            pragma Assert
-              (abs CX <= 2.0 ** 31 and then abs CY <= 2.0 ** 31);
-            pragma Assert (Half >= 0.0 and then Half <= 2.0 ** 20);
             Line   : constant Scan_Line :=
               (Index => J,
-               X0    => To_Origin (CX - N.Times_Unit (Offset, UY)
-                                   - N.Times_Unit (Half, UX)),
-               Y0    => To_Origin (CY + N.Times_Unit (Offset, UX)
-                                   - N.Times_Unit (Half, UY)),
+               X0    => Start_X (CX, Offset, Half, UX, UY),
+               Y0    => Start_Y (CY, Offset, Half, UX, UY),
                UX    => UX,
                UY    => UY);
          begin
@@ -993,6 +1102,29 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Y => (C.S1.Y + C.E1.Y + C.E2.Y + C.S2.Y) / 4.0);
    --  The mean of the four corners.
 
+   Span_Limit : constant := 4.0 * Point_Limit;
+
+   subtype Span is Long_Float range -Span_Limit .. Span_Limit;
+   --  A sum of two differences of coordinates.
+
+   function Between (From, To : Coordinate) return Span
+   with Post => abs Between'Result <= 2.0 * Point_Limit;
+   --  To - From. Not an expression function, like Middle.
+
+   function Between (From, To : Coordinate) return Span is
+   begin
+      return To - From;
+   end Between;
+
+   function Sum (A, B : Coordinate) return Span
+   with Post => abs Sum'Result <= 2.0 * Point_Limit;
+   --  A + B, in the same way.
+
+   function Sum (A, B : Coordinate) return Span is
+   begin
+      return A + B;
+   end Sum;
+
    function Covers
      (A, B    : Candidate;
       Spacing : Long_Float) return Boolean
@@ -1007,16 +1139,18 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    is
       CA : constant Point := Centre (A);
       CB : constant Point := Centre (B);
-      DX : constant Long_Float := CB.X - CA.X;
-      DY : constant Long_Float := CB.Y - CA.Y;
+      DX : constant Span := Between (CA.X, CB.X);
+      DY : constant Span := Between (CA.Y, CB.Y);
 
       --  Twice the mean vector from the start of A to its end.
-      AX : constant Long_Float := (A.E1.X - A.S1.X) + (A.E2.X - A.S2.X);
-      AY : constant Long_Float := (A.E1.Y - A.S1.Y) + (A.E2.Y - A.S2.Y);
+      AX : constant Span :=
+        Between (A.S1.X, A.E1.X) + Between (A.S2.X, A.E2.X);
+      AY : constant Span :=
+        Between (A.S1.Y, A.E1.Y) + Between (A.S2.Y, A.E2.Y);
 
       --  From the first line of A to its last.
-      WX : constant Long_Float := A.S2.X - A.S1.X;
-      WY : constant Long_Float := A.S2.Y - A.S1.Y;
+      WX : constant Span := Between (A.S1.X, A.S2.X);
+      WY : constant Span := Between (A.S1.Y, A.S2.Y);
 
       --  Everything times the length of (AX, AY), so that nothing is
       --  divided: the distance of the centres along A and across it, and
@@ -1044,14 +1178,14 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
 
    function Crosses (A, B : Candidate) return Boolean is
       --  Twice the ends of the middle lines.
-      ASX : constant Long_Float := A.S1.X + A.S2.X;
-      ASY : constant Long_Float := A.S1.Y + A.S2.Y;
-      AEX : constant Long_Float := A.E1.X + A.E2.X;
-      AEY : constant Long_Float := A.E1.Y + A.E2.Y;
-      BSX : constant Long_Float := B.S1.X + B.S2.X;
-      BSY : constant Long_Float := B.S1.Y + B.S2.Y;
-      BEX : constant Long_Float := B.E1.X + B.E2.X;
-      BEY : constant Long_Float := B.E1.Y + B.E2.Y;
+      ASX : constant Span := Sum (A.S1.X, A.S2.X);
+      ASY : constant Span := Sum (A.S1.Y, A.S2.Y);
+      AEX : constant Span := Sum (A.E1.X, A.E2.X);
+      AEY : constant Span := Sum (A.E1.Y, A.E2.Y);
+      BSX : constant Span := Sum (B.S1.X, B.S2.X);
+      BSY : constant Span := Sum (B.S1.Y, B.S2.Y);
+      BEX : constant Span := Sum (B.E1.X, B.E2.X);
+      BEY : constant Span := Sum (B.E1.Y, B.E2.Y);
 
       Twice : constant := 2.0 * Point_Limit;
 
@@ -1091,18 +1225,20 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Mid : constant Point := Centre (C);
 
       --  Along the scan lines, from the start of the symbol to its end.
-      AX : constant Long_Float := (C.E1.X - C.S1.X) + (C.E2.X - C.S2.X);
-      AY : constant Long_Float := (C.E1.Y - C.S1.Y) + (C.E2.Y - C.S2.Y);
+      AX : constant Span :=
+        Between (C.S1.X, C.E1.X) + Between (C.S2.X, C.E2.X);
+      AY : constant Span :=
+        Between (C.S1.Y, C.E1.Y) + Between (C.S2.Y, C.E2.Y);
 
       --  Along the bars, from the first line to the last, turned by a
       --  quarter of a turn: across the bars.
-      QX : constant Long_Float :=
-        (C.BS2.Y - C.BS1.Y) + (C.BE2.Y - C.BE1.Y);
-      QY : constant Long_Float :=
-        -((C.BS2.X - C.BS1.X) + (C.BE2.X - C.BE1.X));
+      QX : constant Span :=
+        Between (C.BS1.Y, C.BS2.Y) + Between (C.BE1.Y, C.BE2.Y);
+      QY : constant Span :=
+        -(Between (C.BS1.X, C.BS2.X) + Between (C.BE1.X, C.BE2.X));
 
       Side   : Long_Float;
-      RX, RY : Long_Float;
+      RX, RY : Span;
       DX, DY : Long_Float;
    begin
       Item := No_Result;
@@ -1386,8 +1522,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
             pragma Loop_Invariant (Table_OK (Table.all, Count, Count));
             Scan_Direction
               (Image, Region, Box,
-               Base + N.Pi * Long_Float (K)
-                      / Long_Float (Params.Num_Directions),
+               Base + Turn_Of (K, Natural (Params.Num_Directions)),
                Settings, Levels.all, Extremes.all, Edges.all, Mirror.all,
                Table.all, Count, Overflow);
             exit when Overflow;

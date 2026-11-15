@@ -100,7 +100,7 @@ section 9.1.
   existing record or function changes, so the ABI version stays 3. The
   new kernel `AMV.Kernels.Code_Reader` (with the private children
   `Linear`, the decoders, and `Profiles`, the scan lines and their
-  edges) adds 1270 checks, all proved: no run-time error for any image,
+  edges) adds 1281 checks, all proved: no run-time error for any image,
   region and parameters, no memory leak, and every result a symbology
   with a text of 1 to 255 characters. That the text is the one of the
   symbol is tested, not proved: on generated symbols of every symbology

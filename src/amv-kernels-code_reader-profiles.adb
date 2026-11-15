@@ -41,6 +41,36 @@ package body AMV.Kernels.Code_Reader.Profiles with SPARK_Mode is
      (Fixed_Step (N.Clamp (D * Long_Float (One), Long_Float (One))))
    with Pre => abs D <= 1.0;
 
+   subtype Weight is Int64 range 0 .. Full;
+   subtype Row is Int64 range 0 .. 255 * Full;
+   --  A grey level times the weights of a row of two pixels.
+
+   subtype Grey_64 is Int64 range 0 .. 255;
+
+   --  The two functions below are not expression functions, so that the
+   --  proof of the caller gets their bounds, which are linear in W, and
+   --  not the products.
+
+   function Weighted_Grey (Value : Grey_64; W : Weight) return Int64
+   with Post => Weighted_Grey'Result >= 0
+                and then Weighted_Grey'Result <= 255 * W;
+   --  Value * W.
+
+   function Weighted_Grey (Value : Grey_64; W : Weight) return Int64 is
+   begin
+      return Value * W;
+   end Weighted_Grey;
+
+   function Weighted (Value : Row; W : Weight) return Int64
+   with Post => Weighted'Result >= 0
+                and then Weighted'Result <= 255 * Full * W;
+   --  Value * W.
+
+   function Weighted (Value : Row; W : Weight) return Int64 is
+   begin
+      return Value * W;
+   end Weighted;
+
    function Level_At
      (Image  : access constant KI.Ks_Image_8_Grey_Data;
       CX, CY : Int64) return Level
@@ -56,9 +86,6 @@ package body AMV.Kernels.Code_Reader.Profiles with SPARK_Mode is
      (Image  : access constant KI.Ks_Image_8_Grey_Data;
       CX, CY : Int64) return Level
    is
-      subtype Weight is Int64 range 0 .. Full;
-      subtype Grey_64 is Int64 range 0 .. 255;
-
       X  : constant Natural := Natural (CX / One);
       Y  : constant Natural := Natural (CY / One);
       X1 : constant Natural :=
@@ -73,14 +100,13 @@ package body AMV.Kernels.Code_Reader.Profiles with SPARK_Mode is
       P10 : constant Grey_64 := Grey_64 (Image.Pixels (Y1, X));
       P11 : constant Grey_64 := Grey_64 (Image.Pixels (Y1, X1));
 
-      subtype Row is Int64 range 0 .. 255 * Full;
-      Top    : constant Row := P00 * (Full - FX) + P01 * FX;
-      Bottom : constant Row := P10 * (Full - FX) + P11 * FX;
+      Top    : constant Row :=
+        Weighted_Grey (P00, Full - FX) + Weighted_Grey (P01, FX);
+      Bottom : constant Row :=
+        Weighted_Grey (P10, Full - FX) + Weighted_Grey (P11, FX);
 
       subtype Sum is Int64 range 0 .. 255 * Full * Full;
-      pragma Assert (Top * (Full - FY) <= 255 * Full * (Full - FY));
-      pragma Assert (Bottom * FY <= 255 * Full * FY);
-      V : constant Sum := Top * (Full - FY) + Bottom * FY;
+      V : constant Sum := Weighted (Top, Full - FY) + Weighted (Bottom, FY);
    begin
       return Level ((V + Full * Full / 2) / (Full * Full));
    end Level_At;

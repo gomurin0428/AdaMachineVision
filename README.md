@@ -65,7 +65,7 @@ what it contains and every change since.
   the public literature (`src/amv-kernels-shape_match.ads` describes it).
 * **Proofs:** all logic lives in SPARK kernels, and every kernel is
   proved free of run-time errors for any input (and, for the facts listed
-  in `docs/PROOF.md`, functionally correct): 35784 checks, all proved,
+  in `docs/PROOF.md`, functionally correct): 35795 checks, all proved,
   with no `pragma Assume` and no justified checks. What is trusted
   without proof (the thin Ada API, the reference counting of shared
   pixels, and small helpers for allocation, copies to and from C memory
