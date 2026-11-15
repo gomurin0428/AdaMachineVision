@@ -56,13 +56,23 @@ jobs:
 
       # The real-image tests download images (pinned, checked by SHA-256)
       # and convert them to BMP with ImageMagick (python3, preinstalled,
-      # unpacks the BBBC006 TIFFs).
+      # unpacks the BBBC006 TIFFs and converts the barcode photographs).
       - name: Install ImageMagick (for the real-image tests)
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q imagemagick
 
-      - name: make test-real-images (open camera images and targets)
+      # The downloads (more than a thousand files) are kept from run to
+      # run, so that a run fetches only what a changed manifest adds. The
+      # SHA-256 of every file is checked on every run all the same.
+      - name: Restore the downloaded real images
+        uses: actions/cache@v4
+        with:
+          path: build/real-images/raw
+          key: real-images-${{ hashFiles('tests/real_images/*.txt') }}
+          restore-keys: real-images-
+
+      - name: make test-real-images (open images, targets and barcodes)
         run: make test-real-images
 
       - name: make run-real-image-examples (the examples on those images)
@@ -74,7 +84,7 @@ jobs:
         run: |
           tools/prove_groups.sh list | cut -d' ' -f1 | sort | uniq -c
           for group in shape-match calib-ncc filters geometry-measure \
-                       dimensioning-tools core; do
+                       dimensioning-tools code-reader core; do
             tools/prove_groups.sh "$group" > /dev/null
           done
 
@@ -90,7 +100,7 @@ jobs:
       matrix:
         # The groups of tools/prove_groups.sh, its "core" included.
         group: [shape-match, calib-ncc, filters, geometry-measure,
-                dimensioning-tools, core]
+                dimensioning-tools, code-reader, core]
     steps:
       - uses: actions/checkout@v4
 

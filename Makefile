@@ -31,9 +31,9 @@ test-c:
 	$(GPRBUILD) -p -P amv_c_tests.gpr
 	./build/bin/test_c_api
 
-# Downloads the open images of tests/real_images/images.txt (checked by
-# SHA-256) and converts them to BMP in build/real-images; needs curl and
-# ImageMagick or sips (macOS).
+# Downloads the open images of the manifests tests/real_images/*.txt
+# (checked by SHA-256) and converts them to BMP in build/real-images;
+# needs curl, python3 and ImageMagick or sips (macOS).
 fetch-real-images:
 	./tools/fetch_real_images.sh
 

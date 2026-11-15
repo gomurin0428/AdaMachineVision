@@ -17,9 +17,13 @@ a 24-bit BMP in `build/real-images` (AMV reads PNM and BMP only); members
 of large archives are fetched by byte range. It needs `curl` and
 ImageMagick (`magick` or `convert`), or `sips` on macOS, and `python3` for
 the BBBC006 images (16-bit TIFFs inside zip archives, written as 16-bit
-PGMs by `tools/zip_tiff_to_pgm.py`, standard library only). The images are
-never committed. The test reads them from `$AMV_REAL_IMAGES`
-(`build/real-images` by default). CI runs it on every pull request.
+PGMs by `tools/zip_tiff_to_pgm.py`, standard library only) and for the
+barcode photographs (PNGs written as BMPs by `tools/png_to_bmp.py`,
+standard library only, so that their pixels are the same on every
+platform: a barcode is read or not, with no tolerance to absorb a
+converter's rounding). The images are never committed. The test reads
+them from `$AMV_REAL_IMAGES` (`build/real-images` by default). CI runs it
+on every pull request.
 
 The test prints numbers. To see what the tools find, the examples of
 [`examples/real_images`](../../examples/real_images/README.md) run the
@@ -51,13 +55,15 @@ being brought to it (see "Status" at the end).
 
 ## Images and licences
 
-Four manifests list the images: `images.txt` (open images, below),
+Five manifests list the images: `images.txt` (open images, below),
 `visa.txt` (VisA, Amazon, CC BY 4.0; members of its archive fetched by
 byte range), `bbbc006.txt` (BBBC006 of the Broad Bioimage
 Benchmark Collection, CC0 1.0; members of its zip archives fetched by
 byte range) and `bbbc039.txt` (BBBC039, the same collection, CC0 1.0;
 images and hand-drawn masks fetched by byte range, the masks turned into
-label images by `tools/zip_png_labels.py`).
+label images by `tools/zip_png_labels.py`) and `zxing.txt` (the barcode
+test images of the ZXing project, Apache-2.0, each with the text file
+that holds the text of its symbol).
 
 | File | Source | Licence |
 |---|---|---|
@@ -68,6 +74,7 @@ label images by `tools/zip_png_labels.py`).
 | `visa_candle_*.jpg` | VisA (Zou et al., ECCV 2022), category `candle` | CC BY 4.0 |
 | `bbbc006_*.pgm` | BBBC006v1 (Ljosa et al., Nature Methods 2012), nuclei at 17 focal planes | CC0 1.0 |
 | `bbbc039_*.pgm` | BBBC039v1 (Ljosa et al., Nature Methods 2012), U2OS nuclei with hand-drawn masks | CC0 1.0 |
+| `zxing_*.png`, `zxing_*.txt` | ZXing ("Zebra Crossing"), `core/src/test/resources/blackbox`: the 23 series of linear barcodes, with the expected text of each image | Apache-2.0 |
 
 Debian ships OpenCV's sample images as free software and excludes only the
 `lena` images, none of which is used here.
@@ -452,6 +459,94 @@ ignored) keeps them. Evaluation 0600's top right light (centre 0.46 px,
 radius 0.26 px), just beyond the centre tolerance; its reference too
 dropped 8 of its 120 rays as outliers.
 
+### Code Reader on ZXing's barcode photographs
+
+The linear barcodes of the ZXing project's test collection (`zxing.txt`):
+every image of the 23 series of the symbologies the Code Reader reads,
+487 images, most of them photographs taken with phone cameras (many
+240 × 240, blurred, lit unevenly, with glare, on curved cans and bottles)
+and a few generated images. Nothing is left out, neither a series nor an
+image.
+
+**References.** The text of each image is the one in the collection's
+text file next to it, which is what ZXing's own tests expect of the
+image. It is fetched with the image and compared as it is.
+
+**Settings.** The default run parameters, for every image of every
+series: all symbologies enabled, 12 directions, scan lines 4 pixels
+apart, contrast threshold 12, two scan lines. Nothing is set for a
+series or an image.
+
+**What is checked.** Of every image: every text the reader reports is
+that of a symbol in the picture (the expected text, or the second symbol
+that the pictures of two series show: the book of `ean13-2` has two
+symbols, and `code39-3` 02 and 08 show part of a second label), so a
+wrong reading fails; and the image is read, with the symbology of its
+series, unless it is one of the known failures below, which are checked
+to still fail. No wrong text is reported for any of the 487 images.
+
+| Series | Symbology | Image size | Images | Read | Not read |
+|---|---|---|---|---|---|
+| `code128-1` | Code 128 | generated, various | 7 | 6 | 07 |
+| `code128-2` | Code 128 | 640 × 480 | 40 | 39 | 30 |
+| `code128-3` | Code 128 | generated | 2 | 2 | |
+| `code39-1` | Code 39 | generated, various | 4 | 3 | 01 |
+| `code39-2` | Extended Code 39 | generated | 2 | 0 | 01, 02 |
+| `code39-3` | Code 39 | 640 × 480 | 17 | 17 | |
+| `ean13-1` | EAN-13 | 640 × 480 | 34 | 30 | 10, 14, 34, 36 |
+| `ean13-2` | EAN-13 | 480 × 360 | 28 | 20 | 02, 10, 11, 16, 17, 24, 25, 26 |
+| `ean13-3` | EAN-13 | 240 × 240 | 55 | 55 | |
+| `ean13-4` | EAN-13 | 240 × 240 | 22 | 14 | 08, 13, 14, 15, 16, 19, 21, 22 |
+| `ean13-5` | EAN-13 | 240 × 240 | 18 | 0 | all |
+| `ean8-1` | EAN-8 | generated, various | 8 | 8 | |
+| `itf-1` | ITF | generated, various | 14 | 14 | |
+| `itf-2` | ITF | 240 × 240 | 14 | 13 | 03 |
+| `upca-1` | UPC-A | 512 × 384 | 21 | 19 | 01, 20 |
+| `upca-2` | UPC-A | 240 × 240 | 52 | 43 | 04, 05, 08, 10, 11, 28, 34, 40, 44 |
+| `upca-3` | UPC-A | 240 × 240 | 21 | 7 | 01 … 12, 18, 21 |
+| `upca-4` | UPC-A | 640 × 480 | 19 | 17 | 04, 05 |
+| `upca-5` | UPC-A | 480 × 480 | 35 | 28 | 01, 07, 19, 23, 26, 33, 34 |
+| `upca-6` | UPC-A | 240 × 240 | 19 | 0 | all |
+| `upce-1` | UPC-E | generated, various | 3 | 3 | |
+| `upce-2` | UPC-E | 240 × 240 | 41 | 40 | 20 |
+| `upce-3` | UPC-E | 240 × 240 | 11 | 4 | 04, 05, 06, 08, 09, 10, 11 |
+| all | | | 487 | 382 | 105 |
+
+**Known failures** (105 images, checked to still fail). Where the reason
+was looked into:
+
+* No light margin: the symbol of `code128-1` 07, `code39-1` 01 and
+  `code39-2` 02 touches the border of the image, and the reader asks for
+  a light margin on both sides of a symbol. Each is read once a white
+  margin is put around the image.
+* Extended Code 39 (`code39-2`): pairs of Code 39 characters stand for
+  the other ASCII characters, and nothing in the symbol says so. The
+  reader has no setting for it and reports the Code 39 characters as
+  they are: `E+X+T+E+N+D+E+D /A%J/J/C` for "Extended !?*#" (image 01),
+  which is not the expected text.
+* Far out of focus: all of `ean13-5` and `upca-6`, 240 × 240 photographs
+  in which the narrow bars run into each other.
+
+The others were not examined one by one. They are mostly in the series
+of 240 × 240 photographs, where a module is about two pixels wide before
+blur, glare and a curved surface take their part (`upca-3` and `upce-3`
+are cans with a glare band across the symbol).
+
+**Not a blind evaluation.** The run parameters are the defaults, so
+nothing was fitted to a series. But two rules of the reader were made
+while looking at these photographs: an up or down that is small beside
+the steepest step nearby is no edge (the overshoot beside the bars of a
+sharpened photograph, found in `ean13-1` 07), and the widths that tell
+the EAN/UPC digits 1 from 7 and 2 from 8 are corrected by the bar growth
+measured on the guard patterns (`upca-4` 14, which was read with a wrong
+digit and a check digit that happened to fit, the only wrong text there
+has been). The fraction of the first rule, a quarter, was chosen for the
+number of images read in the whole collection. The table is therefore a
+record of what the reader does on these images, kept so that a change
+shows up, and not a measure of what it does on images it has not seen.
+
+The 487 images take about four seconds in all on a desktop computer.
+
 ## Status
 
 Evaluated by the protocol above: the VisA candle rims (one known failure
@@ -468,4 +563,9 @@ top-hat and the threshold were chosen on it; Blob is evaluated on a series
 in the BBBC039 test), Find Circle on gauge-1.jpg
 (the tolerance between starts was widened after a CI failure) and Shape Match
 on box_in_scene.png (the accept threshold was set after seeing the score).
+
+A record, not an evaluation: the Code Reader on ZXing's barcode
+photographs (every image, default run parameters, expected texts from the
+collection; but two rules of the reader were made while looking at these
+images, see its section).
 Blob on smarties.png uses the tool's defaults.

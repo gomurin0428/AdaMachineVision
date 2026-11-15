@@ -1,9 +1,9 @@
 --  Tests on real images: open camera photos and printed targets, downloaded
 --  and converted to BMP by tools/fetch_real_images.sh (make
---  test-real-images). Their sources, licences and checksums are in
---  tests/real_images/images.txt; how each expected value was obtained (most
---  are measured by eye, since the images come without ground truth) is in
---  tests/real_images/README.md.
+--  test-real-images). Their sources, licences and checksums are in the
+--  manifests tests/real_images/*.txt; how each expected value was obtained
+--  (most are measured by eye, since the images come without ground truth)
+--  is in tests/real_images/README.md.
 --
 --  The images are read from the directory named by the environment
 --  variable AMV_REAL_IMAGES, build/real-images by default. A missing image
@@ -19,6 +19,11 @@ with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Numerics;
 with Ada.Numerics.Long_Elementary_Functions;
+with Ada.Real_Time;
+with Ada.Streams.Stream_IO;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
+with Ada.Strings.UTF_Encoding.Strings;
 with Ada.Text_IO;
 
 with AMV;                                    use AMV;
@@ -27,6 +32,7 @@ with AMV.Calib_Fix;
 with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
 with AMV.Caliper.Find_Line;
+with AMV.Code_Reader;
 with AMV.NCC_Search;
 with AMV.Dimensioning;
 with AMV.Image_File;
@@ -74,6 +80,37 @@ procedure Test_Real_Images is
       end if;
       return AMV.Image_File.Read_Image_8_Grey (File_Name);
    end Load;
+
+   function Text_Of (Name : String) return String;
+   --  The text of the file Name.txt, which is in UTF-8, as Latin-1.
+   --  Raises Missing, after a failure that names the file, when it is not
+   --  there.
+
+   function Text_Of (Name : String) return String is
+      use Ada.Streams;
+      File_Name : constant String := Directory & "/" & Name & ".txt";
+      File      : Stream_IO.File_Type;
+   begin
+      if not Ada.Directories.Exists (File_Name) then
+         Fail (File_Name & " is missing: run make fetch-real-images");
+         raise Missing;
+      end if;
+      Stream_IO.Open (File, Stream_IO.In_File, File_Name);
+      declare
+         Data : Stream_Element_Array
+           (1 .. Stream_Element_Offset (Stream_IO.Size (File)));
+         Last : Stream_Element_Offset;
+         Text : String (1 .. Data'Length);
+      begin
+         Stream_IO.Read (File, Data, Last);
+         Stream_IO.Close (File);
+         for I in Text'Range loop
+            Text (I) := Character'Val (Data (Stream_Element_Offset (I)));
+         end loop;
+         return Ada.Strings.UTF_Encoding.Strings.Decode
+           (Text (1 .. Natural (Last)), Ada.Strings.UTF_Encoding.UTF_8);
+      end;
+   end Text_Of;
 
    type Point is record
       X, Y : Real;
@@ -2852,6 +2889,200 @@ procedure Test_Real_Images is
       end loop;
    end Test_Candles;
 
+   ---------------------------------------------------------------------
+   --  Code Reader: ZXing's barcode photographs
+   ---------------------------------------------------------------------
+
+   --  Every image of the 23 series of linear barcodes in ZXing's test
+   --  collection (tests/real_images/zxing.txt), read with the default run
+   --  parameters: nothing is set for a series or an image. The text of
+   --  each image is the one that ZXing's own tests expect of it (the text
+   --  file next to the image).
+   --
+   --  Two things are checked of every image. First, every text the reader
+   --  reports is that of a symbol in the picture: the expected text, or
+   --  one of the other symbols that some pictures of the series show
+   --  (Also), so a wrong reading always fails. Second, the image is
+   --  read (its text, with the symbology of the series, is among the
+   --  results), unless it is one of the images that are not read
+   --  (Unread): those are the known failures, checked to still fail, so
+   --  that a change shows up here.
+
+   procedure Test_Barcodes is
+      use AMV.Code_Reader;
+      use type Ada.Real_Time.Time;
+      use type Ada.Real_Time.Time_Span;
+      use type Ada.Strings.Unbounded.Unbounded_String;
+
+      Images_Total : Natural := 0;
+      Read_Total   : Natural := 0;
+      Run_Time     : Ada.Real_Time.Time_Span := Ada.Real_Time.Time_Span_Zero;
+
+      function Listed (List : String; N : Positive) return Boolean
+      is (Ada.Strings.Fixed.Index (" " & List & " ", N'Image & " ") > 0);
+      --  Whether N is one of the numbers of List ("3 12 14").
+
+      function Among (List : String; Text : String) return Boolean;
+      --  Whether Text is one of the texts of List, which "|" separates.
+
+      function Among (List : String; Text : String) return Boolean is
+         First : Positive := List'First;
+      begin
+         if List = "" then
+            return False;
+         end if;
+         for I in List'First .. List'Last + 1 loop
+            if I > List'Last or else List (I) = '|' then
+               if List (First .. I - 1) = Text then
+                  return True;
+               end if;
+               First := I + 1;
+            end if;
+         end loop;
+         return False;
+      end Among;
+
+      procedure Series
+        (Name   : String;
+         Symbol : Ks_Code_Reader_Symbology_Constants;
+         Last   : Positive;
+         Absent : String := "";
+         Unread : String := "";
+         Also   : String := "");
+      --  Reads the images 1 .. Last of the series Name, whose symbols are
+      --  of the symbology Symbol, except the numbers Absent, which the
+      --  collection does not have.
+
+      procedure Series
+        (Name   : String;
+         Symbol : Ks_Code_Reader_Symbology_Constants;
+         Last   : Positive;
+         Absent : String := "";
+         Unread : String := "";
+         Also   : String := "")
+      is
+         Images : Natural := 0;
+         Read   : Natural := 0;
+      begin
+         for N in 1 .. Last loop
+            if not Listed (Absent, N) then
+               declare
+                  Two    : constant String := Integer'Image (100 + N);
+                  File   : constant String :=
+                    "zxing_" & Name & "_" & Two (3 .. 4);
+                  Label  : constant String :=
+                    Name & " " & Two (3 .. 4) & ": ";
+                  Want   : constant String := Text_Of (File);
+                  Tool   : Ks_Code_Reader_Tool;
+                  Start  : Ada.Real_Time.Time;
+                  Found  : Boolean := False;
+                  Wrong  : Ada.Strings.Unbounded.Unbounded_String;
+               begin
+                  Tool.Input_Image := Load (File);
+                  Start := Ada.Real_Time.Clock;
+                  Tool.Run;
+                  Run_Time := Run_Time + (Ada.Real_Time.Clock - Start);
+                  Images := Images + 1;
+                  Check (Tool.Run_Status.Result = Accept_Result,
+                         Label & "the run succeeds");
+                  for I in 0 .. Tool.Results.Count - 1 loop
+                     declare
+                        Result : constant Ks_Code_Reader_Result :=
+                          Tool.Results.Item (I);
+                     begin
+                        if Symbology (Result) = Symbol
+                          and then Text (Result) = Want
+                        then
+                           Found := True;
+                        elsif not Among (Also, Text (Result)) then
+                           Ada.Strings.Unbounded.Append
+                             (Wrong, " " & Symbology (Result)'Image & " ["
+                              & Text (Result) & "]");
+                        end if;
+                     end;
+                  end loop;
+                  Check (Wrong = "",
+                         Label & "a text that is not in the picture:"
+                         & Ada.Strings.Unbounded.To_String (Wrong));
+                  if Listed (Unread, N) then
+                     Check (not Found,
+                            Label & "known failure: still not read");
+                  else
+                     Check (Found, Label & "read as [" & Want & "]");
+                  end if;
+                  if Found then
+                     Read := Read + 1;
+                  end if;
+               end;
+            end if;
+         end loop;
+         Ada.Text_IO.Put_Line
+           ("  " & Name & ":" & Read'Image & " of" & Images'Image & " read");
+         Images_Total := Images_Total + Images;
+         Read_Total := Read_Total + Read;
+      end Series;
+   begin
+      Section ("Code Reader: ZXing's barcode photographs (default run"
+               & " parameters)");
+
+      --  Not read, here and in code39-1 and code39-2: a symbol that
+      --  touches the border of the image, so that it has no light margin
+      --  on that side (code128-1 07, code39-1 01, code39-2 02; each is
+      --  read once a white margin is put around the image).
+      Series ("code128-1", Code_128, 7, Unread => "7");
+      Series ("code128-2", Code_128, 40, Unread => "30");
+      Series ("code128-3", Code_128, 2);
+      Series ("code39-1", Code_39, 4, Unread => "1");
+
+      --  Extended Code 39 symbols (pairs of Code 39 characters that stand
+      --  for the other ASCII characters), which the reader does not
+      --  translate: it reports the Code 39 characters of image 01 as they
+      --  are, and those are not the expected text "Extended !?*#".
+      Series ("code39-2", Code_39, 2, Unread => "1 2",
+              Also => "E+X+T+E+N+D+E+D /A%J/J/C");
+
+      --  Images 02 and 08 show part of a second label below the first.
+      Series ("code39-3", Code_39, 17,
+              Also => "001EC947D49B|001EC9476B0A");
+
+      Series ("ean13-1", EAN_13, 38, Absent => "11 16 17 27",
+              Unread => "10 14 34 36");
+
+      --  A book with two symbols, both in several of the pictures.
+      Series ("ean13-2", EAN_13, 28, Unread => "2 10 11 16 17 24 25 26",
+              Also => "9784872348880|1920081045006");
+      Series ("ean13-3", EAN_13, 55);
+      Series ("ean13-4", EAN_13, 22, Unread => "8 13 14 15 16 19 21 22");
+
+      --  ean13-5 and upca-6: 240 x 240 photographs far out of focus, in
+      --  which the narrow bars run into each other. None is read.
+      Series ("ean13-5", EAN_13, 18,
+              Unread => "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18");
+      Series ("ean8-1", EAN_8, 8);
+      Series ("itf-1", ITF, 17, Absent => "4 11 12");
+      Series ("itf-2", ITF, 14, Unread => "3");
+      Series ("upca-1", UPC_A, 35,
+              Absent => "6 7 14 15 22 23 24 25 26 30 31 32 33 34",
+              Unread => "1 20");
+      Series ("upca-2", UPC_A, 52, Unread => "4 5 8 10 11 28 34 40 44");
+      Series ("upca-3", UPC_A, 21,
+              Unread => "1 2 3 4 5 6 7 8 9 10 11 12 18 21");
+      Series ("upca-4", UPC_A, 19, Unread => "4 5");
+      Series ("upca-5", UPC_A, 35, Unread => "1 7 19 23 26 33 34");
+      Series ("upca-6", UPC_A, 19,
+              Unread => "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19");
+      Series ("upce-1", UPC_E, 4, Absent => "3");
+      Series ("upce-2", UPC_E, 41, Unread => "20");
+      Series ("upce-3", UPC_E, 11, Unread => "4 5 6 8 9 10 11");
+
+      Ada.Text_IO.Put_Line
+        ("  all:" & Read_Total'Image & " of" & Images_Total'Image
+         & " read, in"
+         & Integer (Ada.Real_Time.To_Duration (Run_Time) * 1000.0)'Image
+         & " ms");
+      Check (Images_Total = 487, "487 images");
+   end Test_Barcodes;
+
    procedure Run_All is
       procedure Run (Test : not null access procedure) is
       begin
@@ -2884,6 +3115,7 @@ procedure Test_Real_Images is
       Run (Test_Focus_Stacks'Access);
       Run (Test_Nuclei'Access);
       Run (Test_Candles'Access);
+      Run (Test_Barcodes'Access);
    end Run_All;
 
    procedure Main is new AMV_Test_Support.Standalone (Run_All);

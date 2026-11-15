@@ -87,6 +87,34 @@ section 9.1.
   the trained pattern has exactly the resampled size, and the results of
   an affine search have the proved facts of `ks_ncc_search_execute`, with
   every window inside the resampled rectangle.
+* Code Reader: a new tool, `AMV.Code_Reader` (`Ks_Code_Reader_Tool`),
+  reads the linear barcodes of an 8-bit grey image: EAN-13, EAN-8,
+  UPC-A, UPC-E, Code 128, Code 39 and Interleaved 2 of 5 (ITF), at any
+  orientation and any number of them per image. A result has the text,
+  the symbology, the centre, the angle, the four corners and the number
+  of scan lines that read the symbol; the check digits are verified
+  (those of Code 39 and ITF when asked for). C:
+  `include/amv_code_reader.h` (`ks_code_reader_run_params_default`,
+  `ks_code_reader_execute`, `ks_code_reader_results_destroy`,
+  `ks_code_reader_results_count`, `ks_code_reader_results_item`); no
+  existing record or function changes, so the ABI version stays 3. The
+  new kernel `AMV.Kernels.Code_Reader` (with the private children
+  `Linear`, the decoders, and `Profiles`, the scan lines and their
+  edges) adds 1270 checks, all proved: no run-time error for any image,
+  region and parameters, no memory leak, and every result a symbology
+  with a text of 1 to 255 characters. That the text is the one of the
+  symbol is tested, not proved: on generated symbols of every symbology
+  (turned, blurred, with bars that gained or lost width, at low
+  contrast, shaded, noisy and sharpened) and on the 487 barcode
+  photographs of the ZXing project's tests (Apache-2.0), of which the
+  default run parameters read 382, with no wrong text
+  (`tests/real_images/README.md` has the table and the known failures).
+  Not read: two-dimensional codes, Extended Code 39, symbols without a
+  light margin inside the image, and modules narrower than 1.5 pixels.
+* Real-image tests: `tools/fetch_real_images.sh` takes two more kinds of
+  manifest entries (a PNG converted without loss by the new
+  `tools/png_to_bmp.py`, and a text file), downloads in parallel, and
+  the CI keeps the downloads from run to run.
 * Examples: every example writes a picture of its results, the input
   image with what the tools found drawn on it (`examples/example_draw`,
   for the examples only), and four new examples run on photographs

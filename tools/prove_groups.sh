@@ -17,6 +17,7 @@ cd "$(dirname "$0")/.."
 group_of() {
     case "$1" in
         amv-kernels-shape_match*) echo shape-match ;;
+        amv-kernels-code_reader*) echo code-reader ;;
         amv-kernels-calib_fix* | amv-kernels-ncc_search*) echo calib-ncc ;;
         amv-kernels-ip_* | amv-kernels-histogram* | amv-kernels-pixel_map* \
         | amv-kernels-sobel_edge* | amv-kernels-image_sharpness* \

@@ -27,6 +27,7 @@ void test_c_calib_fix(void);
 void test_c_ncc_search(void);
 void test_c_shape_match(void);
 void test_c_tool_group(void);
+void test_c_code_reader(void);
 
 static ks_coordinate_space_tree tree;
 
@@ -1947,6 +1948,7 @@ int main(void)
     test_c_ncc_search();
     test_c_shape_match();
     test_c_tool_group();
+    test_c_code_reader();
 
     adafinal();
 

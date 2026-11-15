@@ -48,6 +48,7 @@ with AMV.Calib_Fix;
 with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
 with AMV.Caliper.Find_Line;
+with AMV.Code_Reader;
 with AMV.NCC_Search;
 with AMV.Coordinate_Spaces;
 with AMV.Dimensioning;
@@ -78,6 +79,7 @@ with AMV.Tool_Block;
 with AMV.Tool_Group;
 with AMV.Tools;                            use AMV.Tools;
 with AMV.Transforms;                       use AMV.Transforms;
+with AMV_Test_Barcodes;
 with AMV_Test_Images;
 with AMV_Test_Support;                     use AMV_Test_Support;
 
@@ -5994,6 +5996,133 @@ procedure Test_Robustness is
    end Sweep_Shape_Match;
 
    ---------------------------------------------------------------------
+   --  Code Reader
+   ---------------------------------------------------------------------
+
+   function Symbol_Scene return Ks_Image_8_Grey is
+      Result : Ks_Image_8_Grey := TI.Blank (200, 60, 255);
+   begin
+      AMV_Test_Barcodes.Draw
+        (Result, AMV_Test_Barcodes.EAN_8 ("96385074"), 100.0, 30.0, 2.0,
+         40.0);
+      return Result;
+   end Symbol_Scene;
+   --  An EAN-8 symbol, so that the runs have a result to read.
+
+   Symbol_Image : constant Ks_Image_8_Grey := Symbol_Scene;
+
+   procedure Sweep_Code_Reader is
+      package R renames AMV.Code_Reader;
+      procedure Prepare (T : in out R.Ks_Code_Reader_Tool) is
+      begin
+         T.Input_Image := Symbol_Image;
+      end Prepare;
+      procedure Use_Results (T : R.Ks_Code_Reader_Tool; Call : String) is
+         procedure Read is
+         begin
+            for I in 0 .. T.Results.Count - 1 loop
+               declare
+                  Item : constant R.Ks_Code_Reader_Result :=
+                    T.Results.Item (I);
+               begin
+                  Consume (R.Text (Item));
+                  Consume (R.Symbology (Item)'Image);
+                  Consume (Item.Center_X + Item.Center_Y + Item.Angle);
+                  Consume (Item.Corner_0_X + Item.Corner_1_Y
+                           + Item.Corner_2_X + Item.Corner_3_Y);
+                  Consume (Integer (Item.Num_Scan_Lines));
+               end;
+            end loop;
+         end Read;
+         procedure Beyond (Index : Integer) is
+         begin
+            Consume (T.Results.Item (Index).Center_X);
+         end Beyond;
+      begin
+         Try (Call & " / results", Read'Access);
+         Integer_Sweep (Call & " / Item", [T.Results.Count, Natural'Last],
+                        Beyond'Access, True);
+      end Use_Results;
+      package S is new Sweeps (R.Ks_Code_Reader_Tool, "CodeReader", Prepare,
+                               Use_Results);
+      procedure Set_Image (T : in out R.Ks_Code_Reader_Tool;
+                           Field : Positive; I : Ks_Image_8_Grey) is
+         pragma Unreferenced (Field);
+      begin
+         T.Input_Image := I;
+      end Set_Image;
+      procedure Set_Real (T : in out R.Ks_Code_Reader_Tool; Field : Positive;
+                          V : Real) is
+      begin
+         case Field is
+            when 1 => T.Run_Params.First_Direction := V;
+            when others => T.Run_Params.Line_Spacing := V;
+         end case;
+      end Set_Real;
+      procedure Set_Integer (T : in out R.Ks_Code_Reader_Tool;
+                             Field : Positive; V : Integer) is
+         P : R.Ks_Code_Reader renames T.Run_Params;
+         I : constant Int32 := Int32 (V);
+      begin
+         case Field is
+            when 1 => P.Symbologies := I;
+            when 2 => P.Num_Directions := I;
+            when 3 => P.Contrast_Threshold := I;
+            when 4 => P.Min_Scan_Lines := I;
+            when 5 => P.Code_39_Check_Digit := I;
+            when 6 => P.ITF_Check_Digit := I;
+            when others => P.ITF_Min_Digits := I;
+         end case;
+      end Set_Integer;
+      procedure Set_Region (T : in out R.Ks_Code_Reader_Tool;
+                            Region : Ks_Region'Class) is
+      begin
+         T.Region := RH.To_Holder (Region);
+      end Set_Region;
+      procedure Symbol_With_Root (Name : String; A, D, X : Real) is
+         T : R.Ks_Code_Reader_Tool;
+      begin
+         T.Input_Image :=
+           With_Root (Symbol_Image, Create (A, 0.0, 0.0, D, X, 0.0));
+         S.Run_Case (T, "CodeReader on a symbol, " & Name);
+      end Symbol_With_Root;
+      --  The positions of a symbol in a root space that is far from the
+      --  pixels.
+      procedure Forged_Symbology (Value : Integer) is
+         Item : R.Ks_Code_Reader_Result;
+      begin
+         Item.Symbology := Int32 (Value);
+         Consume (R.Symbology (Item)'Image);
+      end Forged_Symbology;
+      procedure Forged_Length (Value : Integer) is
+         Item : R.Ks_Code_Reader_Result;
+      begin
+         Item.Length := Int32 (Value);
+         Consume (R.Text (Item));
+      end Forged_Length;
+   begin
+      Begin_Area ("Code Reader", Is_Tool => True);
+      S.Default_Run;
+      S.Images ("InputImage", Set_Image'Access);
+      Symbol_With_Root ("pixel from root 1.0E140", 1.0E140, 1.0E140, 0.0);
+      Symbol_With_Root ("pixel from root 1.0E-140", 1.0E-140, 1.0E-140,
+                        0.0);
+      Symbol_With_Root ("mirrored", -1.0, 1.0, 199.0);
+      S.Reals ("FirstDirection,LineSpacing", Set_Real'Access);
+      S.Integers ("Symbologies,NumDirections,ContrastThreshold,"
+                  & "MinScanLines,Code39CheckDigit,ITFCheckDigit,"
+                  & "ITFMinDigits", Set_Integer'Access,
+                  Bad_Integers & [1, 127, 128, 180, 181, 255, 256, 1_000]);
+      S.Regions ("Region", All_Regions, Set_Region'Access);
+      Integer_Sweep ("Symbology (forged result)",
+                     Bad_Integers & [1, 3, 64, 128],
+                     Forged_Symbology'Access);
+      Integer_Sweep ("Text (forged result)", Bad_Integers & [255, 256],
+                     Forged_Length'Access);
+      End_Area;
+   end Sweep_Code_Reader;
+
+   ---------------------------------------------------------------------
    --  ToolGroup, ToolBlock, Image File
    ---------------------------------------------------------------------
 
@@ -6739,6 +6868,7 @@ procedure Test_Robustness is
       Sweep_Calib_Fix;
       Sweep_NCC_Search;
       Sweep_Shape_Match;
+      Sweep_Code_Reader;
       Sweep_Tool_Group;
       Sweep_Image_File;
       Sweep_Streams;
