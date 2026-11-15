@@ -541,6 +541,34 @@ procedure Test_Code_Reader is
                    (for all C in Seen'Range (2) => Seen (S, C))),
                 "UPC-E: both number systems drawn with every check digit");
       end;
+
+      --  Nor does EAN-13 draw its first digit: it is in the number sets
+      --  of the six digits after it. Every first digit, with the digits
+      --  after it counting up from it, which puts every digit in number
+      --  set A, in number set B and in the right half. The first digit 0
+      --  is UPC-A.
+      for First in 0 .. 9 loop
+         declare
+            Twelve : String (1 .. 12);
+         begin
+            for P in Twelve'Range loop
+               Twelve (P) :=
+                 Character'Val
+                   (Character'Pos ('0') + (First + P - 1) mod 10);
+            end loop;
+            declare
+               Text : constant String := Twelve & BC.Check_Digit (Twelve);
+            begin
+               if First = 0 then
+                  Check_Symbol (BC.EAN_13 (Text), UPC_A, Text (2 .. 13),
+                                "EAN-13 with the first digit 0: UPC-A");
+               else
+                  Check_Symbol (BC.EAN_13 (Text), EAN_13, Text,
+                                "EAN-13, first digit" & First'Image);
+               end if;
+            end;
+         end;
+      end loop;
       Check_Symbol (BC.Code_128_B ("Ada 2022!"), Code_128, "Ada 2022!",
                     "Code 128, code set B");
       Check_Symbol (BC.Code_128_C ("0123456789"), Code_128, "0123456789",
@@ -1037,6 +1065,55 @@ procedure Test_Code_Reader is
       Check_Values ([BC.Start_B, 0, 65, 94, 95],
                     " a~" & Character'Val (127),
                     "code set B: the ends of its range");
+
+      --  Every value of the code sets A and B, sixteen to a symbol
+      --  (the characters 0 .. 127 in each), and of code set C, ten to a
+      --  symbol (00 to 99).
+      for Group in 0 .. 5 loop
+         declare
+            Values_A : BC.Value_List (1 .. 17) :=
+              [1 => BC.Start_A, others => 0];
+            Values_B : BC.Value_List (1 .. 17) :=
+              [1 => BC.Start_B, others => 0];
+            Text_A   : String (1 .. 16);
+            Text_B   : String (1 .. 16);
+            Value    : Natural;
+            Name     : constant String :=
+              ", values" & Natural'Image (16 * Group) & " to"
+              & Natural'Image (16 * Group + 15);
+         begin
+            for K in 1 .. 16 loop
+               Value := 16 * Group + K - 1;
+               Values_A (K + 1) := Value;
+               Values_B (K + 1) := Value;
+               Text_A (K) :=
+                 Character'Val (if Value < 64 then Value + 32
+                                else Value - 64);
+               Text_B (K) := Character'Val (Value + 32);
+            end loop;
+            Check_Values (Values_A, Text_A, "code set A" & Name);
+            Check_Values (Values_B, Text_B, "code set B" & Name);
+         end;
+      end loop;
+
+      for Tens in 0 .. 9 loop
+         declare
+            Values : BC.Value_List (1 .. 11) :=
+              [1 => BC.Start_C, others => 0];
+            Text   : String (1 .. 20);
+         begin
+            for Units in 0 .. 9 loop
+               Values (Units + 2) := 10 * Tens + Units;
+               Text (2 * Units + 1) :=
+                 Character'Val (Character'Pos ('0') + Tens);
+               Text (2 * Units + 2) :=
+                 Character'Val (Character'Pos ('0') + Units);
+            end loop;
+            Check_Values (Values, Text,
+                          "code set C, values" & Natural'Image (10 * Tens)
+                          & " to" & Natural'Image (10 * Tens + 9));
+         end;
+      end loop;
 
       --  Changes of code set.
       Check_Values ([BC.Start_B, 41, 36, BC.Code_C, 12, 34, 56,
