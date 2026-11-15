@@ -512,6 +512,35 @@ procedure Test_Code_Reader is
                     "UPC-E, number system 0");
       Check_Symbol (BC.UPC_E ("11234562"), UPC_E, "11234562",
                     "UPC-E, number system 1");
+
+      --  UPC-E does not draw its number system and its check digit: they
+      --  are in the choice of number sets of the six digits. Every one of
+      --  the twenty choices: the second digit, which has weight 1 in the
+      --  check digit, takes it through the ten values.
+      declare
+         Seen : array (Character range '0' .. '1',
+                       Character range '0' .. '9') of Boolean :=
+           [others => [others => False]];
+      begin
+         for System in Seen'Range (1) loop
+            for Second in Seen'Range (2) loop
+               declare
+                  Seven : constant String := System & Second & "23456";
+                  Last  : constant Character :=
+                    BC.UPC_E_Check_Digit (Seven);
+               begin
+                  Seen (System, Last) := True;
+                  Check_Symbol
+                    (BC.UPC_E (Seven & Last), UPC_E, Seven & Last,
+                     "UPC-E, number system " & System & ", check digit "
+                     & Last);
+               end;
+            end loop;
+         end loop;
+         Check ((for all S in Seen'Range (1) =>
+                   (for all C in Seen'Range (2) => Seen (S, C))),
+                "UPC-E: both number systems drawn with every check digit");
+      end;
       Check_Symbol (BC.Code_128_B ("Ada 2022!"), Code_128, "Ada 2022!",
                     "Code 128, code set B");
       Check_Symbol (BC.Code_128_C ("0123456789"), Code_128, "0123456789",

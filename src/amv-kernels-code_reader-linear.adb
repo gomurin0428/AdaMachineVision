@@ -297,8 +297,14 @@ package body AMV.Kernels.Code_Reader.Linear with SPARK_Mode is
    UPC_E_System_0 : constant Parity_Table :=
      [16#38#, 16#34#, 16#32#, 16#31#, 16#2C#,
       16#26#, 16#23#, 16#2A#, 16#29#, 16#25#];
-   --  Number system 0, by check digit; number system 1 has the sets of
-   --  EAN_13_First_Digit.
+
+   UPC_E_System_1 : constant Parity_Table :=
+     [16#07#, 16#0B#, 16#0D#, 16#0E#, 16#13#,
+      16#19#, 16#1C#, 16#15#, 16#16#, 16#1A#];
+   --  UPC-E, by the check digit, for the number systems 0 and 1. Number
+   --  system 1 takes for each digit the other set (63 minus the number
+   --  of number system 0): the sets of EAN_13_First_Digit but for check
+   --  digit 0, which has three digits in each set like the others.
 
    procedure Find_Parity
      (Table : Parity_Table; Parity : Natural;
@@ -538,7 +544,7 @@ package body AMV.Kernels.Code_Reader.Linear with SPARK_Mode is
       if OK then
          D (1) := 0;
       else
-         Find_Parity (EAN_13_First_Digit, Parity, Value, OK);
+         Find_Parity (UPC_E_System_1, Parity, Value, OK);
          if not OK then
             return;
          end if;
