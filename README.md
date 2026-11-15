@@ -56,19 +56,22 @@ what it contains and every change since.
 * **Vision tools:** Blob, Caliper, Find Line / Find Circle, the
   Dimensioning measuring, fitting and shape creation tools, the Image
   Processing filter, one-image and geometry tools, NCC Search, Shape Match,
-  CalibFix (fixtures, N-point and checkerboard calibration) and
+  CalibFix (fixtures, N-point and checkerboard calibration), the Code
+  Reader (linear barcodes: EAN-13, EAN-8, UPC-A, UPC-E, Code 128,
+  Code 39 and Interleaved 2 of 5, at any orientation) and
   ToolGroup / ToolBlock are implemented and tested. The spec of each
   package (`src/amv-blob.ads`, ...) documents the tool, its defaults and
   what it does not support. Shape Match's search is AMV's own method from
   the public literature (`src/amv-kernels-shape_match.ads` describes it).
 * **Proofs:** all logic lives in SPARK kernels, and every kernel is
   proved free of run-time errors for any input (and, for the facts listed
-  in `docs/PROOF.md`, functionally correct): 34514 checks, all proved,
+  in `docs/PROOF.md`, functionally correct): 35795 checks, all proved,
   with no `pragma Assume` and no justified checks. What is trusted
   without proof (the thin Ada API, the reference counting of shared
   pixels, and small helpers for allocation, copies to and from C memory
   and stream conversions) is listed there.
-* **Not in v0.1:** barcodes (ID) and OCR.
+* **Not yet:** two-dimensional codes (Data Matrix, QR code) and OCR.
+  Linear barcodes are read by the Code Reader, added after v0.1.0.
 
 ## Design in one paragraph
 
