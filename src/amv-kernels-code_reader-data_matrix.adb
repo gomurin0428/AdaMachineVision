@@ -98,8 +98,11 @@ package body AMV.Kernels.Code_Reader.Data_Matrix with SPARK_Mode is
    with Post => (if Good then Good'Old);
    --  Gives the module (Row, Col) of the mapping matrix to the bit Bit
    --  of the codeword Chr. A row or column before the first wraps to
-   --  the other side, shifted as the symbology defines. Good becomes
-   --  False if the module is then not in the matrix.
+   --  the other side, shifted as the symbology defines; a row that the
+   --  shift takes beyond the last wraps to the top (the rectangular
+   --  extension defines so; only its sizes of 26 x 40 and 26 x 48 have
+   --  such a module). Good becomes False if the module is then not in
+   --  the matrix.
 
    procedure Put_Module
      (Size         : Size_Index;
@@ -122,6 +125,9 @@ package body AMV.Kernels.Code_Reader.Data_Matrix with SPARK_Mode is
       if C < 0 then
          C := C + N_Col;
          R := R + 4 - ((N_Col + 4) mod 8);
+      end if;
+      if R >= N_Row then
+         R := R - N_Row;
       end if;
 
       if R not in 0 .. N_Row - 1 or else C not in 0 .. N_Col - 1 then

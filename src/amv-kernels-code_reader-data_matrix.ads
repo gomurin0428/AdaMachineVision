@@ -5,11 +5,13 @@
 --  The symbol. A grid of Rows by Columns modules, row 0 at the top. The
 --  left column and the bottom row are dark (the "L"); the top row and
 --  the right column alternate. There are 24 square sizes from 10 x 10 to
---  144 x 144 and 6 rectangular ones. The larger sizes are divided into
---  regions, each with such a border of its own; without the borders the
---  regions together are the mapping matrix, which holds the codewords:
---  eight modules each, in the shape and the order that the symbology
---  defines (Place), the most significant bit first.
+--  144 x 144 and 6 rectangular ones, and 18 more rectangular ones in the
+--  rectangular extension (DMRE, ISO/IEC 21471), from 8 x 48 to 26 x 64.
+--  The larger sizes are divided into regions, each with such a border of
+--  its own; without the borders the regions together are the mapping
+--  matrix, which holds the codewords: eight modules each, in the shape
+--  and the order that the symbology defines (Place), the most
+--  significant bit first.
 --
 --  The codewords. The first Data of them carry the message, the others
 --  are the check codewords of a Reed-Solomon code over GF(256) (field
@@ -59,9 +61,11 @@ is
    --  The sizes
    ---------------------------------------------------------------------
 
-   Num_Sizes : constant := 30;
+   Num_Sizes : constant := 48;
 
    subtype Size_Index is Positive range 1 .. Num_Sizes;
+   --  1 .. 24: the square sizes; 25 .. 30: the rectangular ones;
+   --  31 .. 48: those of the rectangular extension.
 
    Max_Codewords : constant := 2178;
    Max_Data      : constant := 1558;
@@ -112,7 +116,25 @@ is
       (12, 26, 10, 24, 1, 1, 16, 14, 1),
       (12, 36, 10, 16, 1, 2, 22, 18, 1),
       (16, 36, 14, 16, 1, 2, 32, 24, 1),
-      (16, 48, 14, 22, 1, 2, 49, 28, 1)];
+      (16, 48, 14, 22, 1, 2, 49, 28, 1),
+      (8, 48, 6, 22, 1, 2, 18, 15, 1),
+      (8, 64, 6, 14, 1, 4, 24, 18, 1),
+      (8, 80, 6, 18, 1, 4, 32, 22, 1),
+      (8, 96, 6, 22, 1, 4, 38, 28, 1),
+      (8, 120, 6, 18, 1, 6, 49, 32, 1),
+      (8, 144, 6, 22, 1, 6, 63, 36, 1),
+      (12, 64, 10, 14, 1, 4, 43, 27, 1),
+      (12, 88, 10, 20, 1, 4, 64, 36, 1),
+      (16, 64, 14, 14, 1, 4, 62, 36, 1),
+      (20, 36, 18, 16, 1, 2, 44, 28, 1),
+      (20, 44, 18, 20, 1, 2, 56, 34, 1),
+      (20, 64, 18, 14, 1, 4, 84, 42, 1),
+      (22, 48, 20, 22, 1, 2, 72, 38, 1),
+      (24, 48, 22, 22, 1, 2, 80, 41, 1),
+      (24, 64, 22, 14, 1, 4, 108, 46, 1),
+      (26, 40, 24, 18, 1, 2, 70, 38, 1),
+      (26, 48, 24, 22, 1, 2, 90, 42, 1),
+      (26, 64, 24, 14, 1, 4, 118, 50, 1)];
 
    function Find_Size (Rows, Columns : Integer) return Natural
    with Post => Find_Size'Result <= Num_Sizes

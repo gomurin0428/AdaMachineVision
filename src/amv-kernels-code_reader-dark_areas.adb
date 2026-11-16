@@ -23,11 +23,11 @@ is
    ---------------------------------------------------------------------
 
    function Last_Of (First, Last : Natural) return Natural is
-     (if Last - First >= Block - 1 then First + Block - 1 else Last)
+     (if Last - First >= Block - 1 then First + (Block - 1) else Last)
    with
      Pre  => First <= Last,
      Post => Last_Of'Result in First .. Last
-             and then Last_Of'Result <= First + Block - 1;
+             and then Last_Of'Result - First <= Block - 1;
    --  The last row (or column) of the block that begins at First, in a
    --  map whose last one is Last.
 
@@ -127,6 +127,24 @@ is
       end if;
    end Local_Threshold;
 
+   function Mean_Level (Sum, N : Int64) return Level
+   with Pre => N in 1 .. 2 ** 52 and then Sum in 0 .. 510 * N;
+   --  Sum / (2 * N): the mean of N middle levels, where Sum is the sum
+   --  of the lightest and of the darkest pixel of each.
+
+   function Mean_Level (Sum, N : Int64) return Level is
+      D : constant Int64 := 2 * N;
+      Q : constant Int64 := Sum / D;
+   begin
+      --  The steps by which the provers see at once that the quotient
+      --  is a level.
+      pragma Assert (Sum <= 255 * D);
+      pragma Assert (Q * D <= Sum);
+      pragma Assert (if Q >= 256 then Q * D >= 256 * D);
+      pragma Assert (Q <= 255);
+      return Level (Q);
+   end Mean_Level;
+
    procedure Binarise
      (Pixels     : KI.Grey_8_Matrix;
       X_Lo, Y_Lo : Natural;
@@ -145,9 +163,16 @@ is
       X0, X1    : Natural;
    begin
       for BY in Lows'Range (1) loop
+         pragma Loop_Invariant
+           (N in 0 .. Int64 (BY) * (Int64 (Lows'Last (2)) + 1));
+         pragma Loop_Invariant (Sum in 0 .. 510 * N);
          Y0 := BY * Block;
          Y1 := Last_Of (Y0, Map'Last (1));
          for BX in Lows'Range (2) loop
+            pragma Loop_Invariant
+              (N in 0 .. Int64 (BY) * (Int64 (Lows'Last (2)) + 1)
+                         + Int64 (BX));
+            pragma Loop_Invariant (Sum in 0 .. 510 * N);
             X0 := BX * Block;
             X1 := Last_Of (X0, Map'Last (2));
             Measure_Block (Pixels, Y_Lo + Y0, Y_Lo + Y1, X_Lo + X0,
@@ -162,7 +187,7 @@ is
       end loop;
 
       if N > 0 then
-         Default := Level (Sum / (2 * N));
+         Default := Mean_Level (Sum, N);
       elsif High - Low >= Contrast then
          Default := (Low + High) / 2;
       else
@@ -243,6 +268,11 @@ is
       end loop;
    end Next_Step;
 
+   Area_Limit : constant := 2 ** 62;
+   --  Twice the enclosed area of Trace, at most: a clamp that never acts
+   --  for a map of fewer than 2 ** 19 rows and columns (the sum is at
+   --  most the steps, eight a pixel, times the two coordinates).
+
    function Back_Of (Move : Direction) return Direction is
      (if Move mod 2 = 0 then Move + 6 else Move + 5);
    --  After a step in the direction Move: the direction of the light
@@ -259,6 +289,7 @@ is
    is
       Limit : constant Int64 :=
         8 * Int64 (Map'Length (1)) * Int64 (Map'Length (2));
+      Term  : Int64;
       Steps : Int64 := 0;
       CX    : Natural := X;
       CY    : Natural := Y;
@@ -288,12 +319,14 @@ is
            (Y_Lo <= Y and then Y <= Y_Hi and then Y_Hi <= Map'Last (1));
          pragma Loop_Invariant
            (CY <= Map'Last (1) and then CX <= Map'Last (2));
-         pragma Loop_Invariant
-           (abs Area <= Steps * Int64 (2 * Max_Side));
+         pragma Loop_Invariant (Area in -Area_Limit .. Area_Limit);
          pragma Loop_Variant (Increases => Steps);
          NX := CX + DX (Move);
          NY := CY + DY (Move);
-         Area := Area + Int64 (CX) * Int64 (NY) - Int64 (NX) * Int64 (CY);
+         Term := Int64 (CX) * Int64 (NY) - Int64 (NX) * Int64 (CY);
+         pragma Assert (Term in -2 ** 53 .. 2 ** 53);
+         Area :=
+           Int64'Max (-Area_Limit, Int64'Min (Area_Limit, Area + Term));
          CX := NX;
          CY := NY;
          Steps := Steps + 1;
@@ -326,14 +359,9 @@ is
    --  Hull
    ---------------------------------------------------------------------
 
-   function Valid_Point (P : Point) return Boolean is
-     (P.X in 0 .. Max_Side and then P.Y in 0 .. Max_Side);
-
    function Turn (A, B, C : Point) return Int64 is
      (Int64 (B.X - A.X) * Int64 (C.Y - B.Y)
-      - Int64 (B.Y - A.Y) * Int64 (C.X - B.X))
-   with Pre => Valid_Point (A) and then Valid_Point (B)
-               and then Valid_Point (C);
+      - Int64 (B.Y - A.Y) * Int64 (C.X - B.X));
    --  Positive: the way from A by B to C turns to the right, as the
    --  image is seen.
 
@@ -345,7 +373,8 @@ is
      (Integer'Max
         ((if Y <= Y_Hi then Rights (Y) else No_Right),
          (if Y > Y_Lo then Rights (Y - 1) else No_Right)))
-   with Pre => Rights'First = 0 and then Y_Hi <= Rights'Last
+   with Pre => Rights'First = 0 and then Rights'Last < Max_Side
+               and then Y_Hi <= Rights'Last
                and then Y in Y_Lo .. Y_Hi + 1;
    --  The rightmost pixel of the two rows that meet at the height Y.
 
@@ -357,7 +386,8 @@ is
      (Integer'Min
         ((if Y <= Y_Hi then Lefts (Y) else No_Left),
          (if Y > Y_Lo then Lefts (Y - 1) else No_Left)))
-   with Pre => Lefts'First = 0 and then Y_Hi <= Lefts'Last
+   with Pre => Lefts'First = 0 and then Lefts'Last < Max_Side
+               and then Y_Hi <= Lefts'Last
                and then Y in Y_Lo .. Y_Hi + 1;
 
    procedure Hull
@@ -375,12 +405,14 @@ is
 
       --  Down the right side.
       for Y in Y_Lo .. Y_Hi + 1 loop
+         pragma Loop_Invariant (Count <= Y - Y_Lo);
          Edge := Rightmost (Rights, Y_Lo, Y_Hi, Y);
          if Edge in 0 .. Max_Side - 1 then
             P := (Edge + 1, Y);
             while Count >= 2
               and then Turn (Points (Count - 1), Points (Count), P) <= 0
             loop
+               pragma Loop_Invariant (Count in 2 .. Count'Loop_Entry);
                Count := Count - 1;
             end loop;
             Count := Count + 1;
@@ -391,12 +423,17 @@ is
       --  Up the left side; the lowest corner of the right side stays.
       Base := Count;
       for Y in reverse Y_Lo .. Y_Hi + 1 loop
+         pragma Loop_Invariant (Base <= Y_Hi - Y_Lo + 2);
+         pragma Loop_Invariant (Count in Base .. Base + (Y_Hi + 1 - Y));
          Edge := Leftmost (Lefts, Y_Lo, Y_Hi, Y);
          if Edge in 0 .. Max_Side - 1 then
             P := (Edge, Y);
             while Count > Base and then Count >= 2
               and then Turn (Points (Count - 1), Points (Count), P) <= 0
             loop
+               pragma Loop_Invariant
+                 (Count in Base + 1 .. Count'Loop_Entry
+                  and then Count >= 2);
                Count := Count - 1;
             end loop;
             Count := Count + 1;

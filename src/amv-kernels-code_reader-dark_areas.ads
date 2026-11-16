@@ -145,8 +145,10 @@ is
    --  Hull
    ---------------------------------------------------------------------
 
+   subtype Position is Integer range 0 .. Max_Side;
+
    type Point is record
-      X, Y : Integer := 0;
+      X, Y : Position := 0;
    end record;
    --  A corner of pixels: (X, Y) is the upper left corner of the pixel
    --  (X, Y).

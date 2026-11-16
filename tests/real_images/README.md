@@ -74,7 +74,7 @@ that holds the text of its symbol).
 | `visa_candle_*.jpg` | VisA (Zou et al., ECCV 2022), category `candle` | CC BY 4.0 |
 | `bbbc006_*.pgm` | BBBC006v1 (Ljosa et al., Nature Methods 2012), nuclei at 17 focal planes | CC0 1.0 |
 | `bbbc039_*.pgm` | BBBC039v1 (Ljosa et al., Nature Methods 2012), U2OS nuclei with hand-drawn masks | CC0 1.0 |
-| `zxing_*.png`, `zxing_*.txt` | ZXing ("Zebra Crossing"), `core/src/test/resources/blackbox`: the 23 series of linear barcodes, with the expected text of each image | Apache-2.0 |
+| `zxing_*.png`, `zxing_*.txt` | ZXing ("Zebra Crossing"), `core/src/test/resources/blackbox`: the 23 series of linear barcodes and the 3 series of Data Matrix symbols, with the expected text of each image | Apache-2.0 |
 
 Debian ships OpenCV's sample images as free software and excludes only the
 `lena` images, none of which is used here.
@@ -547,6 +547,59 @@ shows up, and not a measure of what it does on images it has not seen.
 
 The 487 images take about four seconds in all on a desktop computer.
 
+### Code Reader on ZXing's Data Matrix images
+
+The Data Matrix images of the same collection (`zxing.txt`): every image
+of its three series, 59 images. `datamatrix-1` and `datamatrix-3` are
+drawn symbols: square and rectangular sizes, in `datamatrix-3` those of
+the rectangular extension (DMRE), several of the ways to write the data,
+and symbols with some modules changed. `datamatrix-2` are photographs of
+printed symbols, 240 × 240. One file of `datamatrix-1` is not an image
+of the series: `HelloWorld_Text_L_Kaywa_6_error_byte.png.error`, which
+the collection keeps out of its own tests by that name. It is left out
+here too.
+
+**References.** As above: the text in the collection's text file next to
+each image.
+
+**Settings.** Every symbology enabled (`All_Symbologies`; Data Matrix is
+not among the default ones), the other run parameters at their defaults,
+for every image. Nothing is set for a series or an image.
+
+**What is checked.** Of every image: the expected text is reported, as
+that of a Data Matrix symbol, and no other text is. The linear
+symbologies are looked for as well and find nothing in these images.
+
+| Series | Images of | Image size | Images | Read |
+|---|---|---|---|---|
+| `datamatrix-1` | drawn symbols | 45 × 40 to 524 × 524 | 23 | 23 |
+| `datamatrix-2` | photographs | 240 × 240 | 18 | 18 |
+| `datamatrix-3` | drawn symbols (DMRE) | 76 × 44 to 292 × 20 | 18 | 18 |
+| all | | | 59 | 59 |
+
+**Not a blind evaluation.** The part of the reader that finds a symbol
+in an image was worked on while looking at these very images, until all
+of them were read. At first it missed images of every series:
+rectangular symbols of `datamatrix-1`, the photographs 05, 07 and 08 of
+`datamatrix-2`, and all of `datamatrix-3`, whose sizes it did not have.
+Rules were added and changed until they were read: the threshold of a
+block of pixels without an edge in it, the three depths at which a side
+of the "L" is tested for being solid, the line of a side from the
+longest straight part of the hull, the corners taken again from all the
+dark pixels around the outline found, and, for `datamatrix-3`, the sizes
+of the rectangular extension and the spacing of the columns of long
+symbols. The last is limited to symbols at least twice as wide as high
+because it lost photograph 18 without that. The 59 of 59 therefore says
+that the reader reads the images it was made on, and is kept so that a
+change shows up. It is not a measure of what the reader does on images
+it has not seen, and there is no second set of Data Matrix photographs
+here to measure that. What the reader does on symbols drawn for the
+purpose (every size, modules of 3 to 20 pixels, blur, noise, uneven
+light, views at an angle, damaged symbols) is in
+`tests/test_code_reader_data_matrix.adb`.
+
+The 59 images take about 0.2 seconds in all on a desktop computer.
+
 ## Status
 
 Evaluated by the protocol above: the VisA candle rims (one known failure
@@ -567,5 +620,7 @@ on box_in_scene.png (the accept threshold was set after seeing the score).
 A record, not an evaluation: the Code Reader on ZXing's barcode
 photographs (every image, default run parameters, expected texts from the
 collection; but two rules of the reader were made while looking at these
-images, see its section).
+images, see its section) and on ZXing's Data Matrix images (every image,
+expected texts from the collection; but the part that finds a symbol was
+made while looking at these images, see its section).
 Blob on smarties.png uses the tool's defaults.

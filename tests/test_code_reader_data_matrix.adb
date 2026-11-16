@@ -399,10 +399,12 @@ procedure Test_Code_Reader_Data_Matrix is
                   Read := Read + 1;
                   Worst :=
                     Worse (Worst, Pose_Of (Tool.Results.Item (0), Where));
-               elsif Tool.Run_Status.Result /= Accept_Result
-                 or else Tool.Results.Count > 0
-               then
-                  Wrong := Wrong + 1;
+               else
+                  if Tool.Run_Status.Result /= Accept_Result
+                    or else Tool.Results.Count > 0
+                  then
+                     Wrong := Wrong + 1;
+                  end if;
                   Ada.Text_IO.Put_Line
                     ("  " & Name & ", size" & Size'Image & ", turn"
                      & Turn'Image & ":" & Found (Tool));
@@ -424,6 +426,7 @@ procedure Test_Code_Reader_Data_Matrix is
    procedure Test_Sizes is
       Squares    : Size_List (1 .. 24);
       Rectangles : Size_List (1 .. 6);
+      Extended   : Size_List (1 .. 18);
    begin
       Section ("CodeReader: Data Matrix symbols of every size");
       for I in Squares'Range loop
@@ -432,6 +435,9 @@ procedure Test_Code_Reader_Data_Matrix is
       for I in Rectangles'Range loop
          Rectangles (I) := 24 + I;
       end loop;
+      for I in Extended'Range loop
+         Extended (I) := 30 + I;
+      end loop;
       --  With the linear barcodes looked for as well: no part of a Data
       --  Matrix symbol is read as one.
       Check_Series ("the 24 square sizes, 10 x 10 to 144 x 144", Squares,
@@ -439,6 +445,10 @@ procedure Test_Code_Reader_Data_Matrix is
                     Params => Everything);
       Check_Series ("the 6 rectangular sizes, 8 x 18 to 16 x 48",
                     Rectangles, Module => 4.0, Turns => 16, Step => 23.0,
+                    Params => Everything);
+      Check_Series ("the 18 sizes of the rectangular extension, 8 x 48 to "
+                    & "26 x 64",
+                    Extended, Module => 4.0, Turns => 16, Step => 23.0,
                     Params => Everything);
    end Test_Sizes;
 
@@ -1375,6 +1385,34 @@ procedure Test_Code_Reader_Data_Matrix is
              and then Length = 0
              and then (for all C of Part => C = ASCII.NUL),
              "Text (0) of null");
+
+      --  The whole text (what the Ada API reads).
+      declare
+         Buffer : String (1 .. 700);
+         Short  : String (1 .. 599);
+         Whole  : Natural;
+      begin
+         KC.Results_Whole_Text (Results, 0, Buffer, Whole, Status);
+         Check (Status.Failure = K.Failure_None and then Whole = 600
+                and then Buffer (1 .. 600) = Expect
+                and then (for all I in 601 .. 700 =>
+                            Buffer (I) = ASCII.NUL),
+                "the whole text: 600 characters, and NUL after them");
+         KC.Results_Whole_Text (Results, 0, Short, Whole, Status);
+         Check (Status.Failure = K.Failure_Bad_Parameter and then Whole = 0
+                and then Message
+                           = "Text: the buffer is shorter than the text",
+                "the whole text in a buffer of 599 characters");
+         KC.Results_Whole_Text (Results, 1, Buffer, Whole, Status);
+         Check (Status.Failure = K.Failure_Index_Out_Of_Range
+                and then Whole = 0
+                and then Message = "Text: index outside the results",
+                "the whole text of item 1 of one result");
+         KC.Results_Whole_Text (null, 0, Buffer, Whole, Status);
+         Check (Status.Failure = K.Failure_Index_Out_Of_Range
+                and then Whole = 0,
+                "the whole text of null");
+      end;
       KC.Results_Destroy (Results);
 
       --  Selected_From_Pixel.

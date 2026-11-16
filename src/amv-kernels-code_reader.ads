@@ -1,8 +1,9 @@
 --  SPARK kernel for the code reader: reads the linear barcodes of an
---  8-bit grey image, at any orientation and any number of them per image.
+--  8-bit grey image, at any orientation and any number of them per image,
+--  and its Data Matrix symbols when the run parameters ask for them.
 --
 --  Symbologies: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39 and
---  Interleaved 2 of 5 (ITF).
+--  Interleaved 2 of 5 (ITF); Data Matrix (ECC 200).
 --
 --  What a run does:
 --
@@ -70,6 +71,51 @@
 --      read by the most lines is kept. The results are ordered by the
 --      number of scan lines, greatest first.
 --
+--   5. Data Matrix. When Symbology_Data_Matrix is among the symbologies,
+--      a pass of its own follows, which does not use the scan lines. It
+--      looks at the bounding box of the pixels of the region that lie in
+--      the image; the children of this package describe its steps in
+--      full.
+--
+--      Dark_Areas. The pixels are marked dark or light against a
+--      threshold of their neighbourhood, from the blocks of 8 by 8
+--      pixels around them whose lightest and darkest pixel differ by
+--      ContrastThreshold or more (an area without such a difference has
+--      no dark pixel); the pixels outside the region are light. Every
+--      connected dark area is followed along its outline, once, and the
+--      convex hull of the outline is formed. An outline that encloses
+--      64 pixels or less, or that has fewer than nine rows, is passed
+--      over, and so is the outline of a hole in a dark area.
+--
+--      Data_Matrix.Finder. A hull with two solid sides that meet (the
+--      "L" of a symbol) and two sides that are not solid gives the four
+--      corners of a symbol; they are taken again from all the dark
+--      pixels near that outline. The modules are counted along the two
+--      alternating sides and looked up at their middles through the
+--      perspective mapping of the four corners (a symbol may be seen at
+--      an angle); the columns of a symbol at least twice as wide as
+--      high are spaced as its alternating upper side shows them, which
+--      the corners of a long symbol do not give exactly.
+--
+--      Data_Matrix and Reed_Solomon. The codewords are read from the
+--      modules, corrected and decoded. Until a size gives a text, the
+--      sizes one or two modules off the count are tried as well, the
+--      nearest first, and then the same for the mirror image of the
+--      symbol. A symbol that is read from two dark areas (the same
+--      text, and the middles less than half the shorter side of the L
+--      apart) is reported once.
+--
+--      A symbol must be dark on light, with a light margin of two
+--      pixels or more all around (the border of the image and the
+--      pixels outside the region count as light); its L must be one
+--      solid dark area that touches nothing else dark, so a symbol of
+--      separate dots is not read, nor one printed light on dark; its
+--      modules should be two pixels or more. The 24 square sizes (10 x
+--      10 to 144 x 144 modules) and the 6 rectangular ones of ECC 200
+--      are read, and the 18 sizes of the rectangular extension (DMRE,
+--      ISO/IEC 21471: 8 x 48 to 26 x 64 modules); the older ECC 000 to
+--      140 are not. A symbol whose text is empty is not reported.
+--
 --  Results. Each result has the symbology, the text, the centre, the
 --  angle and the four corners of the area the reading scan lines cover:
 --  the start of the symbol on the first line, its end on the first line,
@@ -87,7 +133,26 @@
 --  it. Positions are in the space that Selected_From_Pixel maps pixel
 --  space to.
 --
+--  The Data Matrix results follow those of the linear barcodes, in the
+--  order in which a scan of the area from its top, left to right, meets
+--  their dark areas. Their corners are those of the symbol as it is
+--  printed (0: upper left, 1: upper right, 2: lower right, 3: lower
+--  left, the corner of the L; in the image the symbol may be turned or
+--  mirrored), the angle is the direction from corner 3 to corner 2, the
+--  centre is the middle of the symbol as it is printed (where the
+--  diagonals cross; for a symbol at least twice as wide as high, the
+--  middle of its columns as they were read), and NumScanLines is 0.
+--
 --  Text:
+--   * Data Matrix: the characters of the ASCII, C40, Text, X12, EDIFACT
+--     and Base 256 encodations, each as one character (0 .. 255; no
+--     character set is applied). FNC1 in the first position (GS1) adds
+--     nothing to the text, a later FNC1 is the character GS (29). The
+--     macro codewords 05 and 06 add their header and their trailer.
+--     ECI, structured append and reader programming codewords are
+--     passed over. The text can have up to 3125 characters: a result
+--     holds its first Max_Text_Length and its whole length, and
+--     Results_Text gives all of it.
 --   * EAN-13: 13 digits; EAN-8: 8 digits; UPC-A: 12 digits; UPC-E: 8
 --     digits (the number system, the six digits of the symbol and the
 --     check digit). A symbol that is both (an EAN-13 symbol whose first
@@ -106,11 +171,17 @@
 --  Failures: Image_No_Pixels for a null image; Bad_Parameter for an
 --  invalid image, region, transform or run parameter, and for a region
 --  to scan whose width plus height exceeds Max_Line_Samples;
---  Out_Of_Memory; Other when more than Max_Candidates candidates arise.
+--  Out_Of_Memory; Other when more than Max_Candidates candidates (those
+--  of the linear barcodes and the Data Matrix symbols together) arise.
 --
 --  Proved: no run-time error for any input, a valid status, and for every
 --  results handle the facts of Gold_Results. The decoders themselves are
---  checked by the tests.
+--  checked by the tests. The children of the Data Matrix pass
+--  (Dark_Areas, Data_Matrix, Data_Matrix.Finder, Reed_Solomon) are
+--  proved free of run-time errors as well, and a word that Reed_Solomon
+--  has corrected is proved to be a codeword of its code; that a symbol
+--  is found and that its text is the one printed is checked by the
+--  tests.
 --
 --  Trusted parts: the allocation helpers of the body, which turn
 --  Storage_Error into null.
@@ -321,6 +392,10 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
      (Symbology = Symbology_Data_Matrix);
    --  A two-dimensional symbology.
 
+   function Is_Linear (Symbology : Int32) return Boolean is
+     (Is_Symbology (Symbology) and then not Is_Matrix (Symbology));
+   --  A symbology of linear barcodes.
+
    function Valid_Item (Item : Ks_Code_Reader_Result) return Boolean is
      (Is_Symbology (Item.Symbology)
       and then Item.Length >= 1
@@ -499,5 +574,24 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
                          = (Item.Length in 0 .. Max_Matrix_Text_Length);
    --  Bad_Parameter for a record whose Length is not in
    --  0 .. Max_Matrix_Text_Length (a record changed by hand).
+
+   procedure Results_Whole_Text
+     (Results : access constant Ks_Code_Reader_Results_Data;
+      Index   : Int32;
+      Text    : out String;
+      Length  : out Natural;
+      Status  : out Ks_Status)
+   with Pre  => Text'First = 1,
+        Post => Valid (Status)
+                and then Status.Failure
+                           in Failure_None | Failure_Bad_Parameter
+                            | Failure_Index_Out_Of_Range
+                and then Length <= Text'Length
+                and then (if not Succeeded (Status) then Length = 0);
+   --  The whole text of item Index (0-based) in Text (1 .. Length); the
+   --  rest of Text is NUL. Index_Out_Of_Range for an Index outside the
+   --  results (always for null); Bad_Parameter for a Text that is
+   --  shorter than the text of the item and for a record that is not a
+   --  results handle.
 
 end AMV.Kernels.Code_Reader;

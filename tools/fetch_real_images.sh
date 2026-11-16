@@ -1,7 +1,7 @@
 #!/bin/sh
 # Downloads the images listed in the manifests tests/real_images/*.txt
 # (images.txt: open images; visa.txt: VisA; bbbc006.txt: BBBC006;
-# bbbc039.txt: BBBC039; zxing.txt: ZXing's barcode photographs; see each
+# bbbc039.txt: BBBC039; zxing.txt: ZXing's test images; see each
 # header) into build/real-images/raw, checks their SHA-256 and converts
 # each to BMP in build/real-images (AMV reads PNM and BMP only). Files
 # that are already there with the right checksum are not downloaded again.

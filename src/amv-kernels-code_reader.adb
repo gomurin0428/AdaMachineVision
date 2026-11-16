@@ -208,7 +208,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       --  upper right, the lower right and the lower left one (the corner
       --  of the L).
       Middle         : Point;
-      --  Where its diagonals cross.
+      --  The middle of the symbol as it is printed (Finder.Sample).
       Start          : Positive := 1;
       Length         : Matrix_Length := 1;
       --  Its text: Length characters of the pool, from Start on.
@@ -903,7 +903,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    with
      Pre  => Table_OK (Table, Open, Count)
              and then Valid_Settings (Settings)
-             and then Is_Symbology (Item.Symbology)
+             and then Is_Linear (Item.Symbology)
              and then Item.Length >= 1,
      Post => Table_OK (Table, Open, Count);
    --  A reading of scan line Line: the symbol Item, whose start and end
@@ -1527,7 +1527,10 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  than Min_Height rows more than one tall, is not looked at: the L of
    --  a symbol is at least ten pixels long.
 
-   Size_Deltas : constant array (1 .. 5) of Integer := [0, -1, 1, -2, 2];
+   subtype Size_Delta is Integer range -2 .. 2;
+
+   Size_Deltas : constant array (1 .. 5) of Size_Delta :=
+     [0, -1, 1, -2, 2];
    --  The sizes tried around the modules counted, the nearest first.
 
    subtype Matrix_Text is DM.Text_Buffer (1 .. DM.Max_Text_Length);
@@ -1538,6 +1541,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
      (Map     : DA.Mark_Map;
       Field   : RS.Field;
       Shape   : in out FN.Outline;
+      Centre  : out FN.Corner;
       Text    : out Matrix_Text;
       Length  : out Natural;
       Success : out Boolean)
@@ -1547,12 +1551,14 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  Reads the symbol whose corners are Shape: counts its modules, and
    --  samples and decodes it at the sizes nearest to the count until one
    --  gives a text; then the same for the symbol seen from behind, and
-   --  Shape is that outline if that is the one read.
+   --  Shape is that outline if that is the one read. Centre: the middle
+   --  of the symbol as it was read.
 
    procedure Read_Symbol
      (Map     : DA.Mark_Map;
       Field   : RS.Field;
       Shape   : in out FN.Outline;
+      Centre  : out FN.Corner;
       Text    : out Matrix_Text;
       Length  : out Natural;
       Success : out Boolean)
@@ -1562,17 +1568,26 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       R, C          : Integer;
       Size          : Natural;
       Grid          : DM.Module_Grid;
-      Corrected     : Natural;
+
+      Unused_Corrected : Natural;
    begin
+      Centre := (others => <>);
       Length := 0;
       Success := False;
       Text := [others => ' '];
+      --  The invariants keep gnatprove from unrolling the loops (250
+      --  passes of the innermost one).
       for Mirror in Boolean loop
+         pragma Loop_Invariant (not Success and then Length = 0);
          FN.Count_Modules (Map, Shape, Rows, Columns);
          if Rows <= DM.Max_Side + 2 and then Columns <= DM.Max_Side + 2 then
             for Sum in 0 .. 4 loop
+               pragma Loop_Invariant (not Success and then Length = 0);
                for DR of Size_Deltas loop
+                  pragma Loop_Invariant (not Success and then Length = 0);
                   for DC of Size_Deltas loop
+                     pragma Loop_Invariant
+                       (not Success and then Length = 0);
                      R := Rows + DR;
                      C := Columns + DC;
                      if abs DR + abs DC = Sum
@@ -1581,9 +1596,9 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
                      then
                         Size := DM.Find_Size (R, C);
                         if Size > 0 then
-                           FN.Sample (Map, Shape, R, C, Grid);
+                           FN.Sample (Map, Shape, R, C, Grid, Centre);
                            DM.Decode (Grid, Size, Field, Text, Length,
-                                      Corrected, Success);
+                                      Unused_Corrected, Success);
                            if Success and then Length > 0 then
                               return;
                            end if;
@@ -1608,6 +1623,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Points  : in out DA.Point_Array;
       Field   : RS.Field;
       Shape   : out FN.Outline;
+      Centre  : out FN.Corner;
       Text    : out Matrix_Text;
       Length  : out Natural;
       Success : out Boolean)
@@ -1624,8 +1640,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  passes the pixel (X, Y), which has a light pixel or the edge of the
    --  map on its left: traces the outline, and from its hull finds the
    --  corners (FN.Locate, FN.Refine) and reads the symbol. Shape: its
-   --  corners as it was read. Lefts and Rights: DA.No_Left and
-   --  DA.No_Right in every row, on entry and on return.
+   --  corners, and Centre: its middle, as it was read. Lefts and Rights:
+   --  DA.No_Left and DA.No_Right in every row, on entry and on return.
 
    procedure Read_Area
      (Map     : in out DA.Mark_Map;
@@ -1635,6 +1651,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Points  : in out DA.Point_Array;
       Field   : RS.Field;
       Shape   : out FN.Outline;
+      Centre  : out FN.Corner;
       Text    : out Matrix_Text;
       Length  : out Natural;
       Success : out Boolean)
@@ -1646,6 +1663,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Found      : Boolean;
    begin
       Shape := (others => <>);
+      Centre := (others => <>);
       Text := [others => ' '];
       Length := 0;
       Success := False;
@@ -1664,14 +1682,13 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       FN.Locate (Map, Points (1 .. Count), Shape, Found);
       if Found then
          FN.Refine (Map, Lefts, Rights, Points, Shape);
-         Read_Symbol (Map, Field, Shape, Text, Length, Success);
+         Read_Symbol (Map, Field, Shape, Centre, Text, Length, Success);
       end if;
    end Read_Area;
 
    function To_Point
      (C          : FN.Corner;
-      X_Lo, Y_Lo : Natural) return Point
-   with Pre => X_Lo < DA.Max_Side and then Y_Lo < DA.Max_Side;
+      X_Lo, Y_Lo : Natural) return Point;
    --  The point C of a map whose pixel (0, 0) is the pixel (X_Lo, Y_Lo)
    --  of the image, in pixel space (where the middle of a pixel, and not
    --  its upper left corner, has whole coordinates).
@@ -1741,6 +1758,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
 
    procedure Add_Symbol
      (Shape      : FN.Outline;
+      Centre     : FN.Corner;
       X_Lo, Y_Lo : Natural;
       Text       : Matrix_Text;
       Length     : Positive;
@@ -1751,22 +1769,23 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Used       : in out Natural;
       Outcome    : out Pass_Outcome)
    with
-     Pre  => X_Lo < DA.Max_Side and then Y_Lo < DA.Max_Side
-             and then Length <= DM.Max_Text_Length
+     Pre  => Length <= DM.Max_Text_Length
              and then Room <= Max_Candidates and then Count <= Room
              and then Symbols_OK (Symbols, Count, Used)
              and then Pool_OK (Pool, Used),
      Post => Count <= Room and then Symbols_OK (Symbols, Count, Used)
              and then Pool_OK (Pool, Used);
-   --  Adds the symbol with the corners Shape (of the map whose first
-   --  pixel is the pixel (X_Lo, Y_Lo) of the image) and the text
-   --  Text (1 .. Length), unless it is there already: a symbol with the
-   --  same text whose middle is near the middle of this one. Room: the
-   --  most symbols. Outcome: Too_Many when there is no room for it, and
-   --  No_Memory when the pool cannot grow; nothing is added then.
+   --  Adds the symbol with the corners Shape and the middle Centre (of
+   --  the map whose first pixel is the pixel (X_Lo, Y_Lo) of the image)
+   --  and the text Text (1 .. Length), unless it is there already: a
+   --  symbol with the same text whose middle is near the middle of this
+   --  one. Room: the most symbols. Outcome: Too_Many when there is no
+   --  room for it, and No_Memory when the pool cannot grow; nothing is
+   --  added then.
 
    procedure Add_Symbol
      (Shape      : FN.Outline;
+      Centre     : FN.Corner;
       X_Lo, Y_Lo : Natural;
       Text       : Matrix_Text;
       Length     : Positive;
@@ -1782,7 +1801,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          UR     => To_Point (Shape.Upper_Right, X_Lo, Y_Lo),
          LR     => To_Point (Shape.Lower_Right, X_Lo, Y_Lo),
          LL     => To_Point (Shape.Lower_Left, X_Lo, Y_Lo),
-         Middle => To_Point (FN.Middle (Shape), X_Lo, Y_Lo),
+         Middle => To_Point (Centre, X_Lo, Y_Lo),
          Start  => Used + 1,
          Length => Length);
       Wanted : Positive;
@@ -1829,9 +1848,12 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       X_Lo, Y_Lo : Natural;
       Map        : in out DA.Mark_Map)
    with Pre => DA.Valid_Map (Map)
-               and then X_Lo < DA.Max_Side and then Y_Lo < DA.Max_Side;
+               and then Map'Last (1) <= Integer'Last - Y_Lo
+               and then Map'Last (2) <= Integer'Last - X_Lo;
    --  Light for every pixel of the map that is not in the region. The
-   --  pixel (0, 0) of the map is the pixel (X_Lo, Y_Lo) of the image.
+   --  pixel (0, 0) of the map is the pixel (X_Lo, Y_Lo) of the image
+   --  (which may be wider or higher than a map: X_Lo and Y_Lo are not
+   --  held to DA.Max_Side).
 
    procedure Mask_Region
      (Region     : access constant KR.Ks_Pixel_Region_Data;
@@ -1901,6 +1923,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Rights  : Extent_Access;
       Points  : Hull_Access;
       Shape   : FN.Outline;
+      Centre  : FN.Corner;
       Text    : Matrix_Text;
       Length  : Natural;
       Success : Boolean;
@@ -1938,6 +1961,21 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       --  Every dark area once, at the first pixel of its outline.
       Rows :
       for Y in 0 .. H - 1 loop
+         pragma Loop_Invariant
+           (Map /= null and then Lefts /= null and then Rights /= null
+            and then Points /= null);
+         pragma Loop_Invariant
+           (Map'First (1) = 0 and then Map'Last (1) = H - 1
+            and then Map'First (2) = 0 and then Map'Last (2) = W - 1);
+         pragma Loop_Invariant
+           (DA.Extents_Fit (Lefts.all, Map.all)
+            and then DA.Extents_Fit (Rights.all, Map.all)
+            and then Points'First = 1
+            and then Points'Last = 2 * (H + 1));
+         pragma Loop_Invariant
+           (Outcome = Done and then Count <= Room
+            and then Symbols_OK (Symbols, Count, Used)
+            and then Pool_OK (Pool, Used));
          for X in 0 .. W - 1 loop
             pragma Loop_Invariant
               (Map /= null and then Lefts /= null and then Rights /= null
@@ -1958,10 +1996,11 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
               and then (X = 0 or else Map (Y, X - 1) = DA.Light)
             then
                Read_Area (Map.all, X, Y, Lefts.all, Rights.all, Points.all,
-                          Field, Shape, Text, Length, Success);
+                          Field, Shape, Centre, Text, Length, Success);
                if Success then
-                  Add_Symbol (Shape, Box.X_Lo, Box.Y_Lo, Text, Length, Room,
-                              Symbols, Count, Pool, Used, Outcome);
+                  Add_Symbol (Shape, Centre, Box.X_Lo, Box.Y_Lo, Text,
+                              Length, Room, Symbols, Count, Pool, Used,
+                              Outcome);
                   exit Rows when Outcome /= Done;
                end if;
             end if;
@@ -2496,6 +2535,50 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          end;
       end if;
    end Results_Text;
+
+   procedure Results_Whole_Text
+     (Results : access constant Ks_Code_Reader_Results_Data;
+      Index   : Int32;
+      Text    : out String;
+      Length  : out Natural;
+      Status  : out Ks_Status) is
+   begin
+      Text := [others => ASCII.NUL];
+      Length := 0;
+      if Results /= null and then not Valid_Results (Results) then
+         Bad (Status, "Results is not a valid code reader results handle");
+      elsif Results = null or else Index < 0
+        or else Index >= Int32 (Results.Count)
+      then
+         Set_Failure (Status, Failure_Index_Out_Of_Range,
+                      "Text: index outside the results");
+      elsif not Valid_Item (Results.Items (Natural (Index)))
+        or else (Is_Matrix (Results.Items (Natural (Index)).Symbology)
+                 and then not Text_In_Pool (Results, Natural (Index)))
+      then
+         Bad (Status, "Results is not a valid code reader results handle");
+      elsif Natural (Results.Items (Natural (Index)).Length) > Text'Last
+      then
+         Bad (Status, "Text: the buffer is shorter than the text");
+      else
+         declare
+            I     : constant Natural := Natural (Index);
+            Whole : constant Natural := Natural (Results.Items (I).Length);
+         begin
+            if Is_Matrix (Results.Items (I).Symbology) then
+               for K in 1 .. Whole loop
+                  Text (K) := Results.Texts (Results.Starts (I) - 1 + K);
+               end loop;
+            else
+               for K in 1 .. Whole loop
+                  Text (K) := Results.Items (I).Text (K);
+               end loop;
+            end if;
+            Length := Whole;
+            Set_Success (Status);
+         end;
+      end if;
+   end Results_Whole_Text;
 
    procedure Check_Input_Image
      (Image  : access constant KI.Ks_Image_8_Grey_Data;

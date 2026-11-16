@@ -51,19 +51,22 @@
 --  the modules are looked up between them, and their codewords are
 --  corrected (Reed-Solomon) and decoded. A symbol is read at any
 --  orientation, seen at an angle or from behind (mirrored), in the 24
---  square sizes (10 x 10 to 144 x 144 modules) and the 6 rectangular
---  ones. It must be dark on a light ground, with a light margin of two
---  pixels or more all around; its L must be one solid dark area that
---  touches nothing else dark (a symbol of separate dots is not read),
---  and its modules about two pixels or more. Here ContrastThreshold is
---  the smallest difference between the light and the dark pixels of a
---  neighbourhood. The corners of such a result are those of the symbol
---  as it is printed (0: upper left, 1: upper right, 2: lower right, 3:
---  lower left, the corner of the L), its angle is the direction of the
---  lower side from the corner of the L, its centre is where the
---  diagonals cross, and NumScanLines is 0. Its text can have up to 3125
---  characters: a result record holds the first 255 of them, and
---  Results.Text (I) gives all.
+--  square sizes (10 x 10 to 144 x 144 modules), the 6 rectangular ones
+--  and the 18 of the rectangular extension (DMRE, 8 x 48 to 26 x 64
+--  modules). It must be dark on a light ground, with a light margin of
+--  two pixels or more all around; its L must be one solid dark area
+--  that touches nothing else dark (a symbol of separate dots is not
+--  read), and its modules about two pixels or more. Here
+--  ContrastThreshold is the smallest difference between the light and
+--  the dark pixels of a neighbourhood. The corners of such a result are
+--  those of the symbol as it is printed (0: upper left, 1: upper right,
+--  2: lower right, 3: lower left, the corner of the L), its angle is
+--  the direction of the lower side from the corner of the L, its centre
+--  is the middle of the symbol as it is printed (where the diagonals
+--  cross; for a symbol at least twice as wide as high, the middle of
+--  its columns as they were read), and NumScanLines is 0. Its text can
+--  have up to 3125 characters: a result record holds the first 255 of
+--  them, and Results.Text (I) gives all.
 --
 --  Accuracy. On clean symbols the angle is right to about half a degree
 --  and the ends of the symbol to a pixel. The corners bound the scan

@@ -199,13 +199,19 @@ kernel), took three hours with two on
 a heavily loaded machine (another proof run sharing it).
 
 The code reader kernel (`AMV.Kernels.Code_Reader` with its private
-children `Linear` and `Profiles`, 1281 checks: 1096 discharged by the
-provers, 490 of them in `AMV.Kernels.Code_Reader`, 397 in `Linear` and
-209 in `Profiles`, and 185 by flow analysis) takes about five minutes
-from cold with three prover processes on a lightly loaded machine. None
-of its checks needs more than a second there, counting for each part of
-a check the quickest prover that proves it (the provers run side by
-side, and the others are stopped when one succeeds).
+children `Linear` and `Profiles` and the children of its Data Matrix
+pass, `Dark_Areas`, `Data_Matrix`, `Data_Matrix.Finder` and
+`Reed_Solomon`, 2991 checks: 2499 discharged by the provers, 914 of them
+in `AMV.Kernels.Code_Reader`, 397 in `Linear`, 209 in `Profiles`, 232 in
+`Dark_Areas`, 231 in `Data_Matrix`, 420 in `Data_Matrix.Finder` and 96
+in `Reed_Solomon`, and 492 by flow analysis) takes about ten minutes
+from cold with three prover processes on a lightly loaded machine (five
+minutes before the Data Matrix pass, when it had 1281 checks). Three of
+its checks need a second or more there: the postcondition of
+`Add_Symbol` 1.2 seconds, and two checks of `Meet` in the finder 1.1 and
+1.0 seconds, counting for each part of a check the quickest prover that
+proves it (the provers run side by side, and the others are stopped when
+one succeeds).
 
 `amv.gpr` proves every unit at `--level=2`, except the units its `Prove`
 package raises.
@@ -254,7 +260,7 @@ package raises.
 | `AMV.Kernels.NCC_Search.Region_Modes` | `ks_ncc_search_pattern_train_affine`, `ks_ncc_search_execute_affine` (and, for Ada, `Check_Affine_Train_Region`) | absence of run-time errors for any image, mask and pattern handle that is null or came from the kernels and any rectangle, transform, offset and parameter values (non-finite ones included, checked before the resampling); **no memory leaks** (the resampled pattern and search images, the resampling's output image mask, the resampled train image mask and the work region are freed on every path); a pattern handle `train_affine` leaves is `Valid_Pattern` (when not null) and trained exactly when it succeeded; only the documented failure codes; **Gold**: a pattern trained by `train_affine` has exactly the size `AMV.Kernels.Affine_Transform` gives the rectangle with its default run parameters (`Resampled_Width`, `Resampled_Height`), and no care flags without a mask; every results handle of `execute_affine` has the proved facts of `ks_ncc_search_execute` (`Gold_Results`: scores in [0, 1] and at least AcceptThreshold, at most MaxResults, sorted, IDs, EdgeHit; the margins those of the run, EdgeHit None with the limits 0), with every window inside the resampled rectangle of that size extended by the limits (`Area_In_Image`); a null or untrained pattern never yields results. The pixels, the care flags and the search come from the proved entry points it calls (`ks_affine_transform_execute`, `Restore_Trained`, `ks_ncc_search_execute`). **Not proved** (tested against the pixel aligned modes with upright rectangles on whole pixels, which resample exactly, and against turned scenes with known ground truth): the resampled pixels and care flags, and the origin and the locations carried through the resampling | 2 |
 | `AMV.Kernels.Shape_Match` (with the private children `Poses`, `Pyramids`, `Masks`, `Training`, `Search`, `Refinement`, `Overlaps`) | `ks_shape_match_train_params_default`, `ks_shape_match_run_params_default`, `ks_shape_match_check_run_params`, `ks_shape_match_pattern_*` (create, destroy, duplicate, get_train_params, set_train_params, train, train_masked, trained, untrain, levels, feature_count, feature), `ks_shape_match_execute`, `ks_shape_match_results_*` (destroy, count, item), `ks_shape_match_result_get_pose` | absence of run-time errors for any image or region handle that is null or came from the kernels, any pattern or results handle that is null or came from this kernel (null patterns and untrained ones included), any transform and any parameter values, non-finite ones included (rejected with Bad_Parameter naming the property); **no memory leaks** (every image of the two pyramids comes from the proved entry points of the image and real image kernels and is freed on every path, the work images of a pyramid, the score buffer, the clutter mask and the train image mask's summed-area table included; the results are destroyed on every failure path); the stream helpers accept only finite features and ignored points within the bounds and complete levels (Image_File otherwise); the train image mask's summed-area table (`Masks`, counts of pixels read through a limit of 2**31 that never acts) and its ignored points (the clutter marks them within a margin of at most 482 pixels) stay within bounds; the overlap of two results' footprints (`Overlaps`, polygon clipping and shoelace areas on coordinates within 2**40, every clipped point and sum through a limit that never acts) is in [0, 1]; **Gold: an untrained (or null) pattern never yields results** (Execute succeeds only for a trained pattern, and returns null otherwise), and of every results handle Execute returns (`Gold_Results`): **at most ApproximateNumberToFind results, sorted by score (highest first), every Score in [AcceptThreshold, 1], Coverage, Clutter and OutsideRegionFeatureProportion in [0, 1], FitError and Contrast >= 0, the rotation and the scaling in their zones** (exactly Nominal for a Nominal zone, within [Low, High] for a LowHigh one) **and the translation within 1.0E150**, so that every value of the pose is a valid argument of `AMV.Kernels.Transforms` again. **Not proved** (tested): that the search finds every instance, the accuracy of the refinement, the measures' meaning | 2 |
 | `AMV.Kernels.Tool_Group` | `ks_tool_group_*` (create, destroy, duplicate, own_key, set_own_key, count, item, index_of, add, insert, remove_at, remove, move, clear, disabled, set_disabled, set_name, name, index_of_name, item_by_name, abort_run_on_tool_failure, set_abort_run_on_tool_failure, run_begin, run_next, run_report, run_end, run_tool_begin, run_tool_end), `ks_tool_block_terminals_*` (create, destroy, duplicate, count, clear, add, add_real, add_integer, add_boolean, add_string, add_object, insert, remove_at, remove, move, index_of, name, value_type, has_value, set_real, get_real, set_integer, get_integer, set_boolean, get_boolean, set_string, get_string, set_object, get_object) | absence of run-time errors for any group or terminal collection handle that is null or came from the kernel, any cursor record (checked against the group's run in progress and for consistency first), any text (lengths beyond the limit or negative included) and any codes, indices and values, non-finite reals included (rejected); **no memory leaks**; every failure leaves the group or the collection unchanged (a failed run_next or run_report marks only the cursor, run_end only ends the run); **Gold: no key is a member twice and no member has the group's own key, and no two terminals of a collection have the same name** (`Distinct_Members`, `Distinct_Names`: every entry point keeps them, a new handle has them), the counts within Max_Members and Max_Terminals; a member's name moves with it, setting a name changes nothing else (not even the change counter, so a run in progress goes on), and a lookup by name returns the first member with that name (none before it has it) or none at all; **of a run, as relations between each call and the cursor it gets: members are offered in order and each at most once, only enabled ones, every member skipped is disabled, every member after the last offered is disabled when none is left and the run has not stopped, nothing is offered after the run stopped (the script's run_tools = 0, or a member's Error with AbortRunOnToolFailure set), the worst result is the worst of the script's and the reported ones and the first failure the first member whose report was not Accept, and run_end returns both; a set of a scalar terminal value stores exactly the value given in the terminal of that name and changes nothing else, a get returns exactly the value it holds, a failed set changes nothing**. **Not proved** (tested): the text of the messages; RunTool (`run_tool_begin`, `run_tool_end`), **Gold**: a tool runs exactly when it is not a disabled member of the group, the result becomes the worse of the two (`Worse`), the message is replaced exactly when the tool's result is strictly worse, and the run aborts exactly when the tool reported Error and the group has AbortRunOnToolFailure | 2 |
-| `AMV.Kernels.Code_Reader` (with the private children `Linear` and `Profiles`) | `ks_code_reader_run_params_default`, `ks_code_reader_execute`, `ks_code_reader_results_*` (destroy, count, item) (and, for Ada, `Check_Input_Image`, `Check_Result_Symbology`, `Check_Result_Length`) | absence of run-time errors for any image or region handle that is null or came from the kernels, any run parameters (checked first, non-finite ones included), any transform (one that is not finite and within 1.0E150 is rejected) and any results handle that is null or came from execute (a record that is not one is rejected with Bad_Parameter); **no memory leaks** (the levels of a scan line, the work space of the edge finder, the two edge arrays and the candidate table are freed on every path, also when a later allocation fails; a results handle is returned only on success); only the documented failure codes; a failed execute returns null; **Gold**: every result of a successful execute (`Gold_Results`) has one of the seven symbologies, a text of 1 .. 255 characters followed by NUL up to the end of its array and at least one scan line that read it, and there are at most 4096 results; `results_count` returns 0 .. 4096 and `results_item` exactly the stored item; `Linear.Decode_At` reports a symbol only with a symbology, a text that is not empty and a last edge at least 16 edges after its first one and within the segment, for any edges that are well formed (`Well_Formed`); `Profiles.Find_Edges` returns well-formed edges for any levels. **Not proved** (tested, `tests/test_code_reader.adb` on generated symbols and `tests/real_images` on photographs): that a reported text is the text of a symbol of the image (the pattern tables, the check digits and the rules of each symbology), that at least MinScanLines lines read it, and the accuracy of the positions and of the angle | 2 |
+| `AMV.Kernels.Code_Reader` (with the private children `Linear` and `Profiles` and the children of its Data Matrix pass, `Dark_Areas`, `Data_Matrix`, `Data_Matrix.Finder` and `Reed_Solomon`) | `ks_code_reader_run_params_default`, `ks_code_reader_execute`, `ks_code_reader_results_*` (destroy, count, item, text) (and, for Ada, `Check_Input_Image`, `Check_Result_Symbology`, `Check_Result_Length`, `Results_Whole_Text`) | absence of run-time errors for any image or region handle that is null or came from the kernels, any run parameters (checked first, non-finite ones included), any transform (one that is not finite and within 1.0E150 is rejected) and any results handle that is null or came from execute (a record that is not one is rejected with Bad_Parameter); **no memory leaks** (the levels of a scan line, the work space of the edge finder, the two edge arrays, the candidate table and, in the Data Matrix pass, the map of the dark pixels, the two matrices of block levels, the two arrays of row extents, the corners of the hull and the table of the symbols are freed on every path, also when a later allocation fails; the pool of the texts is freed or becomes part of the results; a results handle is returned only on success); only the documented failure codes; a failed execute returns null; **Gold**: every result of a successful execute (`Gold_Results`) has one of the eight symbologies and a text that is not empty, followed in the record by NUL up to the end of its array: a linear barcode has 1 .. 255 characters and at least one scan line that read it, a Data Matrix symbol 1 .. 7089 characters (3125 is the most that the decoder gives), no scan line, and its whole text in the pool of the handle; and there are at most 4096 results; `results_count` returns 0 .. 4096, `results_item` exactly the stored item and `results_text` 0 .. 255 characters followed by NUL up to the end of the array (`Results_Whole_Text`, for Ada: no more characters than its buffer holds); `Linear.Decode_At` reports a symbol only with one of the seven symbologies of linear barcodes, a text that is not empty and a last edge at least 16 edges after its first one and within the segment, for any edges that are well formed (`Well_Formed`); `Profiles.Find_Edges` returns well-formed edges for any levels; **a word that `Reed_Solomon.Correct` reports as corrected is a codeword** (every syndrome zero, `Is_Codeword`), differs from the word given in exactly the number of elements reported, at most half the check elements, and a word that is not corrected is unchanged; `Dark_Areas` (the dark pixels, an outline and its hull), `Data_Matrix.Finder` (the corners and the modules of a symbol) and `Data_Matrix` (the places of the codewords, the blocks and the text) have no run-time error for any map, hull, outline and grid of modules, and a text never exceeds its buffer. **Not proved** (tested, `tests/test_code_reader.adb`, `tests/test_code_reader_2d.adb` and `tests/test_code_reader_data_matrix.adb` on generated symbols and `tests/real_images` on photographs): that a reported text is the text of a symbol of the image (the pattern tables, the check digits and the rules of each symbology; for Data Matrix that the symbol is found, the places of the codewords, the tables of GF(256) and the rules of the encodations, and that a word with no more errors than half its check elements is corrected), that at least MinScanLines lines read a linear barcode, and the accuracy of the positions and of the angle | 2 |
 
 `AMV.Kernels.Regions` added Ada-only functions to `AMV.Kernels.Shapes`:
 `Rectangle_Contains`, `Rectangle_Affine_Contains`, `Circle_Contains`,
@@ -264,8 +270,9 @@ entry point returns exactly that function's result once its arguments
 pass; the `ks_*_boundary_slack` postconditions say that the region is
 valid when they succeed.
 
-Total (2026-11-15): 35795 checks, the 34514 of `main` at 2026-11-12 and
-the 1281 of the code reader kernel, which was proved as its own group
+Total (2026-11-16): 37505 checks, the 34514 of `main` at 2026-11-12 and
+the 2991 of the code reader kernel (1281 before its Data Matrix pass),
+which was proved as its own group
 (33720 before the four additions before it: the region modes of the IP
 one-image tool added 296, the soft segmentation of the blob tool 335,
 the region modes of the Sobel edge tool 129, and the train region mode
@@ -522,12 +529,26 @@ are the trusted ones listed below (and the runtime's
     edges measured from its other end; every one 0),
     `Allocate_Candidates` (the table of 4096 candidates, each with the
     record's defaults), `Allocate_Items` (an array of results, each with
-    the record's defaults) and `Allocate_Results` (a results record
-    without items): `Storage_Error` gives null (the entry point reports
-    `Failure_Out_Of_Memory`). Postconditions: an array that is not null
-    has the length asked for, indexed from 0; a results record that is
-    not null has no items. The private children `Linear` and `Profiles`
-    have no such body: they work in the arrays they are given.
+    the record's defaults), `Allocate_Results` (a results record without
+    items) and, for the Data Matrix pass, `Allocate_Map` (the map of the
+    dark pixels, every one light), `Allocate_Blocks` (the lightest or
+    the darkest level of every block of 8 by 8 pixels, every one 0),
+    `Allocate_Extents` (the leftmost or the rightmost pixel of an
+    outline in every row, every one the value given), `Allocate_Hull`
+    (the corners of a convex hull, every one (0, 0)), `Allocate_Symbols`
+    (the table of 4096 symbols read, each with the record's defaults),
+    `Allocate_Texts` (the pool of the texts of these symbols, every
+    character NUL) and `Allocate_Starts` (for every result the place of
+    its text in the pool, every one 0): `Storage_Error` gives null (the
+    entry point reports `Failure_Out_Of_Memory`). Postconditions: an
+    array that is not null has the length asked for (a map and a matrix
+    of blocks the rows and the columns asked for), indexed from 0 (the
+    corners of a hull and the pool from 1), and every extent has the
+    value given; a results record that is not null has no items and no
+    texts. The children of the kernel (`Linear`, `Profiles`,
+    `Dark_Areas`, `Data_Matrix`, `Data_Matrix.Finder` and
+    `Reed_Solomon`) have no such body: they work in the arrays they are
+    given.
 
 ## Run-time guards that stand in for missing contracts
 
@@ -1076,6 +1097,102 @@ at different places, after those that no later line can join and that
 too few lines read have been dropped) fails with `Failure_Other`; a text
 longer than 255 characters is not reported (a Code 128 symbol of that
 length is not read).
+
+The Data Matrix pass of the code reader works on a map of the dark
+pixels of the area to scan, whose rows and columns are 1048576 together
+at most (the limit above). `Dark_Areas` and `Data_Matrix.Finder` carry
+their bounds in subtypes (a map has at most 2**26 rows and columns, and
+the corners of a hull are corners of its pixels; in the finder a
+coordinate lies within 2**28 pixels, a difference of two within 2**29
+and a distance within 2**30). The finder forms its products through
+`AMV.Kernels.Numerics` and its quotients through one function,
+`Quotient`, which gives a bound where a quotient exceeds it.
+`Data_Matrix`, `Reed_Solomon` and the outlines and hulls of `Dark_Areas`
+compute with integers only. The limits of the pass that never act:
+
+* `Dark_Areas.Trace` keeps twice the enclosed area within 2**62: for a
+  map of the pass it takes at most 2**41 steps (eight a pixel), and a
+  step adds less than 2**20 (at most the two coordinates of a pixel);
+* `Floor_Index` takes the minimum of a whole part and the last index
+  where the value is already below it: in `Dark_At` the point is in the
+  map, in `Extents` the value has been compared with the last index
+  first, and in `Scan_Side` twice a length of at most 2**28 pixels
+  stands against 2**29 steps;
+* the bound of `Quotient` is not reached in `Deviation` (a product
+  within the bound by a length of a pixel or more), `Part_Of` (a length
+  by one of 10 pixels or more), `Count_Side` (a length by a count of 1
+  or more), `Pushed` (a product within the bound by a length of a pixel
+  or more), `Cut` (the row lies between the two ends of the side, so
+  that the quotient is at most the difference of their columns),
+  `Share_Of` (a module and a part of it by the number of modules),
+  `Stretch` (a step by its parts, at most 1 / (2 * rows); then a
+  quotient between a third and three, bound 4), `Spaced` (between 0 and
+  1, bound 4) and for the two factors of a mapping that make the view a
+  perspective one (a numerator of at most 2**60 by a determinant of at
+  least 1.0E-9: about 2**90, bound 2**100);
+* `Stretch` limits the step of the middle of the upper side to a quarter
+  of the side (the steps tried reach 1 / (2 * rows) of it, and no size
+  of the symbology has fewer than 8 rows), and `Stretch` and `Spaced`
+  take the larger of 0.25 and a value that is at least a third
+  (`Stretch`) or lies between the spacing and 1 (`Spaced`);
+* `Cut` tests that the two ends of a side differ in height, which they
+  do where a row lies between them;
+* `Longest_Run` tests that a straight part is a pixel long or more, and
+  `Deviation` answers for a line shorter than that: two corners of a
+  hull are different corners of pixels;
+* `Valid_Hull` limits a hull to 2**28 corners (`Dark_Areas.Hull` gives
+  two for every row and two more at most, and a map has at most 2**26
+  rows);
+* `Fourth`, `Pushed` and `Meet` give a point only within 2**28 pixels of
+  the axes, and `Scan_Side` looks at a side only up to 2**28 pixels
+  long. For a map of the pass a corner of a hull lies within 2**20
+  pixels of the axes; two lines meet within four lengths of a line
+  between two corners of a hull from one of them (within 5 * 2**20);
+  the fourth corner of a parallelogram is the sum of two such points
+  less a third (within 14 * 2**20); and a corner of an outline that is
+  grown moves by 4 pixels or by a quarter of the shorter arm of the L
+  at most (within 2**25 together, and a side is shorter than 2**26);
+* in `Data_Matrix`, `Correct_Blocks` tests that a block has more
+  codewords than check codewords and no more than a word of the code
+  can have, which holds for the blocks of every size; the placement
+  tests that a module lies in the mapping matrix and that no more
+  codewords are placed than the size has, which the placement of the
+  symbology never fails (not proved: the tests read a symbol of every
+  size); and `Put` tests that the text has room (a symbol has at most
+  1558 data codewords, a codeword gives at most two characters and a
+  macro codeword nine, and the buffer of the kernel has room for
+  2 * 1558 + 9).
+
+Limits of the pass that act without changing a result: `Project` gives
+a point farther than 2**30 pixels from an axis at that distance (no
+pixel is there, and the centre of a symbol is taken from the mapping
+only within 2**28 pixels); `Meet` limits the place along the first line
+to eight lengths of it and takes none beyond four.
+
+Limits of the pass that can act and so belong to the documented
+behaviour: the symbols count as candidates, so that a run with more than
+4096 candidates and symbols together fails with `Failure_Other`; a dark
+area is passed over when its outline has not closed after eight steps
+for every pixel of the map (the limit that ends the loop), when twice
+the area that it encloses is at most 128 pixels (the outline of a hole
+encloses a negative one) or when it has fewer than nine rows; a hull of
+fewer than four corners has no L, nor has one whose arms are shorter
+than 10 pixels; two lines meet only within four lengths of the first of
+them from its first point and where their determinant is at least
+1.0E-6 (the corner of the hull or of the parallelogram stands for the
+corner otherwise); a side shorter than a pixel does not move its corners
+when the outline is grown; the components of the unit vector along a
+side are limited to [-1, 1] (rounding); the part of an alternating side
+that the hull follows counts as the whole side where it is longer; a
+module where the mapping gives no point (a denominator of 1.0E-6 or
+less) is light, and a symbol whose mapping has a determinant below
+1.0E-9 has no dark module; the centre of a symbol is the mean of its
+corners where the mapping has such a determinant, gives no point for
+the middle or gives one beyond 2**28 pixels; counts of more than 146
+modules along a side are not tried; a text in which an upper shift
+would give a character above 255 is not read; an item holds the first
+255 characters of a longer Data Matrix text and its whole length
+(`Results_Text` gives all of it).
 
 ## Proof notes
 
@@ -1791,6 +1908,69 @@ decoded text is tested, not proved):
   of its parts. The slowest attempt recorded for a check is often a
   prover that was stopped because another one had finished, and says
   little.
+
+Lessons from the Data Matrix pass of `AMV.Kernels.Code_Reader`
+(`Reed_Solomon`, `Data_Matrix`, `Dark_Areas` and `Data_Matrix.Finder`):
+
+* `Reed_Solomon.Correct` proves what it returns and not how it found it.
+  After the correction it computes the syndromes of the word again and
+  counts the changed elements, and it succeeds only if every syndrome is
+  zero and at most `Parity / 2` elements changed. Its postcondition (a
+  codeword at most `Parity / 2` places from the word given) follows from
+  that test alone, for any tables; the search for the errors
+  (Berlekamp-Massey, Chien, Forney) only has to be free of run-time
+  errors. That it finds the errors is tested.
+* The finder is floating-point geometry on a map of pixels. It was first
+  written as the formulas stand (a division, a product, a floor), with
+  tests against overflow in front of them: the proof of that version and
+  of the first `Dark_Areas` ended after more than four hours with 141
+  checks unproved. In the bounded style of the other float kernels
+  (coordinates, differences, distances and the factors of a mapping in
+  subtypes; products through `AMV.Kernels.Numerics`; every quotient
+  through one function with a bound) the whole code reader is proved in
+  about ten minutes from cold.
+* A local subprogram without a contract is inlined where it is called,
+  and proved again in every caller with all that is known there. The
+  small helpers of the finder (`Distance`, `Off_Line`, `Meet`, `Pushed`,
+  `Spaced`, `Project`, `Middle`) therefore have a postcondition, even
+  one that says no more than their result subtype, or `Post => True`:
+  with a contract a subprogram is proved once, and its callers get the
+  contract only.
+* An expression in a large subprogram is proved with everything that the
+  subprogram knows at that place. As a function with a body of its own
+  (`Half_Of`, `Part_Of`, `Share_Of`, `Factor_Of`, `Across`, `Down`) it
+  is proved alone; the operations and their order stay those of the
+  expression, so no computed value changes.
+* After a loop invariant the provers know of the variables that the loop
+  changes only what the invariant says. The loop of `Cut` over the four
+  sides of an outline and that of `Extents` over its corners have none:
+  gnatprove unrolls a loop without invariant whose few iterations are
+  known statically.
+* Unrolled loops multiply when they are nested. The four loops of
+  `Read_Symbol` (the two sides a symbol may be seen from, the distance
+  of a size from the modules counted, the difference in rows and the
+  difference in columns: 2 x 5 x 5 x 5) made 250 copies of the body of
+  the innermost one, and gnatprove used more than 8 GB on them without
+  starting a prover. Each of the four has an invariant now, short as it
+  is (nothing has been read so far).
+* The proof of a caller tests the preconditions of what it calls. Three
+  subprograms of the pass (`Mask_Region`, `Add_Symbol`, `To_Point`)
+  asked that the box of the pass start within 2**26 pixels of the
+  origin of the image, as a pixel of a map does. `Find_Symbols` cannot
+  promise that: the box is a part of the image, and an image may be
+  wider than a map (2**31 - 1 pixels in one row). A precondition in a
+  body is checked at run time, so a region that far to the right would
+  have raised an exception. They now ask what they need, that a pixel
+  of the map is a pixel of the image, which the caller has. No test had
+  an image of that width.
+* A predicate that gets a new value is tested where it is used.
+  `Is_Symbology` got Data Matrix as its eighth value, and with it the
+  postcondition of `Linear.Decode_At`; the candidate table keeps a
+  symbology in a subtype of the seven linear ones, and the proof of
+  `Add_Reading` failed. The postcondition says `Is_Linear` now.
+* `Dark_Areas.Point` has its components in a subtype (0 .. 2**26): the
+  finder gets the bounds of the corners of a hull from their type, and
+  needs no precondition about them beyond their number (`Valid_Hull`).
 
 ## Assumptions and limits
 

@@ -67,22 +67,14 @@ package body AMV.Code_Reader is
    is
       Whole  : constant Ks_Code_Reader_Result := Item (Results, Index);
       Result : String (1 .. Natural (Whole.Length));
-      Done   : Natural := 0;
-      Part   : KC.Code_Text;
-      Length : Int32;
+      Length : Natural;
       Status : Ks_Status;
    begin
-      while Done < Result'Length loop
-         KC.Results_Text
-           (Results_Holders.Get (Results.Holder), Int32 (Index),
-            Int32 (Done), Part, Length, Status);
-         Check (Status);
-         exit when Length = 0;
-         Result (Done + 1 .. Done + Natural (Length)) :=
-           String (Part (1 .. Natural (Length)));
-         Done := Done + Natural (Length);
-      end loop;
-      return Result (1 .. Done);
+      KC.Results_Whole_Text
+        (Results_Holders.Get (Results.Holder), Int32 (Index), Result,
+         Length, Status);
+      Check (Status);
+      return Result (1 .. Length);
    end Text;
 
    procedure Destroy (Handle : in out KC.Ks_Code_Reader_Results) is

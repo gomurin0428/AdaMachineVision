@@ -74,9 +74,11 @@
  *    that outline. The numbers of modules are counted along the two
  *    alternating sides, the modules are looked up at their middles (the
  *    symbol may be seen at an angle: the grid is that of the four corners,
- *    in perspective), and the codewords are corrected (Reed-Solomon) and
- *    decoded; sizes one or two modules off the count, and the mirror image
- *    of the symbol, are tried as well.
+ *    in perspective; the columns of a symbol at least twice as wide as
+ *    high are spaced as its alternating upper side shows them, which the
+ *    corners of a long symbol do not give exactly), and the codewords are
+ *    corrected (Reed-Solomon) and decoded; sizes one or two modules off
+ *    the count, and the mirror image of the symbol, are tried as well.
  *
  *    A symbol must be dark on light, with a light margin of two pixels or
  *    more all around (the border of the image and the pixels outside the
@@ -84,8 +86,9 @@
  *    touches nothing else dark, so a symbol of separate dots is not read,
  *    nor one printed light on dark; its modules should be two pixels or
  *    more. The 24 square sizes (10 x 10 to 144 x 144 modules) and the 6
- *    rectangular ones of ECC 200 are read; the extended rectangular sizes
- *    (DMRE) and the older ECC 000 to 140 are not. A symbol whose text is
+ *    rectangular ones of ECC 200 are read, and the 18 sizes of the
+ *    rectangular extension (DMRE, ISO/IEC 21471: 8 x 48 to 26 x 64
+ *    modules); the older ECC 000 to 140 are not. A symbol whose text is
  *    empty is not reported.
  *
  *    The Data Matrix results follow those of the linear barcodes, in the
@@ -94,7 +97,9 @@
  *    printed (0: upper left, 1: upper right, 2: lower right, 3: lower
  *    left, the corner of the L; in the image the symbol may be turned or
  *    mirrored), the angle is the direction from corner 3 to corner 2, the
- *    centre is where the diagonals cross, and num_scan_lines is 0.
+ *    centre is the middle of the symbol as it is printed (where the
+ *    diagonals cross; for a symbol at least twice as wide as high, the
+ *    middle of its columns as they were read), and num_scan_lines is 0.
  *
  * Text:
  *  - Data Matrix: the characters of the ASCII, C40, Text, X12, EDIFACT

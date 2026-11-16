@@ -427,6 +427,10 @@ package body AMV_Test_Data_Matrix is
             C := C + N_Col;
             R := R + 4 - (N_Col + 4) mod 8;
          end if;
+         if R >= N_Row then
+            --  Only in two sizes of the rectangular extension.
+            R := R - N_Row;
+         end if;
          A (R, C) := 10 * Chr + Bit;
       end Module;
 

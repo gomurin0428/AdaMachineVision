@@ -87,7 +87,7 @@ is
      Pre  => Well_Formed (Edges, Last)
              and then Start mod 2 = 1 and then Start < Last,
      Post => (if Found
-              then Is_Symbology (Item.Symbology)
+              then Is_Linear (Item.Symbology)
                    and then Item.Length >= 1
                    and then Item.Last_Edge in Start + 16 .. Last
                    and then (for all I in Item.Length + 1 .. Code_Text'Last

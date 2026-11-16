@@ -24,7 +24,7 @@ package body AMV.Kernels.Code_Reader.Linear with SPARK_Mode is
    function Good
      (Item : Reading; Start : Positive; Last : Natural) return Boolean
    is
-     (Is_Symbology (Item.Symbology)
+     (Is_Linear (Item.Symbology)
       and then Item.Length >= 1
       and then Last >= 16
       and then Start <= Last - 16

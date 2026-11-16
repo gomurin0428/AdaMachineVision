@@ -687,11 +687,19 @@ procedure Test_Code_Reader_2D is
             end if;
 
             --  The symbology has sixteen lengths of check codewords for
-            --  a block, and no block is longer than the field allows.
+            --  a block, its rectangular extension (one block a size) has
+            --  nine more, and no block is longer than the field allows.
 
             if I.Check mod I.Blocks /= 0
-              or else Parity not in 5 | 7 | 10 | 11 | 12 | 14 | 18 | 20 | 24
-                                    | 28 | 36 | 42 | 48 | 56 | 62 | 68
+              or else (S <= 30
+                       and then Parity not in 5 | 7 | 10 | 11 | 12 | 14 | 18
+                                              | 20 | 24 | 28 | 36 | 42 | 48
+                                              | 56 | 62 | 68)
+              or else (S > 30
+                       and then (I.Blocks /= 1
+                                 or else Parity not in 15 | 18 | 22 | 27 | 28
+                                                       | 32 | 34 | 36 | 38
+                                                       | 41 | 42 | 46 | 50))
               or else (I.Data + I.Blocks - 1) / I.Blocks + Parity > 255
             then
                Good_Blocks := False;
@@ -701,8 +709,25 @@ procedure Test_Code_Reader_2D is
                Good_Find := False;
             end if;
 
-            if S not in 1 | 25
+            --  The squares and the rectangles in the order of their
+            --  data, those of the extension in the order of their rows
+            --  and columns.
+
+            if S in 2 .. 24 | 26 .. 30
               and then I.Data <= DM.Sizes (S - 1).Data
+            then
+               Ordered := False;
+            end if;
+            if S in 32 .. 48
+              and then (I.Rows < DM.Sizes (S - 1).Rows
+                        or else (I.Rows = DM.Sizes (S - 1).Rows
+                                 and then I.Columns
+                                          <= DM.Sizes (S - 1).Columns))
+            then
+               Ordered := False;
+            end if;
+            if S > 30
+              and then (I.Regions_Down /= 1 or else I.Rows >= I.Columns)
             then
                Ordered := False;
             end if;
@@ -716,7 +741,9 @@ procedure Test_Code_Reader_2D is
       Check (Good_Blocks,
              "the check codewords of every size divide among its blocks");
       Check (Good_Find, "every size is found by its rows and columns");
-      Check (Ordered, "the sizes of a shape are in the order of their data");
+      Check (Ordered,
+             "the sizes are in order: the squares and the rectangles by "
+             & "their data, those of the extension by rows and columns");
       Check (DM.Find_Size (10, 12) = 0
              and then DM.Find_Size (18, 8) = 0
              and then DM.Find_Size (0, 0) = 0
@@ -724,6 +751,12 @@ procedure Test_Code_Reader_2D is
              and then DM.Find_Size (146, 146) = 0
              and then DM.Find_Size (Integer'Last, Integer'First) = 0,
              "no other rows and columns are a size");
+      Check (DM.Find_Size (8, 48) = 31
+             and then DM.Find_Size (26, 64) = 48
+             and then DM.Find_Size (48, 8) = 0
+             and then DM.Find_Size (8, 56) = 0
+             and then DM.Find_Size (26, 56) = 0,
+             "the sizes of the rectangular extension, and no others");
       Check (DM.Sizes (24).Data = DM.Max_Data
              and then DM.Sizes (24).Data + DM.Sizes (24).Check
                       = DM.Max_Codewords,
