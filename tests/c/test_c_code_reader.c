@@ -629,7 +629,8 @@ static void test_data_matrix(void)
     const symbol bars = ean_13("5901234123457");
     char text[KS_CODE_READER_MAX_TEXT_LENGTH + 1];
     ks_image_8_grey *image;
-    int32_t count = -1, length = -1;
+    int32_t count = -1, length = -1, first, total;
+    int parts_ok;
 
     /* The small symbol, four pixels a module: from x = 39.5 to x = 79.5
        and from y = 29.5 to y = 69.5 in a 120 x 100 image. */
@@ -765,6 +766,28 @@ static void test_data_matrix(void)
                      "Text: First must be in 0 .. the length of the text")
           && holds(text, length, ""),
           "code reader: a part from beyond a long text");
+
+    /* The whole text as the header says to read it: the parts from 0,
+       255, ... while the position is less than the length of the
+       result. The position after them (510 here) is outside the text. */
+    parts_ok = 1;
+    total = 0;
+    for (first = 0; first < item.length;
+         first += KS_CODE_READER_MAX_TEXT_LENGTH) {
+        part(results, 0, first, text, &length, &status);
+        if (status.failure != KS_FAILURE_NONE
+            || !holds_digits(text, length, first, length)) {
+            parts_ok = 0;
+        }
+        total += length;
+    }
+    check(parts_ok && total == LONG_LENGTH && first == 510,
+          "code reader: the parts of a long text hold all of it");
+    part(results, 0, first, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
+                     "Text: First must be in 0 .. the length of the text")
+          && holds(text, length, ""),
+          "code reader: no part from the position after the parts");
     ks_code_reader_results_destroy(&results);
     ks_pixel_region_destroy(&whole, &status);
     ks_image_8_grey_destroy(&image, &status);

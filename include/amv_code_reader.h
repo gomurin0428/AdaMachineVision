@@ -282,11 +282,12 @@ void ks_code_reader_results_item(const ks_code_reader_results *results,
    position first on (0-based), at most KS_CODE_READER_MAX_TEXT_LENGTH of
    them, into text (KS_CODE_READER_MAX_TEXT_LENGTH + 1 chars, NUL after
    the characters up to its end); *length is their number. first may be
-   0 .. the length of the text; calls with first = 0, 255, 510, ... until
-   *length is 0 give the whole text of a symbol whose text is longer than
-   a result holds. KS_FAILURE_INDEX_OUT_OF_RANGE for an index outside
-   0 .. count - 1 (always for NULL), KS_FAILURE_BAD_PARAMETER for a first
-   outside the text; text is all NUL and *length 0 on failure. */
+   0 .. the length of the text (the length of the result); calls with
+   first = 0, 255, 510, ... while first is less than that length give
+   the whole text of a symbol whose text is longer than a result holds.
+   KS_FAILURE_INDEX_OUT_OF_RANGE for an index outside 0 .. count - 1
+   (always for NULL), KS_FAILURE_BAD_PARAMETER for a first outside the
+   text; text is all NUL and *length 0 on failure. */
 void ks_code_reader_results_text(const ks_code_reader_results *results,
                                  int32_t index, int32_t first,
                                  char text[KS_CODE_READER_MAX_TEXT_LENGTH
