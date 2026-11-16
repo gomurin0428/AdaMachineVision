@@ -7,6 +7,14 @@
 --  polynomial) is checked against published codewords. The correction is
 --  then tried on every block shape of Data Matrix with every number of
 --  errors up to half the check elements, and with more.
+--
+--  Data Matrix, from the modules to the text. The symbols come from the
+--  test's own encoder (AMV_Test_Data_Matrix), which shares only the table
+--  of the sizes with the kernel. The table is checked by itself; the
+--  places of the codewords are compared for every size; the rules of
+--  every encodation are tried on codewords; and symbols of every size
+--  are read as they are, with as many wrong codewords in every block as
+--  can be corrected, with one more, and with modules by chance.
 
 pragma Validity_Checks ("F");
 
@@ -14,12 +22,16 @@ with Ada.Exceptions;
 with Ada.Text_IO;
 with Interfaces;
 
+with AMV.Kernels.Code_Reader.Data_Matrix;
 with AMV.Kernels.Code_Reader.Reed_Solomon;
+with AMV_Test_Data_Matrix;
 with AMV_Test_Support; use AMV_Test_Support;
 
 procedure Test_Code_Reader_2D is
 
+   package DM renames AMV.Kernels.Code_Reader.Data_Matrix;
    package RS renames AMV.Kernels.Code_Reader.Reed_Solomon;
+   package Enc renames AMV_Test_Data_Matrix;
 
    use type Interfaces.Unsigned_16;
    use type Interfaces.Unsigned_32;
@@ -643,6 +655,555 @@ procedure Test_Code_Reader_2D is
       end loop;
    end Test_Bad_Tables;
 
+   ---------------------------------------------------------------------
+   --  Data Matrix: the sizes and the places of the codewords
+   ---------------------------------------------------------------------
+
+   procedure Test_DM_Sizes is
+      Good_Shape  : Boolean := True;
+      Good_Count  : Boolean := True;
+      Good_Blocks : Boolean := True;
+      Good_Find   : Boolean := True;
+      Ordered     : Boolean := True;
+   begin
+      Section ("Data Matrix: the sizes");
+
+      for S in DM.Size_Index loop
+         declare
+            I      : constant DM.Size_Info := DM.Sizes (S);
+            Area   : constant Positive :=
+              I.Region_Rows * I.Regions_Down
+              * I.Region_Columns * I.Regions_Across;
+            Parity : constant Natural := I.Check / I.Blocks;
+         begin
+            if I.Rows /= (I.Region_Rows + 2) * I.Regions_Down
+              or else I.Columns /= (I.Region_Columns + 2) * I.Regions_Across
+            then
+               Good_Shape := False;
+            end if;
+
+            if Area / 8 /= I.Data + I.Check then
+               Good_Count := False;
+            end if;
+
+            --  The symbology has sixteen lengths of check codewords for
+            --  a block, and no block is longer than the field allows.
+
+            if I.Check mod I.Blocks /= 0
+              or else Parity not in 5 | 7 | 10 | 11 | 12 | 14 | 18 | 20 | 24
+                                    | 28 | 36 | 42 | 48 | 56 | 62 | 68
+              or else (I.Data + I.Blocks - 1) / I.Blocks + Parity > 255
+            then
+               Good_Blocks := False;
+            end if;
+
+            if DM.Find_Size (I.Rows, I.Columns) /= S then
+               Good_Find := False;
+            end if;
+
+            if S not in 1 | 25
+              and then I.Data <= DM.Sizes (S - 1).Data
+            then
+               Ordered := False;
+            end if;
+         end;
+      end loop;
+
+      Check (Good_Shape,
+             "the modules of every size are its regions with their borders");
+      Check (Good_Count,
+             "the codewords of every size fill its mapping matrix");
+      Check (Good_Blocks,
+             "the check codewords of every size divide among its blocks");
+      Check (Good_Find, "every size is found by its rows and columns");
+      Check (Ordered, "the sizes of a shape are in the order of their data");
+      Check (DM.Find_Size (10, 12) = 0
+             and then DM.Find_Size (18, 8) = 0
+             and then DM.Find_Size (0, 0) = 0
+             and then DM.Find_Size (-10, -10) = 0
+             and then DM.Find_Size (146, 146) = 0
+             and then DM.Find_Size (Integer'Last, Integer'First) = 0,
+             "no other rows and columns are a size");
+      Check (DM.Sizes (24).Data = DM.Max_Data
+             and then DM.Sizes (24).Data + DM.Sizes (24).Check
+                      = DM.Max_Codewords,
+             "the limits are those of the largest size");
+   end Test_DM_Sizes;
+
+   procedure Test_DM_Placement is
+      Map      : DM.Placement;
+      Count    : DM.Codeword_Count;
+      OK       : Boolean;
+      All_OK   : Boolean := True;
+      All_Once : Boolean := True;
+      All_Same : Boolean := True;
+      All_Rest : Boolean := True;
+   begin
+      Section ("Data Matrix: the places of the codewords");
+
+      for S in DM.Size_Index loop
+         declare
+            I     : constant DM.Size_Info := DM.Sizes (S);
+            Total : constant Positive := I.Data + I.Check;
+            A     : constant Enc.Mark_Matrix := Enc.Marks (S);
+            Seen  : array (1 .. Total, DM.Bit_Index) of Natural :=
+              [others => [others => 0]];
+            Rest  : Natural := 0;
+            Dark  : Natural := 0;
+            Mark  : Natural;
+            P     : DM.Module_Place;
+         begin
+            DM.Place (S, Map, Count, OK);
+            if not OK or else Count /= Total then
+               All_OK := False;
+            end if;
+
+            for R in A'Range (1) loop
+               for C in A'Range (2) loop
+                  Mark := A (R, C);
+                  if Mark <= 1 then
+                     Rest := Rest + 1;
+                     Dark := Dark + Mark;
+                  elsif Mark / 10 in 1 .. Total
+                    and then Mark mod 10 in 1 .. 8
+                  then
+                     Seen (Mark / 10, Mark mod 10) := @ + 1;
+                     P := Map (Mark / 10, Mark mod 10);
+                     if Natural (P.Row) /= Enc.Symbol_Row (S, R)
+                       or else Natural (P.Column) /= Enc.Symbol_Column (S, C)
+                     then
+                        All_Same := False;
+                     end if;
+                  else
+                     All_Once := False;
+                  end if;
+               end loop;
+            end loop;
+
+            for N of Seen loop
+               if N /= 1 then
+                  All_Once := False;
+               end if;
+            end loop;
+
+            --  What is left over is the four modules of the fixed
+            --  pattern, in the sizes whose mapping matrix has them.
+
+            if Rest /= A'Length (1) * A'Length (2) - 8 * Total
+              or else Rest not in 0 | 4
+              or else Dark /= Rest / 2
+            then
+               All_Rest := False;
+            end if;
+         end;
+      end loop;
+
+      Check (All_OK, "every size: all codewords placed");
+      Check (All_Once,
+             "every size: the test's placement has every bit once");
+      Check (All_Same,
+             "every size: the same places as the test's placement");
+      Check (All_Rest,
+             "every size: the other modules are the fixed pattern");
+   end Test_DM_Placement;
+
+   ---------------------------------------------------------------------
+   --  Data Matrix: from the codewords to the text
+   ---------------------------------------------------------------------
+
+   function To_Codewords (Data : Enc.Byte_List) return DM.Codeword_Array;
+
+   function To_Codewords (Data : Enc.Byte_List) return DM.Codeword_Array is
+      R : DM.Codeword_Array (1 .. Data'Length);
+   begin
+      for I in R'Range loop
+         R (I) := RS.Element (Data (Data'First + I - 1));
+      end loop;
+      return R;
+   end To_Codewords;
+
+   function Gives
+     (Data     : Enc.Byte_List;
+      Expected : String) return Boolean;
+   --  The data codewords Data have the text Expected.
+
+   function Gives
+     (Data     : Enc.Byte_List;
+      Expected : String) return Boolean
+   is
+      Text   : DM.Text_Buffer (1 .. DM.Max_Text_Length);
+      Length : Natural;
+      OK     : Boolean;
+   begin
+      DM.To_Text (To_Codewords (Data), Text, Length, OK);
+      return OK and then String (Text (1 .. Length)) = Expected;
+   end Gives;
+
+   function Gives_Nothing (Data : Enc.Byte_List) return Boolean;
+   --  The data codewords Data have no text.
+
+   function Gives_Nothing (Data : Enc.Byte_List) return Boolean is
+      Text   : DM.Text_Buffer (1 .. DM.Max_Text_Length);
+      Length : Natural;
+      OK     : Boolean;
+   begin
+      DM.To_Text (To_Codewords (Data), Text, Length, OK);
+      return not OK and then Length = 0;
+   end Gives_Nothing;
+
+   Every : constant String (1 .. 256) :=
+     [for I in 1 .. 256 => Character'Val (I - 1)];
+   Mixed : constant String :=
+     "Data Matrix 0123456789 {ecc 200} ~`_^|" & Character'Val (7)
+     & Character'Val (200) & "Zz" & Character'Val (255) & "@";
+
+   procedure Test_DM_ASCII is
+      use type Enc.Byte_List;
+
+      GS      : constant Character := Character'Val (29);
+      Rec_Sep : constant Character := Character'Val (30);
+      EOT     : constant Character := Character'Val (4);
+   begin
+      Section ("Data Matrix: the ASCII encodation");
+
+      Check (Enc.ASCII ("123456") = [142, 164, 186],
+             "the test's codewords of 123456 are the published ones");
+      Check (Gives ([142, 164, 186], "123456"), "123456");
+      Check (Gives (Enc.ASCII (Every), Every), "every character");
+      Check (Gives (Enc.ASCII (Mixed), Mixed), "a mixed text");
+      Check (Gives ([66, 129, 70, 1], "A"), "nothing after the first pad");
+      Check (Gives ([1 => 129], ""), "only pads: the empty text");
+      Check (Gives ([232, 66], "A"), "FNC1 first adds nothing");
+      Check (Gives ([66, 232, 67], "A" & GS & "B"), "FNC1 later is GS");
+      Check (Gives ([236, 66, 67],
+                    "[)>" & Rec_Sep & "05" & GS & "AB" & Rec_Sep & EOT),
+             "the macro 05");
+      Check (Gives ([237, 66, 67, 129, 9],
+                    "[)>" & Rec_Sep & "06" & GS & "AB" & Rec_Sep & EOT),
+             "the macro 06");
+      Check (Gives_Nothing ([66, 236]), "a macro that is not first");
+      Check (Gives ([233, 20, 1, 1, 66], "A"),
+             "structured append is passed over");
+      Check (Gives_Nothing ([233, 20, 1]),
+             "structured append without its codewords");
+      Check (Gives ([234, 66], "A"), "reader programming is passed over");
+      Check (Gives ([241, 27, 66], "A")
+             and then Gives ([241, 128, 5, 66], "A")
+             and then Gives ([241, 192, 5, 5, 66], "A"),
+             "an extended channel interpretation is passed over");
+      Check (Gives_Nothing ([241, 208, 66])
+             and then Gives_Nothing ([1 => 241])
+             and then Gives_Nothing ([241, 128])
+             and then Gives_Nothing ([241, 0, 66]),
+             "an extended channel interpretation that is not one");
+      Check (Gives_Nothing ([1 => 0])
+             and then Gives_Nothing ([66, 0])
+             and then Gives_Nothing ([66, 242])
+             and then Gives_Nothing ([66, 253, 67])
+             and then Gives_Nothing ([1 => 255]),
+             "codewords that are not defined");
+      Check (Gives ([66, 254], "A") and then Gives_Nothing ([254, 66]),
+             "the unlatch only as the last codeword");
+
+      declare
+         Text   : DM.Text_Buffer (1 .. 2);
+         None   : DM.Text_Buffer (1 .. 0);
+         Length : Natural;
+         OK     : Boolean;
+      begin
+         DM.To_Text (To_Codewords (Enc.ASCII ("ABC")), Text, Length, OK);
+         Check (not OK and then Length = 0, "a text longer than the buffer");
+         DM.To_Text (To_Codewords (Enc.ASCII ("AB")), Text, Length, OK);
+         Check (OK and then Length = 2 and then String (Text) = "AB",
+                "a text as long as the buffer");
+         DM.To_Text (To_Codewords ([1 => 129]), None, Length, OK);
+         Check (OK and then Length = 0, "the empty text in no buffer");
+         DM.To_Text (To_Codewords ([1 => 66]), None, Length, OK);
+         Check (not OK and then Length = 0, "a text in no buffer");
+      end;
+   end Test_DM_ASCII;
+
+   procedure Test_DM_Encodations is
+      use type Enc.Byte_List;
+
+      GS : constant Character := Character'Val (29);
+      CR : constant Character := Character'Val (13);
+
+      EDIFACT_Set : constant String (1 .. 63) :=
+        [for I in 1 .. 63 => Character'Val (31 + I)];
+
+      Good : Boolean;
+   begin
+      Section ("Data Matrix: the other encodations");
+
+      --  C40 and Text.
+
+      Check (Enc.C40 ("AIMAIMAIM") = [230, 91, 11, 91, 11, 91, 11, 254],
+             "the test's C40 codewords of AIMAIMAIM are the published ones");
+      Check (Gives ([230, 91, 11, 91, 11, 91, 11, 254], "AIMAIMAIM"),
+             "C40: AIMAIMAIM");
+      Check (Gives (Enc.C40 (Every), Every), "C40: every character");
+      Check (Gives (Enc.Lower (Every), Every), "Text: every character");
+
+      Good := True;
+      for L in 0 .. Mixed'Length loop
+         declare
+            T : constant String := Mixed (1 .. L);
+         begin
+            Good := Good and then Gives (Enc.C40 (T), T)
+                    and then Gives (Enc.Lower (T), T)
+                    and then Gives (Enc.C40 (T) & Enc.ASCII ("12x"),
+                                    T & "12x");
+         end;
+      end loop;
+      Check (Good, "C40 and Text: a mixed text cut at every length");
+
+      Check (Gives ([230, 91, 11], "AIM"),
+             "C40: the data can end without the unlatch");
+      Check (Gives ([230, 91, 11, 66], "AIMA")
+             and then Gives ([239, 91, 11, 66], "aimA"),
+             "C40 and Text: one codeword at the end is ASCII");
+      Check (Gives ([230, 10, 124], GS & " "), "C40: FNC1 is GS");
+      Check (Gives_Nothing ([230, 250, 1])
+             and then Gives_Nothing ([230, 0, 0])
+             and then Gives_Nothing ([230, 255, 255]),
+             "C40: two codewords that are not three values");
+      Check (Gives_Nothing ([230, 5, 4])
+             and then Gives_Nothing ([230, 10, 164])
+             and then Gives_Nothing ([230, 17, 132])
+             and then Gives_Nothing ([239, 17, 132]),
+             "C40 and Text: values that the shifted sets do not have");
+
+      --  X12.
+
+      Check (Gives (Enc.X12 ("AB1 2*>" & CR & "Z"), "AB1 2*>" & CR & "Z"),
+             "X12: every kind of character");
+      Check (Gives (Enc.X12 ("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                    & Enc.ASCII ("ok"),
+                    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZok"),
+             "X12: the digits and the letters, then ASCII");
+      Check (Gives (Enc.X12 ("X12") (1 .. 3) & [1 => 66], "X12A"),
+             "X12: one codeword at the end is ASCII");
+      Check (Gives_Nothing ([238, 250, 1]),
+             "X12: two codewords that are not three values");
+
+      --  EDIFACT.
+
+      Check (Gives (Enc.EDIFACT (EDIFACT_Set) & Enc.ASCII ("ok"),
+                    EDIFACT_Set & "ok"),
+             "EDIFACT: every character");
+
+      Good := True;
+      for L in 0 .. 9 loop
+         declare
+            T : constant String := EDIFACT_Set (30 .. 29 + L);
+         begin
+            Good := Good
+                    and then Gives (Enc.EDIFACT (T) & Enc.ASCII ("xy"),
+                                    T & "xy");
+         end;
+      end loop;
+      Check (Good, "EDIFACT: texts of every length, then ASCII");
+
+      Check (Gives (Enc.EDIFACT ("ABCD") (1 .. 4), "ABCD"),
+             "EDIFACT: the data can end without the unlatch");
+      Check (Gives (Enc.EDIFACT ("ABCD") (1 .. 4) & [66, 67], "ABCDAB"),
+             "EDIFACT: two codewords at the end are ASCII");
+
+      --  Base 256.
+
+      Good := True;
+      for L in 1 .. 1555 loop
+         if L in 1 .. 3 | 249 .. 251 | 499 .. 501 | 1555 then
+            declare
+               T : String (1 .. L);
+            begin
+               for I in T'Range loop
+                  T (I) := Character'Val ((I * 7 + L) mod 256);
+               end loop;
+               Good := Good and then Gives (Enc.Base_256 (T), T);
+            end;
+         end if;
+      end loop;
+      Check (Good, "Base 256: short and long texts");
+      Check (Gives (Enc.Base_256 (Every), Every), "Base 256: every byte");
+      Check (Gives (Enc.ASCII ("AB") & Enc.Base_256 ("xyz", First => 3)
+                    & Enc.ASCII ("C"),
+                    "ABxyzC"),
+             "Base 256: between ASCII codewords");
+      Check (Gives ([231, Enc.Hidden (0, 2), Enc.Hidden (65, 3),
+                     Enc.Hidden (66, 4)],
+                    "AB"),
+             "Base 256: the length 0 is up to the end");
+      Check (Gives_Nothing ([231, Enc.Hidden (5, 2), Enc.Hidden (65, 3)])
+             and then Gives_Nothing
+                        ([231, Enc.Hidden (250, 2), Enc.Hidden (9, 3),
+                          Enc.Hidden (65, 4)]),
+             "Base 256: a length beyond the end");
+
+      --  One after another.
+
+      Check (Gives (Enc.ASCII ("a1") & Enc.C40 ("C40")
+                    & Enc.Lower ("text") & Enc.X12 ("X12")
+                    & Enc.EDIFACT ("EDI") & Enc.Base_256 ("b", First => 20)
+                    & Enc.ASCII ("z"),
+                    "a1C40textX12EDIbz"),
+             "the encodations one after another");
+   end Test_DM_Encodations;
+
+   ---------------------------------------------------------------------
+   --  Data Matrix: from the modules to the text
+   ---------------------------------------------------------------------
+
+   procedure Test_DM_Decode is
+      use type Enc.Byte_List;
+
+      Text      : DM.Text_Buffer (1 .. DM.Max_Text_Length);
+      Length    : Natural;
+      Corrected : Natural;
+      Success   : Boolean;
+
+      function Letters (Count : Natural) return String;
+      --  Count letters.
+
+      function Letters (Count : Natural) return String is
+         R : String (1 .. Count);
+      begin
+         for C of R loop
+            C := Character'Val (Character'Pos ('A') + Random (26));
+         end loop;
+         return R;
+      end Letters;
+
+      procedure Read (Stream : Enc.Byte_List; Size : DM.Size_Index);
+      --  Decodes the symbol of the size with the codewords Stream.
+
+      procedure Read (Stream : Enc.Byte_List; Size : DM.Size_Index) is
+      begin
+         DM.Decode
+           (Enc.Grid (Enc.Modules (Stream, Size)), Size, DM_Field,
+            Text, Length, Corrected, Success);
+      end Read;
+
+      function Read_Is (Expected : String; Fixed : Natural) return Boolean
+      is (Success and then Corrected = Fixed
+          and then String (Text (1 .. Length)) = Expected);
+
+      procedure Damage
+        (Stream : in out Enc.Byte_List;
+         Size   : DM.Size_Index;
+         Block  : Positive;
+         Errors : Natural);
+      --  Changes Errors codewords of the block Block.
+
+      procedure Damage
+        (Stream : in out Enc.Byte_List;
+         Size   : DM.Size_Index;
+         Block  : Positive;
+         Errors : Natural)
+      is
+         Blocks : constant Positive := DM.Sizes (Size).Blocks;
+         Count  : constant Positive := (Stream'Last - Block) / Blocks + 1;
+         Hit    : array (Stream'Range) of Boolean := [others => False];
+         Done   : Natural := 0;
+         P      : Positive;
+      begin
+         while Done < Errors loop
+            P := Block + Blocks * Random (Count);
+            if not Hit (P) then
+               Hit (P) := True;
+               Stream (P) := (Stream (P) + 1 + Random (255)) mod 256;
+               Done := Done + 1;
+            end if;
+         end loop;
+      end Damage;
+
+      Clean    : Boolean := True;
+      Padded   : Boolean := True;
+      Repaired : Boolean := True;
+      Honest   : Boolean := True;
+      Refused  : Natural := 0;
+      Tried    : Natural := 0;
+      Random_Texts : Natural := 0;
+   begin
+      Section ("Data Matrix: from the modules to the text");
+
+      Check (Enc.Stream (Enc.ASCII ("123456"), 1)
+             = [142, 164, 186, 114, 25, 5, 88, 102],
+             "the test's check codewords of 123456 are the published ones");
+
+      for S in DM.Size_Index loop
+         declare
+            I      : constant DM.Size_Info := DM.Sizes (S);
+            Parity : constant Positive := I.Check / I.Blocks;
+            Full   : constant String := Letters (I.Data);
+            Short  : constant String := "No" & Image (S);
+            Stream : constant Enc.Byte_List :=
+              Enc.Stream (Enc.ASCII (Full), S);
+            Hurt   : Enc.Byte_List := Stream;
+         begin
+            --  As it is.
+
+            Read (Stream, S);
+            Clean := Clean and then Read_Is (Full, 0);
+
+            Read (Enc.Stream (Enc.Padded (Enc.ASCII (Short), S), S), S);
+            Padded := Padded and then Read_Is (Short, 0);
+
+            --  As many wrong codewords in every block as can be
+            --  corrected.
+
+            for B in 1 .. I.Blocks loop
+               Damage (Hurt, S, B, Parity / 2);
+            end loop;
+            Read (Hurt, S);
+            Repaired := Repaired
+                        and then Read_Is (Full, I.Blocks * (Parity / 2));
+
+            --  One more in one block: the symbol is refused, or (rarely,
+            --  for the few check codewords of the small sizes) read as
+            --  another one.
+
+            for Round in 1 .. 4 loop
+               Hurt := Stream;
+               Damage (Hurt, S, 1 + Random (I.Blocks), Parity / 2 + 1);
+               Read (Hurt, S);
+               Tried := Tried + 1;
+               if not Success then
+                  Refused := Refused + 1;
+                  Honest := Honest and then Length = 0
+                            and then Corrected = 0;
+               elsif Read_Is (Full, Corrected) then
+                  Honest := False;
+               end if;
+            end loop;
+
+            --  Modules by chance.
+
+            for Round in 1 .. 20 loop
+               for W of Hurt loop
+                  W := Random (256);
+               end loop;
+               Read (Hurt, S);
+               if Success then
+                  Random_Texts := Random_Texts + 1;
+               end if;
+            end loop;
+         end;
+      end loop;
+
+      Check (Clean, "every size, full of letters");
+      Check (Padded, "every size, a short text and pads");
+      Check (Repaired,
+             "every size, half the check codewords of every block wrong");
+      Check (Honest,
+             "one wrong codeword more: never the text of the symbol");
+      Ada.Text_IO.Put_Line
+        (" " & Image (Refused) & " of " & Image (Tried)
+         & " symbols with one wrong codeword more were refused");
+      Check (Random_Texts = 0, "modules by chance have no text");
+   end Test_DM_Decode;
+
    procedure Run_All is
    begin
       Test_Field;
@@ -650,6 +1211,11 @@ procedure Test_Code_Reader_2D is
       Test_Correction;
       Test_Beyond;
       Test_Bad_Tables;
+      Test_DM_Sizes;
+      Test_DM_Placement;
+      Test_DM_ASCII;
+      Test_DM_Encodations;
+      Test_DM_Decode;
    end Run_All;
 
    procedure Main is new AMV_Test_Support.Standalone (Run_All);
