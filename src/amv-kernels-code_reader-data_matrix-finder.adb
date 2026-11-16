@@ -25,7 +25,10 @@ is
    Solid_Share : constant := 0.85;
    --  The share of dark pixels along a solid side, at least.
 
-   Depths : constant array (1 .. 3) of Long_Float := [1.5, 2.5, 4.0];
+   Num_Depths : constant := 3;
+
+   Depths : constant array (1 .. Num_Depths) of Long_Float :=
+     [1.5, 2.5, 4.0];
    --  How far inside a side it is looked at for being solid, in pixels:
    --  the side of a dark area is not as straight as its hull, and a side
    --  is solid when it is so at one of these depths.
@@ -42,13 +45,20 @@ is
    --  The part of the alternating sides from which the upper right
    --  corner is taken, at least.
 
+   Seen : constant := 0.5;
+   --  The upper right corner of a symbol is at least Seen times, and at
+   --  most 1 / Seen times, as far from the line through the two ends of
+   --  the L as the lower left corner, on the other side of it: no symbol
+   --  is seen at a steeper angle than that.
+
    Near : constant := 4.0;
    --  How far from the corner of the hull the lines of two sides may
    --  meet, in pixels, to be taken as the corner.
 
    Loose : constant := 2.0 * Straight;
    --  How far the line of an alternating side may pass from the end of
-   --  the L, in pixels.
+   --  the L, and how far from a corner of the hull next to the corner of
+   --  a symbol the lines of two sides may meet, in pixels.
 
    Narrow : constant := 2.0;
    --  How far around an outline the dark pixels belong to the symbol,
@@ -162,27 +172,31 @@ is
       end loop;
    end Scan_Side;
 
-   function Is_Solid
-     (Map  : DA.Mark_Map;
-      A, B : Corner) return Boolean
-   with Pre => DA.Valid_Map (Map);
+   subtype Solidity is Natural range 0 .. Num_Depths;
 
-   function Is_Solid
+   function Solid_At
      (Map  : DA.Mark_Map;
-      A, B : Corner) return Boolean
+      A, B : Corner) return Solidity
+   with Pre => DA.Valid_Map (Map);
+   --  The first of the Depths at which the side from A to B is solid
+   --  (0: at none).
+
+   function Solid_At
+     (Map  : DA.Mark_Map;
+      A, B : Corner) return Solidity
    is
       Dark, Total, Changes : Natural;
    begin
-      for Depth of Depths loop
-         Scan_Side (Map, A, B, Depth, 0.05, 0.95, Dark, Total, Changes);
+      for K in Depths'Range loop
+         Scan_Side (Map, A, B, Depths (K), 0.05, 0.95, Dark, Total, Changes);
          if Total > 0
            and then Long_Float (Dark) >= Solid_Share * Long_Float (Total)
          then
-            return True;
+            return K;
          end if;
       end loop;
-      return False;
-   end Is_Solid;
+      return 0;
+   end Solid_At;
 
    ---------------------------------------------------------------------
    --  The corners
@@ -340,12 +354,50 @@ is
       Found := Found and then Best > 0.0;
    end Find_Four;
 
+   type Anchoring is record
+      Anchored     : Boolean := False;
+      Has_Arm      : Boolean := False;
+      End_1, End_2 : Corner := (0.0, 0.0);
+      Arm_1, Arm_2 : Corner := (0.0, 0.0);
+   end record;
+   --  What the line of an alternating side has to pass: the end of an
+   --  arm of the L. End_1 is the corner of the hull there and End_2 the
+   --  corner of the hull next to it along the alternating side: where an
+   --  outline turns, the pixels cut its tip off, and the hull has a
+   --  corner on either side of the true one. The line has to pass
+   --  within Loose of End_1, or (Has_Arm: the line through Arm_1 and
+   --  Arm_2 is that of the arm) to meet the line of the arm within Loose
+   --  of End_2.
+
+   function Passes
+     (PI, PK : Corner;
+      Anchor : Anchoring) return Boolean;
+   --  The line through PI and PK passes what Anchor asks for.
+
+   function Passes
+     (PI, PK : Corner;
+      Anchor : Anchoring) return Boolean
+   is
+      Where : Corner;
+      Met   : Boolean;
+   begin
+      if not Anchor.Anchored
+        or else abs Off_Line (PI, PK, Anchor.End_1)
+                <= Loose * Distance (PI, PK)
+      then
+         return True;
+      elsif not Anchor.Has_Arm then
+         return False;
+      end if;
+      Meet (Anchor.Arm_1, Anchor.Arm_2, PI, PK, Where, Met);
+      return Met and then Distance (Where, Anchor.End_2) <= Loose;
+   end Passes;
+
    procedure Longest_Run
      (Hull     : DA.Point_Array;
       First    : Positive;
       Last     : Natural;
-      Anchored : Boolean;
-      Anchor   : Corner;
+      Anchor   : Anchoring;
       From, To : out Natural;
       Length   : out Long_Float)
    with Pre => Valid_Hull (Hull) and then First <= Hull'Last
@@ -353,14 +405,13 @@ is
    --  The longest straight part of the hull between the corner First and
    --  the corner Last corners after it: from the corner From to the
    --  corner To after First, Length pixels long (0.0: there is none).
-   --  Anchored: only the parts whose line passes Anchor are looked at.
+   --  Only the parts whose line passes Anchor are looked at.
 
    procedure Longest_Run
      (Hull     : DA.Point_Array;
       First    : Positive;
       Last     : Natural;
-      Anchored : Boolean;
-      Anchor   : Corner;
+      Anchor   : Anchoring;
       From, To : out Natural;
       Length   : out Long_Float)
    is
@@ -377,8 +428,7 @@ is
             PK := At_Place (Hull, First, K);
             D := Distance (PI, PK);
             if D > Length and then D >= 1.0
-              and then (not Anchored
-                        or else abs Off_Line (PI, PK, Anchor) <= Loose * D)
+              and then Passes (PI, PK, Anchor)
               and then Deviation (Hull, First, I, K) <= Straight
             then
                From := I;
@@ -417,54 +467,99 @@ is
          Good   : Boolean := False;
       end record;
       Q      : array (Side) of Positive := [others => 1];
-      Solid  : array (Side) of Boolean;
+      Solid  : array (Side) of Solidity;
+      Long   : array (Side) of Long_Float;
       Lines  : array (Side) of Line;
       L      : Side := 0;
       Have_L : Boolean := False;
+      Best   : Long_Float := 0.0;
+      Short  : Long_Float;
+      Deep   : Solidity;
+      Least  : Solidity := Solidity'Last;
       OK     : Boolean;
       A, B   : Corner;
       C, D   : Corner;
       LA, LB : Long_Float;
+      HC, HD : Long_Float;
 
-      procedure Fit (S : Side);
+      procedure Fit (S : Side; Alternating : Boolean);
       --  The line of the side S, good when the hull is straight along
-      --  enough of the side. The hull of an alternating side may cut
-      --  through the symbol; the line of the side is one that passes
-      --  the end of the L.
+      --  enough of the side. Alternating: the side is not an arm of
+      --  the L, which is known. The hull of such a side may cut through
+      --  the symbol, from one end of the L to dark modules that touch no
+      --  others; its line is one that passes the end of the L and has
+      --  nothing dark outside.
 
-      procedure Fit (S : Side) is
+      procedure Fit (S : Side; Alternating : Boolean) is
          M        : constant Natural := (Q (S + 1) - Q (S)) mod Hull'Length;
          Chord    : constant Long_Float :=
            Distance (To_Corner (Hull (Q (S))), To_Corner (Hull (Q (S + 1))));
          From, To : Natural;
          Length   : Long_Float;
+         Anchor   : Anchoring;
+         P1, P2   : Corner;
+         Dark     : Natural := 0;
+         Total    : Natural := 0;
+         Changes  : Natural;
       begin
-         Longest_Run
-           (Hull, Q (S), M,
-            Anchored => S = L + 1 or else S = L + 2,
-            Anchor   => To_Corner (Hull (Q (if S = L + 1 then S else S + 1))),
-            From     => From,
-            To       => To,
-            Length   => Length);
+         Lines (S).Good := False;
+         if not Alternating then
+            null;
+         elsif S = L + 1 then
+            --  From the end of the arm that is the side L.
+            Anchor := (Anchored => True,
+                       Has_Arm  => Lines (L).Good,
+                       End_1    => To_Corner (Hull (Q (S))),
+                       End_2    => At_Place (Hull, Q (S), Natural'Min (1, M)),
+                       Arm_1    => Lines (L).P1,
+                       Arm_2    => Lines (L).P2);
+         else
+            --  To the end of the arm that is the side L - 1.
+            Anchor := (Anchored => True,
+                       Has_Arm  => Lines (L - 1).Good,
+                       End_1    => To_Corner (Hull (Q (S + 1))),
+                       End_2    =>
+                         At_Place (Hull, Q (S), M - Natural'Min (1, M)),
+                       Arm_1    => Lines (L - 1).P1,
+                       Arm_2    => Lines (L - 1).P2);
+         end if;
+         Longest_Run (Hull, Q (S), M, Anchor, From, To, Length);
          if Length >= Min_Side and then Length >= Trusted * Chord then
-            Lines (S) := (At_Place (Hull, Q (S), From),
-                          At_Place (Hull, Q (S), To), True);
+            P1 := At_Place (Hull, Q (S), From);
+            P2 := At_Place (Hull, Q (S), To);
+            if Alternating then
+               Scan_Side (Map, P1, P2, -Inset, 0.0, 1.0, Dark, Total,
+                          Changes);
+            end if;
+            if Long_Float (Dark)
+               <= (1.0 - Solid_Share) * Long_Float (Total)
+            then
+               Lines (S) := (P1, P2, True);
+            end if;
          end if;
       end Fit;
 
       function Corner_Of (S : Side) return Corner;
       --  The corner between the sides S - 1 and S: where their lines
-      --  meet, if that is near the corner of the hull.
+      --  meet, if that is near the corner of the hull, or nearer still
+      --  to the corner of the hull before or after it (the pixels cut
+      --  the tip of a corner off).
 
       function Corner_Of (S : Side) return Corner is
-         P     : constant Corner := To_Corner (Hull (Q (S)));
-         Where : Corner;
-         Met   : Boolean;
+         P      : constant Corner := To_Corner (Hull (Q (S)));
+         Before : constant Corner := At_Place (Hull, Q (S), Hull'Length - 1);
+         After  : constant Corner := At_Place (Hull, Q (S), 1);
+         Where  : Corner;
+         Met    : Boolean;
       begin
          if Lines (S - 1).Good and then Lines (S).Good then
             Meet (Lines (S - 1).P1, Lines (S - 1).P2,
                   Lines (S).P1, Lines (S).P2, Where, Met);
-            if Met and then Distance (P, Where) <= Near then
+            if Met
+              and then (Distance (P, Where) <= Near
+                        or else Distance (Before, Where) <= Loose
+                        or else Distance (After, Where) <= Loose)
+            then
                return Where;
             end if;
          end if;
@@ -482,25 +577,50 @@ is
          return;
       end if;
 
-      --  The L: two solid sides that meet, the other two not solid.
+      --  The straight part of every side, and how solid the side is
+      --  along it: the corners of the hull are not those of the symbol
+      --  where a corner of the symbol is light, and the line from one to
+      --  the next may run through the modules next to the side.
       for S in Side loop
-         Solid (S) := Is_Solid (Map, To_Corner (Hull (Q (S))),
-                                To_Corner (Hull (Q (S + 1))));
+         Fit (S, Alternating => False);
+      end loop;
+
+      --  The L: two solid sides that meet. A dark area with little more
+      --  than the L has a hull of nearly three corners, and its fourth
+      --  side, at the end of an arm of the L, may be solid as well; and
+      --  so may an alternating side be where it is looked at as deep as
+      --  the modules next to it. Of several pairs it is the one that is
+      --  solid nearest to the hull, and of these the one whose shorter
+      --  side is the longest.
+      for S in Side loop
+         if Lines (S).Good then
+            Solid (S) := Solid_At (Map, Lines (S).P1, Lines (S).P2);
+         else
+            Solid (S) := Solid_At (Map, To_Corner (Hull (Q (S))),
+                                   To_Corner (Hull (Q (S + 1))));
+         end if;
+         Long (S) := Distance (To_Corner (Hull (Q (S))),
+                               To_Corner (Hull (Q (S + 1))));
       end loop;
       for S in Side loop
-         if Solid (S - 1) and then Solid (S) and then not Solid (S + 1)
-           and then not Solid (S + 2)
-         then
-            L := S;
-            Have_L := True;
+         if Solid (S - 1) > 0 and then Solid (S) > 0 then
+            Deep := Solidity'Max (Solid (S - 1), Solid (S));
+            Short := Long_Float'Min (Long (S - 1), Long (S));
+            if Deep < Least or else (Deep = Least and then Short > Best) then
+               Least := Deep;
+               Best := Short;
+               L := S;
+               Have_L := True;
+            end if;
          end if;
       end loop;
       if not Have_L then
          return;
       end if;
-      for S in Side loop
-         Fit (S);
-      end loop;
+      --  The lines of the other two sides have to pass the ends of the
+      --  arms.
+      Fit (L + 1, Alternating => True);
+      Fit (L + 2, Alternating => True);
       C := Corner_Of (L);
       A := Corner_Of (L + 1);
       B := Corner_Of (L + 3);
@@ -525,6 +645,17 @@ is
       LA := Distance (A, D);
       LB := Distance (D, B);
       if LA < Min_Side or else LB < Min_Side then
+         return;
+      end if;
+
+      --  Not where a symbol cannot have it: the two lines may be those
+      --  of a hull that cuts through the symbol from one end of the L to
+      --  the other.
+      HC := Off_Line (A, B, C);
+      HD := Off_Line (A, B, D);
+      if (HC > 0.0) = (HD > 0.0) or else abs HD < Seen * abs HC
+        or else Seen * abs HD > abs HC
+      then
          return;
       end if;
       Share := Long_Float'Min
@@ -795,8 +926,18 @@ is
       Symbol        : Outline;
       Rows, Columns : out Natural) is
    begin
-      Count_Side (Map, Symbol.Upper_Left, Symbol.Upper_Right, Columns);
-      Count_Side (Map, Symbol.Upper_Right, Symbol.Lower_Right, Rows);
+      --  Count_Side looks to the right of its line: the sides are gone
+      --  along clockwise, whichever way the corners go around (the other
+      --  way for a symbol that is seen from behind).
+      if Off_Line (Symbol.Upper_Left, Symbol.Upper_Right, Symbol.Lower_Left)
+         >= 0.0
+      then
+         Count_Side (Map, Symbol.Upper_Left, Symbol.Upper_Right, Columns);
+         Count_Side (Map, Symbol.Upper_Right, Symbol.Lower_Right, Rows);
+      else
+         Count_Side (Map, Symbol.Upper_Right, Symbol.Upper_Left, Columns);
+         Count_Side (Map, Symbol.Lower_Right, Symbol.Upper_Right, Rows);
+      end if;
    end Count_Modules;
 
    procedure Sample
@@ -851,5 +992,21 @@ is
          end loop;
       end loop;
    end Sample;
+
+   function Middle (Symbol : Outline) return Corner is
+      Where : Corner;
+      OK    : Boolean;
+   begin
+      Meet (Symbol.Upper_Left, Symbol.Lower_Right, Symbol.Upper_Right,
+            Symbol.Lower_Left, Where, OK);
+      if not OK then
+         Where :=
+           (X => (Symbol.Upper_Left.X + Symbol.Upper_Right.X
+                  + Symbol.Lower_Right.X + Symbol.Lower_Left.X) / 4.0,
+            Y => (Symbol.Upper_Left.Y + Symbol.Upper_Right.Y
+                  + Symbol.Lower_Right.Y + Symbol.Lower_Left.Y) / 4.0);
+      end if;
+      return Where;
+   end Middle;
 
 end AMV.Kernels.Code_Reader.Data_Matrix.Finder;

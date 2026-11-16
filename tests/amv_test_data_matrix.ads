@@ -9,7 +9,11 @@
 --  generator polynomial, and its placement of the codewords is the
 --  program of the symbology's specification, which marks every module of
 --  the mapping matrix with its codeword and bit.
+--
+--  Draw paints the modules into an image between any four corners, so
+--  that the tests know where a symbol is and how it lies.
 
+with AMV.Images;
 with AMV.Kernels.Code_Reader.Data_Matrix;
 
 package AMV_Test_Data_Matrix is
@@ -118,5 +122,46 @@ package AMV_Test_Data_Matrix is
 
    function Grid (Symbol : Module_Matrix) return DM.Module_Grid;
    --  The modules as the kernel takes them.
+
+   ---------------------------------------------------------------------
+   --  From the modules to an image
+   ---------------------------------------------------------------------
+
+   type Place is record
+      X, Y : Long_Float := 0.0;
+   end record;
+   --  A point of pixel space: the middle of pixel (I, J) is at (I, J).
+
+   type Corners is record
+      Upper_Left, Upper_Right, Lower_Right, Lower_Left : Place;
+   end record;
+   --  The corners of a symbol as it is printed: the L runs from the
+   --  upper left corner by the lower left one to the lower right one.
+
+   function Placed
+     (Center_X, Center_Y : Long_Float;
+      Width, Height      : Long_Float;
+      Rotation           : Long_Float := 0.0;
+      Mirror             : Boolean := False) return Corners;
+   --  The corners of a symbol of Width by Height pixels with its middle
+   --  at (Center_X, Center_Y) and its lower side, from the corner of the
+   --  L, along the direction Rotation (radians; 0.0: as it is printed).
+   --  Mirror: the symbol as it is seen from behind, its upper side
+   --  where the lower one would be.
+
+   function Middle (Where : Corners) return Place;
+   --  Where the diagonals cross.
+
+   procedure Draw
+     (Image  : in out AMV.Images.Ks_Image_8_Grey;
+      Symbol : Module_Matrix;
+      Where  : Corners;
+      Dark   : AMV.Images.Grey_8 := 0);
+   --  Paints the dark modules of the symbol between the corners, which
+   --  may be those of any convex quadrilateral (a symbol seen at an
+   --  angle; the modules follow in perspective). A pixel moves towards
+   --  the level Dark by the share of its 4 by 4 sample points that lie
+   --  in a dark module; the light modules and the margin are whatever
+   --  the image holds.
 
 end AMV_Test_Data_Matrix;

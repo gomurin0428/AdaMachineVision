@@ -16,6 +16,8 @@ package body AMV.Code_Reader is
 
    subtype Ks_Status is AMV.Kernels.Ks_Status;
 
+   use type AMV.Kernels.Int32;
+
    procedure Check (Status : Ks_Status) renames AMV.Checks.Check;
 
    function To_Kernel
@@ -54,7 +56,33 @@ package body AMV.Code_Reader is
    begin
       KC.Check_Result_Length (Result, Status);
       Check (Status);
-      return String (Result.Text (1 .. Natural (Result.Length)));
+      return String
+        (Result.Text
+           (1 .. Natural (Int32'Min (Result.Length, KC.Max_Text_Length))));
+   end Text;
+
+   function Text
+     (Results : Ks_Code_Reader_Results;
+      Index   : Natural) return String
+   is
+      Whole  : constant Ks_Code_Reader_Result := Item (Results, Index);
+      Result : String (1 .. Natural (Whole.Length));
+      Done   : Natural := 0;
+      Part   : KC.Code_Text;
+      Length : Int32;
+      Status : Ks_Status;
+   begin
+      while Done < Result'Length loop
+         KC.Results_Text
+           (Results_Holders.Get (Results.Holder), Int32 (Index),
+            Int32 (Done), Part, Length, Status);
+         Check (Status);
+         exit when Length = 0;
+         Result (Done + 1 .. Done + Natural (Length)) :=
+           String (Part (1 .. Natural (Length)));
+         Done := Done + Natural (Length);
+      end loop;
+      return Result (1 .. Done);
    end Text;
 
    procedure Destroy (Handle : in out KC.Ks_Code_Reader_Results) is

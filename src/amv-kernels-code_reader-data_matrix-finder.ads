@@ -6,16 +6,24 @@
 --  symbol, the "L", has a convex hull with these two sides. Four corners
 --  of the hull are taken as far apart as they are: the two that are
 --  farthest from each other, and on either side the one farthest from
---  their line. A side is solid when the pixels a little inside it are
---  dark; two solid sides that meet, the other two not solid, are the L,
---  their common corner the lower left one of the symbol. The line of a
---  side is the longest straight part of the hull along it, for the two
---  alternating sides one that passes the end of the L; a corner is
---  where the lines of its two sides meet. Where the hull is not straight
---  along a quarter of a side, the corner of the hull stands for a
+--  their line. The line of a side is the longest straight part of the
+--  hull along it, and a side is solid when the pixels a little inside
+--  its line are dark (1.5, 2.5 or 4 pixels inside: the edge of a bar in
+--  a photograph is not a straight line). Two solid sides that meet are
+--  the L, their common corner the lower left one of the symbol; of
+--  several such pairs it is the one that is solid nearest to the hull,
+--  and of these the one whose shorter side is the longest. The hull of
+--  the area with the L may cut through the symbol, from an end of the
+--  L to modules that touch no others: the line of an alternating side
+--  is therefore a straight part of the hull that passes the end of an
+--  arm of the L and has no dark pixels 1.5 pixels outside it. A corner
+--  is where the lines of its two sides meet. Where a side has no such
+--  line along a quarter of it, the corner of the hull stands for a
 --  corner of the L, and the fourth corner of the parallelogram of the L
 --  for the upper right corner, which no dark pixel marks (its module is
---  light).
+--  light); so it does where the two lines meet less than half or more
+--  than twice as far from the line through the ends of the L as the
+--  lower left corner is.
 --
 --  All the dark pixels (Refine). The modules of the alternating sides
 --  need not touch the area with the L. The corners are therefore taken
@@ -41,7 +49,7 @@ pragma Assertion_Policy
 with AMV.Kernels.Code_Reader.Dark_Areas;
 
 package AMV.Kernels.Code_Reader.Data_Matrix.Finder
-  with SPARK_Mode
+  with SPARK_Mode, Preelaborate
 is
 
    package DA renames AMV.Kernels.Code_Reader.Dark_Areas;
@@ -113,5 +121,9 @@ is
       Lower_Right => Symbol.Upper_Left,
       Lower_Left  => Symbol.Lower_Left);
    --  The corners of a symbol that is seen from behind.
+
+   function Middle (Symbol : Outline) return Corner;
+   --  Where the diagonals of the outline cross: the middle of the symbol
+   --  as it is printed. The mean of the corners where they do not cross.
 
 end AMV.Kernels.Code_Reader.Data_Matrix.Finder;

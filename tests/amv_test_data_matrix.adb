@@ -1,6 +1,9 @@
+with Ada.Numerics.Long_Elementary_Functions;
 with Interfaces; use Interfaces;
 
 package body AMV_Test_Data_Matrix is
+
+   package EF renames Ada.Numerics.Long_Elementary_Functions;
 
    ---------------------------------------------------------------------
    --  Lists that grow
@@ -591,5 +594,166 @@ package body AMV_Test_Data_Matrix is
       end loop;
       return G;
    end Grid;
+
+   ---------------------------------------------------------------------
+   --  From the modules to an image
+   ---------------------------------------------------------------------
+
+   function Placed
+     (Center_X, Center_Y : Long_Float;
+      Width, Height      : Long_Float;
+      Rotation           : Long_Float := 0.0;
+      Mirror             : Boolean := False) return Corners
+   is
+      C  : constant Long_Float := EF.Cos (Rotation);
+      S  : constant Long_Float := EF.Sin (Rotation);
+      --  Along the lower side: (C, S). From the upper side to the lower
+      --  one: (-S, C), and the other way in a mirror image.
+      HX : constant Long_Float := 0.5 * Width * C;
+      HY : constant Long_Float := 0.5 * Width * S;
+      Turn : constant Long_Float := (if Mirror then -1.0 else 1.0);
+      VX : constant Long_Float := -0.5 * Height * S * Turn;
+      VY : constant Long_Float := 0.5 * Height * C * Turn;
+   begin
+      return (Upper_Left  => (Center_X - HX - VX, Center_Y - HY - VY),
+              Upper_Right => (Center_X + HX - VX, Center_Y + HY - VY),
+              Lower_Right => (Center_X + HX + VX, Center_Y + HY + VY),
+              Lower_Left  => (Center_X - HX + VX, Center_Y - HY + VY));
+   end Placed;
+
+   type Mapping is array (1 .. 3, 1 .. 3) of Long_Float;
+
+   function From_Square (Where : Corners) return Mapping;
+   --  The perspective mapping that takes (0, 0), (1, 0), (1, 1) and
+   --  (0, 1) to the upper left, upper right, lower right and lower left
+   --  corner: X = (M11 U + M12 V + M13) / (M31 U + M32 V + M33), and Y
+   --  with the second row.
+
+   function From_Square (Where : Corners) return Mapping is
+      P0  : Place renames Where.Upper_Left;
+      P1  : Place renames Where.Upper_Right;
+      P2  : Place renames Where.Lower_Right;
+      P3  : Place renames Where.Lower_Left;
+      DX1 : constant Long_Float := P1.X - P2.X;
+      DX2 : constant Long_Float := P3.X - P2.X;
+      DY1 : constant Long_Float := P1.Y - P2.Y;
+      DY2 : constant Long_Float := P3.Y - P2.Y;
+      SX  : constant Long_Float := P0.X - P1.X + P2.X - P3.X;
+      SY  : constant Long_Float := P0.Y - P1.Y + P2.Y - P3.Y;
+      Det : constant Long_Float := DX1 * DY2 - DX2 * DY1;
+      G   : constant Long_Float := (SX * DY2 - DX2 * SY) / Det;
+      H   : constant Long_Float := (DX1 * SY - SX * DY1) / Det;
+   begin
+      return [[P1.X - P0.X + G * P1.X, P3.X - P0.X + H * P3.X, P0.X],
+              [P1.Y - P0.Y + G * P1.Y, P3.Y - P0.Y + H * P3.Y, P0.Y],
+              [G, H, 1.0]];
+   end From_Square;
+
+   function Adjugate (M : Mapping) return Mapping is
+     [[M (2, 2) * M (3, 3) - M (2, 3) * M (3, 2),
+       M (1, 3) * M (3, 2) - M (1, 2) * M (3, 3),
+       M (1, 2) * M (2, 3) - M (1, 3) * M (2, 2)],
+      [M (2, 3) * M (3, 1) - M (2, 1) * M (3, 3),
+       M (1, 1) * M (3, 3) - M (1, 3) * M (3, 1),
+       M (1, 3) * M (2, 1) - M (1, 1) * M (2, 3)],
+      [M (2, 1) * M (3, 2) - M (2, 2) * M (3, 1),
+       M (1, 2) * M (3, 1) - M (1, 1) * M (3, 2),
+       M (1, 1) * M (2, 2) - M (1, 2) * M (2, 1)]];
+   --  The inverse mapping (a mapping times a number is the same one).
+
+   function Middle (Where : Corners) return Place is
+      M : constant Mapping := From_Square (Where);
+      W : constant Long_Float := 0.5 * M (3, 1) + 0.5 * M (3, 2) + M (3, 3);
+   begin
+      --  The diagonals of the square cross at (0.5, 0.5).
+      return ((0.5 * M (1, 1) + 0.5 * M (1, 2) + M (1, 3)) / W,
+              (0.5 * M (2, 1) + 0.5 * M (2, 2) + M (2, 3)) / W);
+   end Middle;
+
+   procedure Draw
+     (Image  : in out AMV.Images.Ks_Image_8_Grey;
+      Symbol : Module_Matrix;
+      Where  : Corners;
+      Dark   : AMV.Images.Grey_8 := 0)
+   is
+      use AMV.Images;
+
+      Samples : constant := 4;
+
+      Back : constant Mapping := Adjugate (From_Square (Where));
+      Rows : constant Long_Float := Long_Float (Symbol'Length (1));
+      Cols : constant Long_Float := Long_Float (Symbol'Length (2));
+
+      Left   : constant Long_Float :=
+        Long_Float'Min
+          (Long_Float'Min (Where.Upper_Left.X, Where.Upper_Right.X),
+           Long_Float'Min (Where.Lower_Left.X, Where.Lower_Right.X));
+      Right  : constant Long_Float :=
+        Long_Float'Max
+          (Long_Float'Max (Where.Upper_Left.X, Where.Upper_Right.X),
+           Long_Float'Max (Where.Lower_Left.X, Where.Lower_Right.X));
+      Top    : constant Long_Float :=
+        Long_Float'Min
+          (Long_Float'Min (Where.Upper_Left.Y, Where.Upper_Right.Y),
+           Long_Float'Min (Where.Lower_Left.Y, Where.Lower_Right.Y));
+      Bottom : constant Long_Float :=
+        Long_Float'Max
+          (Long_Float'Max (Where.Upper_Left.Y, Where.Upper_Right.Y),
+           Long_Float'Max (Where.Lower_Left.Y, Where.Lower_Right.Y));
+
+      function Clamped (Value : Long_Float; Last : Integer) return Integer is
+        (if Value <= 0.0 then 0
+         elsif Value >= Long_Float (Last) then Last
+         else Integer (Value));
+
+      X_Lo : constant Integer := Clamped (Left - 1.0, Image.Width - 1);
+      X_Hi : constant Integer := Clamped (Right + 1.0, Image.Width - 1);
+      Y_Lo : constant Integer := Clamped (Top - 1.0, Image.Height - 1);
+      Y_Hi : constant Integer := Clamped (Bottom + 1.0, Image.Height - 1);
+
+      PX, PY  : Long_Float;
+      U, V, W : Long_Float;
+      Hits    : Natural;
+      Old     : Long_Float;
+   begin
+      for Y in Y_Lo .. Y_Hi loop
+         for X in X_Lo .. X_Hi loop
+            Hits := 0;
+            for J in 0 .. Samples - 1 loop
+               PY := Long_Float (Y) - 0.5
+                 + (Long_Float (J) + 0.5) / Long_Float (Samples);
+               for I in 0 .. Samples - 1 loop
+                  PX := Long_Float (X) - 0.5
+                    + (Long_Float (I) + 0.5) / Long_Float (Samples);
+                  W := Back (3, 1) * PX + Back (3, 2) * PY + Back (3, 3);
+                  if W /= 0.0 then
+                     U := (Back (1, 1) * PX + Back (1, 2) * PY
+                           + Back (1, 3)) / W;
+                     V := (Back (2, 1) * PX + Back (2, 2) * PY
+                           + Back (2, 3)) / W;
+                     if U >= 0.0 and then U < 1.0 and then V >= 0.0
+                       and then V < 1.0
+                       and then Symbol
+                         (Symbol'First (1)
+                          + Natural (Long_Float'Floor (V * Rows)),
+                          Symbol'First (2)
+                          + Natural (Long_Float'Floor (U * Cols)))
+                     then
+                        Hits := Hits + 1;
+                     end if;
+                  end if;
+               end loop;
+            end loop;
+            if Hits > 0 then
+               Old := Long_Float (Image.Get_Pixel (X, Y));
+               Image.Set_Pixel
+                 (X, Y,
+                  Grey_8 (Old + (Long_Float (Dark) - Old)
+                                * Long_Float (Hits)
+                                / Long_Float (Samples * Samples)));
+            end if;
+         end loop;
+      end loop;
+   end Draw;
 
 end AMV_Test_Data_Matrix;

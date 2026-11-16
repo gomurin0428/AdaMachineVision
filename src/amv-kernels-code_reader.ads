@@ -147,12 +147,15 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    Symbology_Code_39  : constant := 32;
    Symbology_ITF      : constant := 64;
 
+   Symbology_Data_Matrix : constant := 128;
+
    Symbology_All_Linear : constant := 127;
+   Symbology_All        : constant := 255;
 
    function Is_Symbology (Value : Int32) return Boolean is
      (Value in Symbology_EAN_13 | Symbology_EAN_8 | Symbology_UPC_A
              | Symbology_UPC_E | Symbology_Code_128 | Symbology_Code_39
-             | Symbology_ITF);
+             | Symbology_ITF | Symbology_Data_Matrix);
    --  One symbology.
 
    ---------------------------------------------------------------------
@@ -160,7 +163,13 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    ---------------------------------------------------------------------
 
    Max_Text_Length : constant := 255;
-   --  The longest text of a result. A symbol with more is not reported.
+   --  The longest text of a linear symbol (one with more is not
+   --  reported), and the most characters of any text that a result
+   --  record holds.
+
+   Max_Matrix_Text_Length : constant := 7089;
+   --  The longest text of a two-dimensional symbol (that of a Data
+   --  Matrix symbol has 3125 characters at most).
 
    Max_Directions : constant := 180;
 
@@ -171,7 +180,9 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    --  must not exceed it.
 
    Max_Candidates : constant := 4096;
-   --  The most candidates of a run, and so the most results.
+   --  The most candidates of a run (those of the linear symbologies and
+   --  the two-dimensional symbols read, together), and so the most
+   --  results.
 
    Max_Value : constant := KT.Max_Value;
    --  The bound of every Long_Float input.
@@ -182,7 +193,9 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
 
    type Ks_Code_Reader_Run_Params is record
       Symbologies          : Int32 := Symbology_All_Linear;
-      --  The symbologies to read: a sum of Symbology_* in 1 .. 127.
+      --  The symbologies to read: a sum of Symbology_* in 1 .. 255. Data
+      --  Matrix is not among the default ones: its symbols are looked for
+      --  in a pass of its own over the image, which takes its time.
 
       Num_Directions       : Int32 := 12;
       --  The number of scan directions, in 1 .. Max_Directions, evenly
@@ -198,7 +211,8 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
 
       Contrast_Threshold   : Int32 := 12;
       --  The smallest rise or fall that is an edge, in grey levels, in
-      --  1 .. 255.
+      --  1 .. 255. For Data Matrix: the smallest difference between the
+      --  light and the dark pixels of a neighbourhood.
 
       Min_Scan_Lines       : Int32 := 2;
       --  The fewest scan lines that must read the same symbol, in
@@ -234,7 +248,11 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    type Ks_Code_Reader_Result is record
       Symbology      : Int32 := Symbology_EAN_13;
       Length         : Int32 := 0;
+      --  The number of characters of the text. A two-dimensional symbol
+      --  can have more than Max_Text_Length.
       Text           : Code_Text := No_Text;
+      --  The text, or its first Max_Text_Length characters (Results_Text
+      --  gives all of them).
       Center_X       : Long_Float := 0.0;
       Center_Y       : Long_Float := 0.0;
       Angle          : Long_Float := 0.0;
@@ -253,7 +271,8 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
       Corner_3_Y     : Long_Float := 0.0;
       --  Its start on that line.
       Num_Scan_Lines : Int32 := 1;
-      --  The number of scan lines that read the symbol.
+      --  The number of scan lines that read the symbol; 0 for a
+      --  two-dimensional symbol, which is not read along scan lines.
    end record
    with Convention => C;
    --  One symbol; 360 bytes.
@@ -263,11 +282,21 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    type Item_Array is array (Natural range <>) of Ks_Code_Reader_Result;
    type Item_Array_Access is access Item_Array;
 
+   type Text_Pool is array (Positive range <>) of Character;
+   type Text_Pool_Access is access Text_Pool;
+
+   type Offset_Array is array (Natural range <>) of Natural;
+   type Offset_Array_Access is access Offset_Array;
+
    type Ks_Code_Reader_Results_Data is limited record
-      Count : Natural := 0;
-      Items : Item_Array_Access;
+      Count  : Natural := 0;
+      Items  : Item_Array_Access;
+      Starts : Offset_Array_Access;
+      Texts  : Text_Pool_Access;
    end record;
    --  What a handle designates (opaque for C): Items (0 .. Count - 1).
+   --  The whole text of a two-dimensional symbol, item I, is in Texts
+   --  from Starts (I) on; Texts is null when there is no such item.
 
    type Ks_Code_Reader_Results is access Ks_Code_Reader_Results_Data
      with Convention => C;
@@ -281,24 +310,55 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
       and then Results.Items /= null
       and then Results.Items'First = 0
       and then Results.Items'Last < Max_Candidates
-      and then Results.Count <= Results.Items'Last + 1);
+      and then Results.Count <= Results.Items'Last + 1
+      and then Results.Starts /= null
+      and then Results.Starts'First = 0
+      and then Results.Starts'Last = Results.Items'Last
+      and then (Results.Texts = null or else Results.Texts'First = 1));
    --  A handle as Execute makes it (the structural part).
+
+   function Is_Matrix (Symbology : Int32) return Boolean is
+     (Symbology = Symbology_Data_Matrix);
+   --  A two-dimensional symbology.
 
    function Valid_Item (Item : Ks_Code_Reader_Result) return Boolean is
      (Is_Symbology (Item.Symbology)
-      and then Item.Length in 1 .. Max_Text_Length
-      and then (for all I in Natural (Item.Length) + 1 .. Code_Text'Last =>
-                  Item.Text (I) = ASCII.NUL)
-      and then Item.Num_Scan_Lines >= 1);
-   --  A symbology, a text that is not empty and ends with NUL, and at
-   --  least one scan line.
+      and then Item.Length >= 1
+      and then (if Is_Matrix (Item.Symbology)
+                then Item.Length <= Max_Matrix_Text_Length
+                     and then Item.Num_Scan_Lines = 0
+                else Item.Length <= Max_Text_Length
+                     and then Item.Num_Scan_Lines >= 1)
+      and then (for all I in Natural (Int32'Min (Item.Length,
+                                                 Max_Text_Length)) + 1
+                               .. Code_Text'Last =>
+                  Item.Text (I) = ASCII.NUL));
+   --  A symbology, a text that is not empty and whose part in the record
+   --  ends with NUL, and at least one scan line for a linear symbol.
+
+   function Text_In_Pool
+     (Results : access constant Ks_Code_Reader_Results_Data;
+      Index   : Natural) return Boolean
+   is
+     (Results.Texts /= null
+      and then Results.Items (Index).Length
+                 in 1 .. Max_Matrix_Text_Length
+      and then Results.Starts (Index) >= 1
+      and then Results.Texts'Last >= Natural (Results.Items (Index).Length)
+      and then Results.Starts (Index) - 1
+                 <= Results.Texts'Last
+                    - Natural (Results.Items (Index).Length))
+   with Pre => Valid_Results (Results) and then Index < Results.Count;
+   --  The whole text of item Index is in the pool.
 
    function Gold_Results
      (Results : access constant Ks_Code_Reader_Results_Data) return Boolean
    is
      (Valid_Results (Results)
       and then (for all I in 0 .. Results.Count - 1 =>
-                  Valid_Item (Results.Items (I))))
+                  Valid_Item (Results.Items (I))
+                  and then (if Is_Matrix (Results.Items (I).Symbology)
+                            then Text_In_Pool (Results, I))))
    with Ghost;
    --  The proved facts of every handle Execute returns.
 
@@ -378,6 +438,33 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
                                        = Results.Items (Natural (Index)));
    --  Item (Index), 0-based (Index_Out_Of_Range outside, always for null).
 
+   procedure Results_Text
+     (Results : access constant Ks_Code_Reader_Results_Data;
+      Index   : Int32;
+      First   : Int32;
+      Text    : out Code_Text;
+      Length  : out Int32;
+      Status  : out Ks_Status)
+   with
+     Export, Convention => C,
+     External_Name => "ks_code_reader_results_text",
+     Post => Valid (Status)
+             and then Status.Failure
+                        in Failure_None | Failure_Bad_Parameter
+                         | Failure_Index_Out_Of_Range
+             and then Length in 0 .. Max_Text_Length
+             and then (for all I in Natural (Length) + 1 .. Code_Text'Last =>
+                         Text (I) = ASCII.NUL);
+   --  A part of the text of item Index (0-based): its characters from
+   --  position First on (0-based), Max_Text_Length of them at most, in
+   --  Text (1 .. Length); the rest of Text is NUL. The whole text of a
+   --  two-dimensional symbol with more than Max_Text_Length characters
+   --  is read in parts, First = 0, 255, 510, ... while First is less
+   --  than the item's Length. Index_Out_Of_Range for an Index outside
+   --  the results (always for null); Bad_Parameter for a First outside
+   --  0 .. the length of the text (the length itself gives no
+   --  character) and for a record that is not a results handle.
+
    ---------------------------------------------------------------------
    --  For the Ada API only (not exported)
    ---------------------------------------------------------------------
@@ -409,8 +496,8 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
                 and then Status.Failure
                            in Failure_None | Failure_Bad_Parameter
                 and then Succeeded (Status)
-                         = (Item.Length in 0 .. Max_Text_Length);
+                         = (Item.Length in 0 .. Max_Matrix_Text_Length);
    --  Bad_Parameter for a record whose Length is not in
-   --  0 .. Max_Text_Length (a record changed by hand).
+   --  0 .. Max_Matrix_Text_Length (a record changed by hand).
 
 end AMV.Kernels.Code_Reader;

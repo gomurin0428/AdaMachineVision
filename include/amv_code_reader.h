@@ -4,7 +4,8 @@
  *
  * The code reader reads the linear barcodes of an 8-bit grey image, at
  * any orientation and any number of them per image: EAN-13, EAN-8, UPC-A,
- * UPC-E, Code 128, Code 39 and Interleaved 2 of 5 (ITF).
+ * UPC-E, Code 128, Code 39 and Interleaved 2 of 5 (ITF); and its Data
+ * Matrix symbols (ECC 200), when the run parameters ask for them.
  *
  * A run takes the image, the pixels to read as a pixel region
  * (ks_pixel_region_whole_image for the whole image; NULL is the empty
@@ -59,7 +60,52 @@
  *    by the most lines is kept. The results are ordered by the number of
  *    scan lines, greatest first.
  *
+ * 5. Data Matrix. When KS_CODE_READER_SYMBOLOGY_DATA_MATRIX is among the
+ *    symbologies, a pass of its own (without the scan lines) follows. The
+ *    pixels of the area to scan are marked dark or light against a
+ *    threshold of their neighbourhood: the level halfway between the
+ *    lightest and the darkest pixel of the blocks of 8 by 8 pixels around
+ *    them whose lightest and darkest pixel differ by contrast_threshold or
+ *    more (an area that has no such difference has no dark pixel); pixels
+ *    outside the region are light. Every connected dark area is followed
+ *    along its outline. An area whose convex hull has two solid sides that
+ *    meet (the "L" of a symbol) and two sides that are not solid gives the
+ *    four corners of a symbol; they are refined with all dark pixels near
+ *    that outline. The numbers of modules are counted along the two
+ *    alternating sides, the modules are looked up at their middles (the
+ *    symbol may be seen at an angle: the grid is that of the four corners,
+ *    in perspective), and the codewords are corrected (Reed-Solomon) and
+ *    decoded; sizes one or two modules off the count, and the mirror image
+ *    of the symbol, are tried as well.
+ *
+ *    A symbol must be dark on light, with a light margin of two pixels or
+ *    more all around (the border of the image and the pixels outside the
+ *    region count as light); its L must be one solid dark area that
+ *    touches nothing else dark, so a symbol of separate dots is not read,
+ *    nor one printed light on dark; its modules should be two pixels or
+ *    more. The 24 square sizes (10 x 10 to 144 x 144 modules) and the 6
+ *    rectangular ones of ECC 200 are read; the extended rectangular sizes
+ *    (DMRE) and the older ECC 000 to 140 are not. A symbol whose text is
+ *    empty is not reported.
+ *
+ *    The Data Matrix results follow those of the linear barcodes, in the
+ *    order in which a scan of the area from its top, left to right, meets
+ *    their dark areas. The corners are those of the symbol as it is
+ *    printed (0: upper left, 1: upper right, 2: lower right, 3: lower
+ *    left, the corner of the L; in the image the symbol may be turned or
+ *    mirrored), the angle is the direction from corner 3 to corner 2, the
+ *    centre is where the diagonals cross, and num_scan_lines is 0.
+ *
  * Text:
+ *  - Data Matrix: the characters of the ASCII, C40, Text, X12, EDIFACT
+ *    and Base 256 encodations, each as one char (0 .. 255; no character
+ *    set is applied). FNC1 in the first position (GS1) adds nothing to
+ *    the text, a later FNC1 is the character GS (29). The macro codewords
+ *    05 and 06 add their header "[)>" RS "05" (or "06") GS and their
+ *    trailer RS EOT. ECI, structured append and reader programming
+ *    codewords are passed over. The text can have up to 3125 characters:
+ *    the result holds its first 255 and its whole length, and
+ *    ks_code_reader_results_text gives all of it.
  *  - EAN-13: 13 digits; EAN-8: 8 digits; UPC-A: 12 digits; UPC-E: 8
  *    digits (the number system, the six digits of the symbol and the
  *    check digit). An EAN-13 symbol whose first digit is 0 is a UPC-A
@@ -97,9 +143,17 @@ extern "C" {
 #define KS_CODE_READER_SYMBOLOGY_CODE_39    32
 #define KS_CODE_READER_SYMBOLOGY_ITF        64
 #define KS_CODE_READER_SYMBOLOGY_ALL_LINEAR 127
+#define KS_CODE_READER_SYMBOLOGY_DATA_MATRIX 128
+#define KS_CODE_READER_SYMBOLOGY_ALL        255
 
 /* Limits. */
-#define KS_CODE_READER_MAX_TEXT_LENGTH  255     /* longer: not reported */
+#define KS_CODE_READER_MAX_TEXT_LENGTH  255     /* of a linear barcode
+                                                   (longer: not reported)
+                                                   and of the text in a
+                                                   result */
+#define KS_CODE_READER_MAX_MATRIX_TEXT_LENGTH 7089 /* of the whole text of
+                                                   a two-dimensional
+                                                   symbol */
 #define KS_CODE_READER_MAX_DIRECTIONS   180
 #define KS_CODE_READER_MAX_LINE_SPACING 1000.0
 #define KS_CODE_READER_MAX_LINE_SAMPLES 1048576 /* width + height of the
@@ -109,7 +163,7 @@ extern "C" {
 /* Run parameters; ks_code_reader_run_params_default fills in the
    defaults. */
 typedef struct {
-    int32_t symbologies;         /* ALL_LINEAR; a sum in 1 .. 127 */
+    int32_t symbologies;         /* ALL_LINEAR; a sum in 1 .. 255 */
     int32_t num_directions;      /* 12; in 1 .. 180, evenly spaced over
                                     half a turn */
     double  first_direction;     /* 0.0; the angle of direction 0 with the
@@ -118,7 +172,10 @@ typedef struct {
     double  line_spacing;        /* 4.0; pixels between neighbouring scan
                                     lines, in 1.0 .. 1000.0 */
     int32_t contrast_threshold;  /* 12; the smallest rise or fall that is
-                                    an edge, in grey levels, 1 .. 255 */
+                                    an edge, in grey levels, 1 .. 255; for
+                                    Data Matrix the smallest difference of
+                                    the light and the dark level of a
+                                    neighbourhood */
     int32_t min_scan_lines;      /* 2; the fewest scan lines that must
                                     read the same symbol, in 1 .. 1000 */
     int32_t code_39_check_digit; /* 0; 1: a Code 39 symbol must end with
@@ -129,17 +186,24 @@ typedef struct {
                                     in 2 .. 254 */
 } ks_code_reader_run_params;
 
-/* One symbol. text holds length characters followed by NUL up to its end,
-   so it is a C string whenever the text itself holds no NUL (Code 128 can
-   encode one). The corners are those of the area the reading scan lines
+/* One symbol. text holds length characters (the first 255 of them when
+   length is greater, which only the text of a Data Matrix symbol can be)
+   followed by NUL up to its end, so it is a C string whenever the text
+   itself holds no NUL (Code 128 and Data Matrix can encode one). For a
+   linear barcode the corners are those of the area the reading scan lines
    cover: they bound the scan lines that read the symbol, not the full
    height of its bars, and the centre is the middle of that area (across
    the scan lines it can be about half a line spacing away from the middle
-   of the symbol). Positions are in the space that selected_from_pixel
-   maps pixel space to. */
+   of the symbol). For a Data Matrix symbol the corners are those of the
+   symbol as it is printed, 0: upper left, 1: upper right, 2: lower right,
+   3: lower left (the corner of the L), the angle is the direction from
+   corner 3 to corner 2, and num_scan_lines is 0. Positions are in the
+   space that selected_from_pixel maps pixel space to. */
 typedef struct {
     int32_t symbology;      /* one KS_CODE_READER_SYMBOLOGY_* */
-    int32_t length;         /* 1 .. KS_CODE_READER_MAX_TEXT_LENGTH */
+    int32_t length;         /* of the whole text: 1 ..
+                               KS_CODE_READER_MAX_TEXT_LENGTH, for Data
+                               Matrix 1 .. 3125 */
     char    text[KS_CODE_READER_MAX_TEXT_LENGTH + 1];
     double  center_x, center_y;
     double  angle;          /* the direction from the start of the symbol
@@ -187,7 +251,8 @@ void ks_code_reader_run_params_default(ks_code_reader_run_params *params,
    the image) whose width plus height exceeds
    KS_CODE_READER_MAX_LINE_SAMPLES; KS_FAILURE_OUT_OF_MEMORY;
    KS_FAILURE_OTHER when more than KS_CODE_READER_MAX_CANDIDATES
-   candidates arise. *results is NULL on failure. */
+   candidates (those of the linear barcodes and the Data Matrix symbols
+   together) arise. *results is NULL on failure. */
 void ks_code_reader_execute(const ks_image_8_grey *image,
                             const ks_pixel_region *region,
                             const ks_code_reader_run_params *params,
@@ -207,6 +272,21 @@ void ks_code_reader_results_count(const ks_code_reader_results *results,
 void ks_code_reader_results_item(const ks_code_reader_results *results,
                                  int32_t index, ks_code_reader_result *item,
                                  ks_status *status);
+
+/* A part of the text of the symbol at index: its characters from
+   position first on (0-based), at most KS_CODE_READER_MAX_TEXT_LENGTH of
+   them, into text (KS_CODE_READER_MAX_TEXT_LENGTH + 1 chars, NUL after
+   the characters up to its end); *length is their number. first may be
+   0 .. the length of the text; calls with first = 0, 255, 510, ... until
+   *length is 0 give the whole text of a symbol whose text is longer than
+   a result holds. KS_FAILURE_INDEX_OUT_OF_RANGE for an index outside
+   0 .. count - 1 (always for NULL), KS_FAILURE_BAD_PARAMETER for a first
+   outside the text; text is all NUL and *length 0 on failure. */
+void ks_code_reader_results_text(const ks_code_reader_results *results,
+                                 int32_t index, int32_t first,
+                                 char text[KS_CODE_READER_MAX_TEXT_LENGTH
+                                           + 1],
+                                 int32_t *length, ks_status *status);
 
 #ifdef __cplusplus
 }
