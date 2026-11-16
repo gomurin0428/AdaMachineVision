@@ -2,8 +2,10 @@
  * Tests of the code reader's C API (include/amv_code_reader.h): the
  * default run parameters, an EAN-13 symbol and an ITF symbol painted here
  * from the symbology definitions (along x, along y and turned by half a
- * turn), the region, the transform to the selected space, the failures
- * and the results handle.
+ * turn), two Data Matrix symbols painted from their modules (one of them
+ * with a text longer than a result holds, read in parts), the region,
+ * the transform to the selected space, the failures and the results
+ * handle.
  */
 
 #include <math.h>
@@ -237,7 +239,13 @@ static void test_defaults(void)
                 | KS_CODE_READER_SYMBOLOGY_CODE_128
                 | KS_CODE_READER_SYMBOLOGY_CODE_39
                 | KS_CODE_READER_SYMBOLOGY_ITF),
-          "code reader: ALL_LINEAR is every symbology");
+          "code reader: ALL_LINEAR is every linear symbology");
+    check(KS_CODE_READER_SYMBOLOGY_ALL
+            == (KS_CODE_READER_SYMBOLOGY_ALL_LINEAR
+                | KS_CODE_READER_SYMBOLOGY_DATA_MATRIX)
+          && (KS_CODE_READER_SYMBOLOGY_ALL_LINEAR
+              & KS_CODE_READER_SYMBOLOGY_DATA_MATRIX) == 0,
+          "code reader: ALL is every symbology");
 }
 
 /* The EAN-13 symbol 5901234123457, three pixels a module: 285 pixels
@@ -454,6 +462,367 @@ static void test_itf(void)
     ks_image_8_grey_destroy(&image, &status);
 }
 
+/* The modules of two Data Matrix symbols, row by row from the top, '1'
+   for a dark one. They come from the encoder of the Ada tests
+   (tests/amv_test_data_matrix.ads), which shares only the table of the
+   symbol sizes with the reader. */
+
+/* The text 123456: the codewords 142 164 186 and their five check
+   codewords in 10 x 10 modules. */
+static const char *const matrix_small[10] = {
+    "1010101010",
+    "1100101101",
+    "1100000100",
+    "1100011101",
+    "1100001000",
+    "1000001111",
+    "1110110000",
+    "1111011001",
+    "1001110100",
+    "1111111111"
+};
+
+/* A text of 300 digits (long_digit): 150 codewords in 48 x 48 modules. */
+#define LONG_LENGTH 300
+
+static const char *const matrix_long[48] = {
+    "101010101010101010101010101010101010101010101010",
+    "111011010100000101000001101101100011011000110111",
+    "100010100111100111101000100110100001101000011010",
+    "111111111100110110101001111001100110011001101001",
+    "101010001110001010101100101011110010111100101000",
+    "110101011000010011000101101101110011011100110101",
+    "110000111010101111101010111111001111110011110000",
+    "101111001111101100010011110001001100011011001101",
+    "100000101100001011111110101111111011100010000000",
+    "110111100111110111110001111111000111111110011101",
+    "100011110011110110111100111011110110111011011110",
+    "110101110110010101100101110110010101100000101001",
+    "101011010010100100100110110010011100111011001100",
+    "111111111011110110110101111011011110000111000111",
+    "101000011010011110010110111001000110111001111110",
+    "111100000101011001010111100101000001100101100101",
+    "111000110000001100000010110000001101111001100110",
+    "110110001101010011010101101101100101011110101001",
+    "111010000110100001101000100110101001000000110110",
+    "100111011001100110011001111001111000000011101001",
+    "101000101010110010101100101010100001110001011000",
+    "110001001100010011000101101101001010101010000101",
+    "111010101110101011101010111100011011011110111100",
+    "111111111111111111111111111111111111111111111111",
+    "101010101010101010101010101010101010101010101010",
+    "100100000001000000010011110011101011100000101111",
+    "111111101111111011111110100000111100111100000010",
+    "111100011111000111110011110010111101011011000011",
+    "101111011011110110111000101000100011011111000110",
+    "111001010110010101100001110101010000000000100101",
+    "111010001110100100111010110101001001110101010010",
+    "101111110011110110000001111000101101101011110011",
+    "101000001010011110111010110110111110010111110000",
+    "110101110101011000010001100101110101001101010101",
+    "100000110000000000100010100001010011001100111010",
+    "110101001101010001100011100100101111100100010101",
+    "111010000110101111010110100011001010110110100110",
+    "100111011001011010011101101001111111101101101001",
+    "111000101000101010100000100101010111010110111100",
+    "100001001111010011010111101110000101100001011111",
+    "111010101110011101100000110001001000101001001000",
+    "100100000010010011000001101011010111001100111111",
+    "111111010101001101001010111001110001111111100000",
+    "111100100101100000110111111100111010000010001001",
+    "101111001001001110000110101100100110110010110110",
+    "111011010111101100011111110100100100110111011101",
+    "110011101111011010111000101011011000111100001110",
+    "111111111111111111111111111111111111111111111111"
+};
+
+static char long_digit(int32_t place)
+{
+    return (char)('0' + (3 * place + place / 7) % 10);
+}
+
+/* A white width x height image with a symbol of count x count modules in
+   black: a module is size x size pixels and the upper left one starts at
+   the pixel (x, y). */
+static ks_image_8_grey *paint_matrix(int32_t width, int32_t height,
+                                     const char *const *rows, int32_t count,
+                                     int32_t x, int32_t y, int32_t size)
+{
+    ks_status status;
+    ks_image_8_grey *image = NULL;
+    int32_t row, column, dx, dy;
+
+    ks_image_8_grey_create(width, height, 255, &image, &status);
+    for (row = 0; row < count; row++) {
+        for (column = 0; column < count; column++) {
+            if (rows[row][column] != '1') {
+                continue;
+            }
+            for (dy = 0; dy < size; dy++) {
+                for (dx = 0; dx < size; dx++) {
+                    ks_image_8_grey_set_pixel(image, x + column * size + dx,
+                                              y + row * size + dy, 0,
+                                              &status);
+                }
+            }
+        }
+    }
+    return image;
+}
+
+/* 1 when text holds exactly the length characters of expected, followed
+   by NUL up to its end. */
+static int holds(const char text[KS_CODE_READER_MAX_TEXT_LENGTH + 1],
+                 int32_t length, const char *expected)
+{
+    size_t wanted = strlen(expected);
+    size_t i;
+
+    if (length != (int32_t)wanted || memcmp(text, expected, wanted) != 0) {
+        return 0;
+    }
+    for (i = wanted; i < KS_CODE_READER_MAX_TEXT_LENGTH + 1; i++) {
+        if (text[i] != '\0') {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* 1 when text holds exactly the length digits of the long text from the
+   place first on, followed by NUL up to its end. */
+static int holds_digits(const char text[KS_CODE_READER_MAX_TEXT_LENGTH + 1],
+                        int32_t length, int32_t first, int32_t wanted)
+{
+    int32_t i;
+
+    if (length != wanted) {
+        return 0;
+    }
+    for (i = 0; i < KS_CODE_READER_MAX_TEXT_LENGTH + 1; i++) {
+        if (text[i] != (i < wanted ? long_digit(first + i) : '\0')) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* The part of the text of a symbol from first on: what the call leaves
+   in text and *length, and its status. */
+static void part(const ks_code_reader_results *results, int32_t index,
+                 int32_t first, char text[KS_CODE_READER_MAX_TEXT_LENGTH + 1],
+                 int32_t *length, ks_status *status)
+{
+    memset(text, 0x55, KS_CODE_READER_MAX_TEXT_LENGTH + 1);
+    *length = -1;
+    ks_code_reader_results_text(results, index, first, text, length, status);
+}
+
+static void test_data_matrix(void)
+{
+    ks_status status;
+    ks_code_reader_run_params params;
+    ks_code_reader_results *results = NULL;
+    ks_code_reader_result item;
+    ks_pixel_region *whole = NULL;
+    const ks_transform_2d_linear scaled = {2.0, 0.0, 0.0, 2.0, 10.0, 20.0};
+    const symbol bars = ean_13("5901234123457");
+    char text[KS_CODE_READER_MAX_TEXT_LENGTH + 1];
+    ks_image_8_grey *image;
+    int32_t count = -1, length = -1, first, total;
+    int parts_ok;
+
+    /* The small symbol, four pixels a module: from x = 39.5 to x = 79.5
+       and from y = 29.5 to y = 69.5 in a 120 x 100 image. */
+    image = paint_matrix(120, 100, matrix_small, 10, 40, 30, 4);
+    ks_pixel_region_whole_image(120, 100, &whole, &status);
+    ks_code_reader_run_params_default(&params, &status);
+    check(read_all(image, &params, &item) == 0,
+          "code reader: Data Matrix is not among the defaults");
+
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_DATA_MATRIX;
+    ks_code_reader_execute(image, whole, &params, &identity, &results,
+                           &status);
+    check(status.failure == KS_FAILURE_NONE && results != NULL,
+          "code reader: execute for Data Matrix");
+    ks_code_reader_results_count(results, &count, &status);
+    memset(&item, 0xFF, sizeof item);
+    ks_code_reader_results_item(results, 0, &item, &status);
+    check(status.failure == KS_FAILURE_NONE && count == 1
+          && is_text(&item, KS_CODE_READER_SYMBOLOGY_DATA_MATRIX, "123456")
+          && item.num_scan_lines == 0,
+          "code reader: the Data Matrix text");
+    check(fabs(item.center_x - 59.5) < 0.5 && fabs(item.center_y - 49.5) < 0.5
+          && fabs(item.angle) < 0.01,
+          "code reader: the Data Matrix centre and angle");
+    check(fabs(item.corner_0_x - 39.5) < 0.5
+          && fabs(item.corner_0_y - 29.5) < 0.5
+          && fabs(item.corner_1_x - 79.5) < 0.5
+          && fabs(item.corner_1_y - 29.5) < 0.5
+          && fabs(item.corner_2_x - 79.5) < 0.5
+          && fabs(item.corner_2_y - 69.5) < 0.5
+          && fabs(item.corner_3_x - 39.5) < 0.5
+          && fabs(item.corner_3_y - 69.5) < 0.5,
+          "code reader: the Data Matrix corners, from the upper left one"
+          " clockwise");
+
+    /* Its text in parts. */
+    part(results, 0, 0, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE && holds(text, length, "123456"),
+          "code reader: the text from its start");
+    part(results, 0, 4, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE && holds(text, length, "56"),
+          "code reader: the text from its fifth character");
+    part(results, 0, 6, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE && holds(text, length, ""),
+          "code reader: the text from its end is empty");
+    part(results, 0, 7, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
+                     "Text: First must be in 0 .. the length of the text")
+          && holds(text, length, ""),
+          "code reader: the text from beyond its end");
+    part(results, 0, -1, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
+                     "Text: First must be in 0 .. the length of the text")
+          && holds(text, length, ""),
+          "code reader: the text from a negative place");
+    part(results, 1, 0, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_INDEX_OUT_OF_RANGE,
+                     "Text: index outside the results")
+          && holds(text, length, ""),
+          "code reader: the text beyond count");
+    part(results, -1, 0, text, &length, &status);
+    check(status.failure == KS_FAILURE_INDEX_OUT_OF_RANGE
+          && holds(text, length, ""),
+          "code reader: the text at a negative index");
+    part(NULL, 0, 0, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_INDEX_OUT_OF_RANGE,
+                     "Text: index outside the results")
+          && holds(text, length, ""),
+          "code reader: the text of NULL results");
+    ks_code_reader_results_destroy(&results);
+
+    /* Positions in the selected space. */
+    ks_code_reader_execute(image, whole, &params, &scaled, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    ks_code_reader_results_item(results, 0, &item, &status);
+    check(count == 1 && fabs(item.center_x - 129.0) < 1.0
+          && fabs(item.center_y - 119.0) < 1.0 && fabs(item.angle) < 0.01
+          && fabs(item.corner_0_x - 89.0) < 1.0
+          && fabs(item.corner_0_y - 79.0) < 1.0
+          && fabs(item.corner_2_x - 169.0) < 1.0
+          && fabs(item.corner_2_y - 159.0) < 1.0,
+          "code reader: a Data Matrix symbol in the selected space");
+    ks_code_reader_results_destroy(&results);
+
+    /* No region, and every symbology. */
+    ks_code_reader_execute(image, NULL, &params, &identity, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    check(status.failure == KS_FAILURE_NONE && results != NULL && count == 0,
+          "code reader: a NULL region reads no Data Matrix symbol");
+    ks_code_reader_results_destroy(&results);
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_ALL;
+    check(read_all(image, &params, &item) == 1
+          && is_text(&item, KS_CODE_READER_SYMBOLOGY_DATA_MATRIX, "123456"),
+          "code reader: a Data Matrix symbol among every symbology");
+    ks_pixel_region_destroy(&whole, &status);
+    ks_image_8_grey_destroy(&image, &status);
+
+    /* The long symbol, three pixels a module: a result holds the first
+       255 characters of its text, the parts hold all of them. */
+    image = paint_matrix(200, 200, matrix_long, 48, 28, 28, 3);
+    ks_pixel_region_whole_image(200, 200, &whole, &status);
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_DATA_MATRIX;
+    ks_code_reader_execute(image, whole, &params, &identity, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    memset(&item, 0xFF, sizeof item);
+    ks_code_reader_results_item(results, 0, &item, &status);
+    check(status.failure == KS_FAILURE_NONE && count == 1
+          && item.symbology == KS_CODE_READER_SYMBOLOGY_DATA_MATRIX
+          && item.length == LONG_LENGTH
+          && holds_digits(item.text, KS_CODE_READER_MAX_TEXT_LENGTH, 0,
+                          KS_CODE_READER_MAX_TEXT_LENGTH),
+          "code reader: a result holds the first 255 of 300 characters");
+    part(results, 0, 0, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE
+          && holds_digits(text, length, 0, KS_CODE_READER_MAX_TEXT_LENGTH),
+          "code reader: the first part of a long text");
+    part(results, 0, 255, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE
+          && holds_digits(text, length, 255, 45),
+          "code reader: the second part of a long text");
+    part(results, 0, 100, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE
+          && holds_digits(text, length, 100, 200),
+          "code reader: a part from the middle of a long text");
+    part(results, 0, LONG_LENGTH, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE && holds(text, length, ""),
+          "code reader: the part after a long text is empty");
+    part(results, 0, LONG_LENGTH + 1, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
+                     "Text: First must be in 0 .. the length of the text")
+          && holds(text, length, ""),
+          "code reader: a part from beyond a long text");
+
+    /* The whole text as the header says to read it: the parts from 0,
+       255, ... while the position is less than the length of the
+       result. The position after them (510 here) is outside the text. */
+    parts_ok = 1;
+    total = 0;
+    for (first = 0; first < item.length;
+         first += KS_CODE_READER_MAX_TEXT_LENGTH) {
+        part(results, 0, first, text, &length, &status);
+        if (status.failure != KS_FAILURE_NONE
+            || !holds_digits(text, length, first, length)) {
+            parts_ok = 0;
+        }
+        total += length;
+    }
+    check(parts_ok && total == LONG_LENGTH && first == 510,
+          "code reader: the parts of a long text hold all of it");
+    part(results, 0, first, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
+                     "Text: First must be in 0 .. the length of the text")
+          && holds(text, length, ""),
+          "code reader: no part from the position after the parts");
+    ks_code_reader_results_destroy(&results);
+    ks_pixel_region_destroy(&whole, &status);
+    ks_image_8_grey_destroy(&image, &status);
+
+    /* The text of a linear barcode in parts. */
+    image = paint(400, 120, &bars, 50, 3, 20, 99, ALONG_X);
+    ks_pixel_region_whole_image(400, 120, &whole, &status);
+    ks_code_reader_execute(image, whole, &params, &identity, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    check(status.failure == KS_FAILURE_NONE && count == 0,
+          "code reader: no linear barcode when only Data Matrix is asked"
+          " for");
+    ks_code_reader_results_destroy(&results);
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_ALL;
+    ks_code_reader_execute(image, whole, &params, &identity, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    part(results, 0, 0, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE && count == 1
+          && holds(text, length, "5901234123457"),
+          "code reader: the text of a linear barcode from its start");
+    part(results, 0, 10, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE && holds(text, length, "457"),
+          "code reader: the text of a linear barcode from its middle");
+    part(results, 0, 14, text, &length, &status);
+    check(is_failure(&status, KS_FAILURE_BAD_PARAMETER,
+                     "Text: First must be in 0 .. the length of the text")
+          && holds(text, length, ""),
+          "code reader: the text of a linear barcode from beyond its end");
+    ks_code_reader_results_destroy(&results);
+    ks_pixel_region_destroy(&whole, &status);
+    ks_image_8_grey_destroy(&image, &status);
+}
+
 /* A run with one changed run parameter fails with that message. */
 static void check_bad(const ks_image_8_grey *image,
                       const ks_pixel_region *region,
@@ -497,13 +866,13 @@ static void test_failures(void)
 
     check_bad(image, region, &params,
               "RunParams.Symbologies must be a sum of"
-              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 127",
+              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255",
               "code reader: Symbologies 0");
-    params.symbologies = 128;
+    params.symbologies = 256;
     check_bad(image, region, &params,
               "RunParams.Symbologies must be a sum of"
-              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 127",
-              "code reader: Symbologies 128");
+              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255",
+              "code reader: Symbologies 256");
 
     params = defaults;
     params.num_directions = 0;
@@ -647,5 +1016,6 @@ void test_c_code_reader(void)
     test_defaults();
     test_ean_13();
     test_itf();
+    test_data_matrix();
     test_failures();
 }

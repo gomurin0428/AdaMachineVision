@@ -8,20 +8,31 @@ pragma Assertion_Policy
 
 with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Unchecked_Deallocation;
+with AMV.Kernels.Code_Reader.Dark_Areas;
+with AMV.Kernels.Code_Reader.Data_Matrix;
+with AMV.Kernels.Code_Reader.Data_Matrix.Finder;
 with AMV.Kernels.Code_Reader.Linear;
 with AMV.Kernels.Code_Reader.Profiles;
+with AMV.Kernels.Code_Reader.Reed_Solomon;
 with AMV.Kernels.Filter_Inputs;
 with AMV.Kernels.Image_Sampling;
 with AMV.Kernels.Numerics;
 
 package body AMV.Kernels.Code_Reader with SPARK_Mode is
 
+   package DA renames AMV.Kernels.Code_Reader.Dark_Areas;
+   package DM renames AMV.Kernels.Code_Reader.Data_Matrix;
    package EF renames Ada.Numerics.Long_Elementary_Functions;
    package FI renames AMV.Kernels.Filter_Inputs;
+   package FN renames AMV.Kernels.Code_Reader.Data_Matrix.Finder;
    package L renames AMV.Kernels.Code_Reader.Linear;
    package N renames AMV.Kernels.Numerics;
    package P renames AMV.Kernels.Code_Reader.Profiles;
+   package RS renames AMV.Kernels.Code_Reader.Reed_Solomon;
    package Sampling renames AMV.Kernels.Image_Sampling;
+
+   use type DA.Mark;
+   use type KR.Flag_Matrix_Access;
 
    ---------------------------------------------------------------------
    --  Constants of the method
@@ -180,6 +191,47 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
      (Settings.Spacing >= 1.0 and then Settings.Spacing <= Max_Line_Spacing
       and then Settings.Threshold <= 255);
 
+   type Map_Access is access DA.Mark_Map;
+   type Block_Access is access KI.Grey_8_Matrix;
+   type Extent_Access is access DA.Extent_Array;
+   type Hull_Access is access DA.Point_Array;
+
+   pragma Compile_Time_Error
+     (DM.Max_Text_Length > Max_Matrix_Text_Length,
+      "the text of a Data Matrix symbol must fit a result");
+
+   subtype Matrix_Length is Positive range 1 .. Max_Matrix_Text_Length;
+
+   type Matrix_Symbol is record
+      UL, UR, LR, LL : Point;
+      --  The corners of the symbol, in pixel space: the upper left, the
+      --  upper right, the lower right and the lower left one (the corner
+      --  of the L).
+      Middle         : Point;
+      --  The middle of the symbol as it is printed (Finder.Sample).
+      Start          : Positive := 1;
+      Length         : Matrix_Length := 1;
+      --  Its text: Length characters of the pool, from Start on.
+   end record;
+   --  A two-dimensional symbol that was read.
+
+   type Symbol_Array is array (Natural range <>) of Matrix_Symbol;
+   type Symbol_Array_Access is access Symbol_Array;
+
+   procedure Free is new Ada.Unchecked_Deallocation
+     (DA.Mark_Map, Map_Access);
+   procedure Free is new Ada.Unchecked_Deallocation
+     (KI.Grey_8_Matrix, Block_Access);
+   procedure Free is new Ada.Unchecked_Deallocation
+     (DA.Extent_Array, Extent_Access);
+   procedure Free is new Ada.Unchecked_Deallocation
+     (DA.Point_Array, Hull_Access);
+   procedure Free is new Ada.Unchecked_Deallocation
+     (Symbol_Array, Symbol_Array_Access);
+   procedure Free is new Ada.Unchecked_Deallocation
+     (Text_Pool, Text_Pool_Access);
+   procedure Free is new Ada.Unchecked_Deallocation
+     (Offset_Array, Offset_Array_Access);
    procedure Free is new Ada.Unchecked_Deallocation
      (P.Level_Array, Level_Array_Access);
    procedure Free is new Ada.Unchecked_Deallocation
@@ -311,7 +363,9 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    with
      Global => null,
      Post   => (if Results /= null
-                then Results.Count = 0 and then Results.Items = null);
+                then Results.Count = 0 and then Results.Items = null
+                     and then Results.Starts = null
+                     and then Results.Texts = null);
    --  A new results record with the record's default values, or null.
    --  Trusted as above.
 
@@ -324,6 +378,184 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       when Storage_Error =>
          Results := null;
    end Allocate_Results;
+
+   procedure Allocate_Map
+     (Rows, Columns : Positive;
+      Map           : out Map_Access)
+   with
+     Global => null,
+     Post   => (if Map /= null
+                then Map'First (1) = 0 and then Map'Last (1) = Rows - 1
+                     and then Map'First (2) = 0
+                     and then Map'Last (2) = Columns - 1);
+   --  A new map of Rows by Columns pixels indexed from 0, every one
+   --  light, or null. Trusted as above.
+
+   procedure Allocate_Map
+     (Rows, Columns : Positive;
+      Map           : out Map_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Map := new DA.Mark_Map (0 .. Rows - 1, 0 .. Columns - 1);
+      for Y in Map'Range (1) loop
+         for X in Map'Range (2) loop
+            Map (Y, X) := DA.Light;
+         end loop;
+      end loop;
+   exception
+      when Storage_Error =>
+         Map := null;
+   end Allocate_Map;
+
+   procedure Allocate_Blocks
+     (Rows, Columns : Positive;
+      Blocks        : out Block_Access)
+   with
+     Global => null,
+     Post   => (if Blocks /= null
+                then Blocks'First (1) = 0 and then Blocks'Last (1) = Rows - 1
+                     and then Blocks'First (2) = 0
+                     and then Blocks'Last (2) = Columns - 1);
+   --  A new matrix of Rows by Columns levels indexed from 0, every one
+   --  0, or null. Trusted as above.
+
+   procedure Allocate_Blocks
+     (Rows, Columns : Positive;
+      Blocks        : out Block_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Blocks := new KI.Grey_8_Matrix (0 .. Rows - 1, 0 .. Columns - 1);
+      for Y in Blocks'Range (1) loop
+         for X in Blocks'Range (2) loop
+            Blocks (Y, X) := 0;
+         end loop;
+      end loop;
+   exception
+      when Storage_Error =>
+         Blocks := null;
+   end Allocate_Blocks;
+
+   procedure Allocate_Extents
+     (Length  : Positive;
+      Value   : Integer;
+      Extents : out Extent_Access)
+   with
+     Global => null,
+     Post   => (if Extents /= null
+                then Extents'First = 0 and then Extents'Last = Length - 1
+                     and then (for all I in Extents'Range =>
+                                 Extents (I) = Value));
+   --  A new array of Length extents indexed from 0, every one Value, or
+   --  null. Trusted as above.
+
+   procedure Allocate_Extents
+     (Length  : Positive;
+      Value   : Integer;
+      Extents : out Extent_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Extents := new DA.Extent_Array (0 .. Length - 1);
+      for I in Extents'Range loop
+         Extents (I) := Value;
+      end loop;
+   exception
+      when Storage_Error =>
+         Extents := null;
+   end Allocate_Extents;
+
+   procedure Allocate_Hull
+     (Length : Positive;
+      Points : out Hull_Access)
+   with
+     Global => null,
+     Post   => (if Points /= null
+                then Points'First = 1 and then Points'Last = Length);
+   --  A new array of Length points indexed from 1, every one (0, 0), or
+   --  null. Trusted as above.
+
+   procedure Allocate_Hull
+     (Length : Positive;
+      Points : out Hull_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Points := new DA.Point_Array (1 .. Length);
+      for I in Points'Range loop
+         Points (I) := (0, 0);
+      end loop;
+   exception
+      when Storage_Error =>
+         Points := null;
+   end Allocate_Hull;
+
+   procedure Allocate_Symbols (Symbols : out Symbol_Array_Access)
+   with
+     Global => null,
+     Post   => (if Symbols /= null
+                then Symbols'First = 0
+                     and then Symbols'Last = Max_Candidates - 1);
+   --  A new table of Max_Candidates symbols indexed from 0 (the record's
+   --  default values), or null. Trusted as above.
+
+   procedure Allocate_Symbols (Symbols : out Symbol_Array_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Symbols := new Symbol_Array (0 .. Max_Candidates - 1);
+   exception
+      when Storage_Error =>
+         Symbols := null;
+   end Allocate_Symbols;
+
+   procedure Allocate_Texts
+     (Length : Positive;
+      Texts  : out Text_Pool_Access)
+   with
+     Global => null,
+     Post   => (if Texts /= null
+                then Texts'First = 1 and then Texts'Last = Length);
+   --  A new pool of Length characters indexed from 1, every one NUL, or
+   --  null. Trusted as above.
+
+   procedure Allocate_Texts
+     (Length : Positive;
+      Texts  : out Text_Pool_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Texts := new Text_Pool (1 .. Length);
+      for I in Texts'Range loop
+         Texts (I) := ASCII.NUL;
+      end loop;
+   exception
+      when Storage_Error =>
+         Texts := null;
+   end Allocate_Texts;
+
+   procedure Allocate_Starts
+     (Count  : Positive;
+      Starts : out Offset_Array_Access)
+   with
+     Global => null,
+     Post   => (if Starts /= null
+                then Starts'First = 0 and then Starts'Last = Count - 1);
+   --  A new array of Count offsets indexed from 0, every one 0, or null.
+   --  Trusted as above.
+
+   procedure Allocate_Starts
+     (Count  : Positive;
+      Starts : out Offset_Array_Access)
+     with SPARK_Mode => Off
+   is
+   begin
+      Starts := new Offset_Array'(0 .. Count - 1 => 0);
+   exception
+      when Storage_Error =>
+         Starts := null;
+   end Allocate_Starts;
 
    ---------------------------------------------------------------------
    --  Messages and parameters
@@ -354,7 +586,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
 
    function Valid_Params (Params : Ks_Code_Reader_Run_Params) return Boolean
    is
-     (Params.Symbologies in 1 .. Symbology_All_Linear
+     (Params.Symbologies in 1 .. Symbology_All
       and then Params.Num_Directions in 1 .. Max_Directions
       and then N.In_Range (Params.First_Direction, Max_Value)
       and then Params.Line_Spacing >= 1.0
@@ -377,9 +609,9 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
      (Params : Ks_Code_Reader_Run_Params;
       Status : out Ks_Status) is
    begin
-      if Params.Symbologies not in 1 .. Symbology_All_Linear then
+      if Params.Symbologies not in 1 .. Symbology_All then
          Bad (Status, "RunParams.Symbologies must be a sum of"
-                      & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 127");
+                      & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255");
       elsif Params.Num_Directions not in 1 .. Max_Directions then
          Bad (Status, "RunParams.NumDirections must be in 1 .. 180");
       elsif not N.In_Range (Params.First_Direction, Max_Value) then
@@ -671,7 +903,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    with
      Pre  => Table_OK (Table, Open, Count)
              and then Valid_Settings (Settings)
-             and then Is_Symbology (Item.Symbology)
+             and then Is_Linear (Item.Symbology)
              and then Item.Length >= 1,
      Post => Table_OK (Table, Open, Count);
    --  A reading of scan line Line: the symbol Item, whose start and end
@@ -1094,7 +1326,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    end Scan_Direction;
 
    ---------------------------------------------------------------------
-   --  Results
+   --  The results of the candidates
    ---------------------------------------------------------------------
 
    function Centre (C : Candidate) return Point is
@@ -1214,7 +1446,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Item : out Ks_Code_Reader_Result)
    with
      Pre  => KT.Bounded (T),
-     Post => Valid_Item (Item);
+     Post => Valid_Item (Item) and then not Is_Matrix (Item.Symbology);
    --  The result of a candidate, in the space that T maps pixel space to.
 
    procedure Make_Item
@@ -1285,15 +1517,594 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Item.Corner_3_Y := Sampling.Map_Y (T, C.S2.X, C.S2.Y);
    end Make_Item;
 
+   ---------------------------------------------------------------------
+   --  Data Matrix symbols
+   ---------------------------------------------------------------------
+
+   Min_Twice_Area : constant := 128;
+   Min_Height     : constant := 8;
+   --  A dark area that is smaller (twice its area, in pixels), or less
+   --  than Min_Height rows more than one tall, is not looked at: the L of
+   --  a symbol is at least ten pixels long.
+
+   subtype Size_Delta is Integer range -2 .. 2;
+
+   Size_Deltas : constant array (1 .. 5) of Size_Delta :=
+     [0, -1, 1, -2, 2];
+   --  The sizes tried around the modules counted, the nearest first.
+
+   subtype Matrix_Text is DM.Text_Buffer (1 .. DM.Max_Text_Length);
+
+   type Pass_Outcome is (Done, No_Memory, Too_Many);
+
+   procedure Read_Symbol
+     (Map     : DA.Mark_Map;
+      Field   : RS.Field;
+      Shape   : in out FN.Outline;
+      Centre  : out FN.Corner;
+      Text    : out Matrix_Text;
+      Length  : out Natural;
+      Success : out Boolean)
+   with
+     Pre  => DA.Valid_Map (Map),
+     Post => (if Success then Length in 1 .. DM.Max_Text_Length);
+   --  Reads the symbol whose corners are Shape: counts its modules, and
+   --  samples and decodes it at the sizes nearest to the count until one
+   --  gives a text; then the same for the symbol seen from behind, and
+   --  Shape is that outline if that is the one read. Centre: the middle
+   --  of the symbol as it was read.
+
+   procedure Read_Symbol
+     (Map     : DA.Mark_Map;
+      Field   : RS.Field;
+      Shape   : in out FN.Outline;
+      Centre  : out FN.Corner;
+      Text    : out Matrix_Text;
+      Length  : out Natural;
+      Success : out Boolean)
+   is
+      Seen          : constant FN.Outline := Shape;
+      Rows, Columns : Natural;
+      R, C          : Integer;
+      Size          : Natural;
+      Grid          : DM.Module_Grid;
+
+      Unused_Corrected : Natural;
+   begin
+      Centre := (others => <>);
+      Length := 0;
+      Success := False;
+      Text := [others => ' '];
+      --  The invariants keep gnatprove from unrolling the loops (250
+      --  passes of the innermost one).
+      for Mirror in Boolean loop
+         pragma Loop_Invariant (not Success and then Length = 0);
+         FN.Count_Modules (Map, Shape, Rows, Columns);
+         if Rows <= DM.Max_Side + 2 and then Columns <= DM.Max_Side + 2 then
+            for Sum in 0 .. 4 loop
+               pragma Loop_Invariant (not Success and then Length = 0);
+               for DR of Size_Deltas loop
+                  pragma Loop_Invariant (not Success and then Length = 0);
+                  for DC of Size_Deltas loop
+                     pragma Loop_Invariant
+                       (not Success and then Length = 0);
+                     R := Rows + DR;
+                     C := Columns + DC;
+                     if abs DR + abs DC = Sum
+                       and then R in 1 .. DM.Max_Side
+                       and then C in 1 .. DM.Max_Side
+                     then
+                        Size := DM.Find_Size (R, C);
+                        if Size > 0 then
+                           FN.Sample (Map, Shape, R, C, Grid, Centre);
+                           DM.Decode (Grid, Size, Field, Text, Length,
+                                      Unused_Corrected, Success);
+                           if Success and then Length > 0 then
+                              return;
+                           end if;
+                           Length := 0;
+                           Success := False;
+                        end if;
+                     end if;
+                  end loop;
+               end loop;
+            end loop;
+         end if;
+         Shape := FN.Mirrored (Seen);
+      end loop;
+      Shape := Seen;
+   end Read_Symbol;
+
+   procedure Read_Area
+     (Map     : in out DA.Mark_Map;
+      X, Y    : Natural;
+      Lefts   : in out DA.Extent_Array;
+      Rights  : in out DA.Extent_Array;
+      Points  : in out DA.Point_Array;
+      Field   : RS.Field;
+      Shape   : out FN.Outline;
+      Centre  : out FN.Corner;
+      Text    : out Matrix_Text;
+      Length  : out Natural;
+      Success : out Boolean)
+   with
+     Pre  => DA.Valid_Map (Map)
+             and then Y <= Map'Last (1) and then X <= Map'Last (2)
+             and then Map (Y, X) /= DA.Light
+             and then DA.Extents_Fit (Lefts, Map)
+             and then DA.Extents_Fit (Rights, Map)
+             and then Points'First = 1
+             and then Points'Length >= 2 * (Map'Length (1) + 1),
+     Post => (if Success then Length in 1 .. DM.Max_Text_Length);
+   --  Reads the symbol, if it is one, of the dark area whose outline
+   --  passes the pixel (X, Y), which has a light pixel or the edge of the
+   --  map on its left: traces the outline, and from its hull finds the
+   --  corners (FN.Locate, FN.Refine) and reads the symbol. Shape: its
+   --  corners, and Centre: its middle, as it was read. Lefts and Rights:
+   --  DA.No_Left and DA.No_Right in every row, on entry and on return.
+
+   procedure Read_Area
+     (Map     : in out DA.Mark_Map;
+      X, Y    : Natural;
+      Lefts   : in out DA.Extent_Array;
+      Rights  : in out DA.Extent_Array;
+      Points  : in out DA.Point_Array;
+      Field   : RS.Field;
+      Shape   : out FN.Outline;
+      Centre  : out FN.Corner;
+      Text    : out Matrix_Text;
+      Length  : out Natural;
+      Success : out Boolean)
+   is
+      Y_Lo, Y_Hi : Natural;
+      Area       : Int64;
+      Closed     : Boolean;
+      Count      : Natural;
+      Found      : Boolean;
+   begin
+      Shape := (others => <>);
+      Centre := (others => <>);
+      Text := [others => ' '];
+      Length := 0;
+      Success := False;
+      DA.Trace (Map, X, Y, Lefts, Rights, Y_Lo, Y_Hi, Area, Closed);
+      if not Closed or else Area <= Min_Twice_Area
+        or else Y_Hi - Y_Lo < Min_Height
+      then
+         DA.Clear (Lefts, Rights, Y_Lo, Y_Hi);
+         return;
+      end if;
+      DA.Hull (Lefts, Rights, Y_Lo, Y_Hi, Points, Count);
+      DA.Clear (Lefts, Rights, Y_Lo, Y_Hi);
+      if Count < 3 then
+         return;
+      end if;
+      FN.Locate (Map, Points (1 .. Count), Shape, Found);
+      if Found then
+         FN.Refine (Map, Lefts, Rights, Points, Shape);
+         Read_Symbol (Map, Field, Shape, Centre, Text, Length, Success);
+      end if;
+   end Read_Area;
+
+   function To_Point
+     (C          : FN.Corner;
+      X_Lo, Y_Lo : Natural) return Point;
+   --  The point C of a map whose pixel (0, 0) is the pixel (X_Lo, Y_Lo)
+   --  of the image, in pixel space (where the middle of a pixel, and not
+   --  its upper left corner, has whole coordinates).
+
+   function To_Point
+     (C          : FN.Corner;
+      X_Lo, Y_Lo : Natural) return Point is
+   begin
+      return (X => C.X + Long_Float (X_Lo) - 0.5,
+              Y => C.Y + Long_Float (Y_Lo) - 0.5);
+   end To_Point;
+
+   Side_Limit : constant := 2.0 * Point_Limit;
+
+   function Distance_2 (A, B : Point) return Long_Float
+   with Post => Distance_2'Result >= 0.0
+                and then Distance_2'Result <= 2.0 * Side_Limit * Side_Limit;
+   --  The square of the distance from A to B.
+
+   function Distance_2 (A, B : Point) return Long_Float is
+   begin
+      return N.Square_Within (Between (A.X, B.X), Side_Limit)
+        + N.Square_Within (Between (A.Y, B.Y), Side_Limit);
+   end Distance_2;
+
+   function Near (A, B : Matrix_Symbol) return Boolean is
+     (4.0 * Distance_2 (A.Middle, B.Middle)
+        < Long_Float'Min (Distance_2 (A.LL, A.UL), Distance_2 (A.LL, A.LR)));
+   --  The middle of B is less than half the shorter side of the L of A
+   --  from the middle of A.
+
+   Pool_Start : constant := 4096;
+   Pool_Limit : constant := 2 * Max_Candidates * Max_Matrix_Text_Length;
+   --  The characters of the pool of the texts at first, and at most.
+
+   function Pool_OK
+     (Pool : Text_Pool_Access;
+      Used : Natural) return Boolean
+   is
+     (Pool /= null and then Pool'First = 1
+      and then Pool'Last in Pool_Start .. Pool_Limit
+      and then Used <= Pool'Last);
+
+   function Symbols_OK
+     (Symbols : Symbol_Array;
+      Count   : Natural;
+      Used    : Natural) return Boolean
+   is
+     (Symbols'First = 0 and then Symbols'Last = Max_Candidates - 1
+      and then Count <= Max_Candidates
+      and then Used <= Count * Max_Matrix_Text_Length
+      and then (for all I in 0 .. Count - 1 =>
+                  Symbols (I).Start - 1 <= Used - Symbols (I).Length));
+   --  Symbols (0 .. Count - 1) are the symbols read so far, their texts
+   --  within the first Used characters of the pool.
+
+   function Same_Text
+     (Pool   : Text_Pool;
+      Start  : Positive;
+      Text   : Matrix_Text;
+      Length : Positive) return Boolean
+   is
+     (for all I in 1 .. Length => Pool (Start - 1 + I) = Text (I))
+   with Pre => Pool'First = 1 and then Length <= DM.Max_Text_Length
+               and then Length <= Pool'Last
+               and then Start - 1 <= Pool'Last - Length;
+
+   procedure Add_Symbol
+     (Shape      : FN.Outline;
+      Centre     : FN.Corner;
+      X_Lo, Y_Lo : Natural;
+      Text       : Matrix_Text;
+      Length     : Positive;
+      Room       : Natural;
+      Symbols    : in out Symbol_Array;
+      Count      : in out Natural;
+      Pool       : in out Text_Pool_Access;
+      Used       : in out Natural;
+      Outcome    : out Pass_Outcome)
+   with
+     Pre  => Length <= DM.Max_Text_Length
+             and then Room <= Max_Candidates and then Count <= Room
+             and then Symbols_OK (Symbols, Count, Used)
+             and then Pool_OK (Pool, Used),
+     Post => Count <= Room and then Symbols_OK (Symbols, Count, Used)
+             and then Pool_OK (Pool, Used);
+   --  Adds the symbol with the corners Shape and the middle Centre (of
+   --  the map whose first pixel is the pixel (X_Lo, Y_Lo) of the image)
+   --  and the text Text (1 .. Length), unless it is there already: a
+   --  symbol with the same text whose middle is near the middle of this
+   --  one. Room: the most symbols. Outcome: Too_Many when there is no
+   --  room for it, and No_Memory when the pool cannot grow; nothing is
+   --  added then.
+
+   procedure Add_Symbol
+     (Shape      : FN.Outline;
+      Centre     : FN.Corner;
+      X_Lo, Y_Lo : Natural;
+      Text       : Matrix_Text;
+      Length     : Positive;
+      Room       : Natural;
+      Symbols    : in out Symbol_Array;
+      Count      : in out Natural;
+      Pool       : in out Text_Pool_Access;
+      Used       : in out Natural;
+      Outcome    : out Pass_Outcome)
+   is
+      Symbol : constant Matrix_Symbol :=
+        (UL     => To_Point (Shape.Upper_Left, X_Lo, Y_Lo),
+         UR     => To_Point (Shape.Upper_Right, X_Lo, Y_Lo),
+         LR     => To_Point (Shape.Lower_Right, X_Lo, Y_Lo),
+         LL     => To_Point (Shape.Lower_Left, X_Lo, Y_Lo),
+         Middle => To_Point (Centre, X_Lo, Y_Lo),
+         Start  => Used + 1,
+         Length => Length);
+      Wanted : Positive;
+      Bigger : Text_Pool_Access;
+   begin
+      Outcome := Done;
+      for I in 0 .. Count - 1 loop
+         if Symbols (I).Length = Length
+           and then Near (Symbols (I), Symbol)
+           and then Same_Text (Pool.all, Symbols (I).Start, Text, Length)
+         then
+            return;
+         end if;
+      end loop;
+      if Count >= Room then
+         Outcome := Too_Many;
+         return;
+      end if;
+
+      if Length > Pool'Last - Used then
+         Wanted := Positive'Max (Positive'Min (2 * Pool'Last, Pool_Limit),
+                                 Used + Length);
+         Allocate_Texts (Wanted, Bigger);
+         if Bigger = null then
+            Outcome := No_Memory;
+            return;
+         end if;
+         for I in 1 .. Used loop
+            Bigger (I) := Pool (I);
+         end loop;
+         Free (Pool);
+         Pool := Bigger;
+      end if;
+      for I in 1 .. Length loop
+         Pool (Used + I) := Text (I);
+      end loop;
+      Symbols (Count) := Symbol;
+      Count := Count + 1;
+      Used := Used + Length;
+   end Add_Symbol;
+
+   procedure Mask_Region
+     (Region     : access constant KR.Ks_Pixel_Region_Data;
+      X_Lo, Y_Lo : Natural;
+      Map        : in out DA.Mark_Map)
+   with Pre => DA.Valid_Map (Map)
+               and then Map'Last (1) <= Integer'Last - Y_Lo
+               and then Map'Last (2) <= Integer'Last - X_Lo;
+   --  Light for every pixel of the map that is not in the region. The
+   --  pixel (0, 0) of the map is the pixel (X_Lo, Y_Lo) of the image
+   --  (which may be wider or higher than a map: X_Lo and Y_Lo are not
+   --  held to DA.Max_Side).
+
+   procedure Mask_Region
+     (Region     : access constant KR.Ks_Pixel_Region_Data;
+      X_Lo, Y_Lo : Natural;
+      Map        : in out DA.Mark_Map) is
+   begin
+      for Y in Map'Range (1) loop
+         for X in Map'Range (2) loop
+            if not KR.Contains (Region, Int32 (X + X_Lo), Int32 (Y + Y_Lo))
+            then
+               Map (Y, X) := DA.Light;
+            end if;
+         end loop;
+      end loop;
+   end Mask_Region;
+
+   procedure Find_Symbols
+     (Image    : access constant KI.Ks_Image_8_Grey_Data;
+      Region   : access constant KR.Ks_Pixel_Region_Data;
+      Box      : Scan_Box;
+      Contrast : Positive;
+      Room     : Natural;
+      Symbols  : in out Symbol_Array;
+      Count    : out Natural;
+      Pool     : in out Text_Pool_Access;
+      Used     : out Natural;
+      Outcome  : out Pass_Outcome)
+   with
+     Pre  => KI.Valid_Image (Image)
+             and then KR.Valid_Region (Region)
+             and then Valid_Box (Box)
+             and then Box.X_Hi < Natural (Image.Width)
+             and then Box.Y_Hi < Natural (Image.Height)
+             and then Contrast <= 255
+             and then Room <= Max_Candidates
+             and then Symbols_OK (Symbols, 0, 0)
+             and then Pool_OK (Pool, 0),
+     Post => Count <= Room and then Symbols_OK (Symbols, Count, Used)
+             and then Pool_OK (Pool, Used);
+   --  The Data Matrix symbols of the pixels of the region in the box:
+   --  Symbols (0 .. Count - 1), in the order of their first row and, in
+   --  a row, of their first column, with their texts in the first Used
+   --  characters of the pool. Room: the most symbols. Outcome: Too_Many
+   --  when there are more, No_Memory when the memory of the pass cannot
+   --  be allocated.
+
+   procedure Find_Symbols
+     (Image    : access constant KI.Ks_Image_8_Grey_Data;
+      Region   : access constant KR.Ks_Pixel_Region_Data;
+      Box      : Scan_Box;
+      Contrast : Positive;
+      Room     : Natural;
+      Symbols  : in out Symbol_Array;
+      Count    : out Natural;
+      Pool     : in out Text_Pool_Access;
+      Used     : out Natural;
+      Outcome  : out Pass_Outcome)
+   is
+      W : constant Positive := Box.X_Hi - Box.X_Lo + 1;
+      H : constant Positive := Box.Y_Hi - Box.Y_Lo + 1;
+
+      Field   : constant RS.Field := RS.Make_Field (RS.Data_Matrix_Polynomial);
+      Map     : Map_Access;
+      Lows    : Block_Access;
+      Highs   : Block_Access;
+      Lefts   : Extent_Access;
+      Rights  : Extent_Access;
+      Points  : Hull_Access;
+      Shape   : FN.Outline;
+      Centre  : FN.Corner;
+      Text    : Matrix_Text;
+      Length  : Natural;
+      Success : Boolean;
+   begin
+      Count := 0;
+      Used := 0;
+      Outcome := Done;
+      Allocate_Map (H, W, Map);
+      Allocate_Blocks ((H - 1) / DA.Block + 1, (W - 1) / DA.Block + 1, Lows);
+      Allocate_Blocks ((H - 1) / DA.Block + 1, (W - 1) / DA.Block + 1, Highs);
+      Allocate_Extents (H, DA.No_Left, Lefts);
+      Allocate_Extents (H, DA.No_Right, Rights);
+      Allocate_Hull (2 * (H + 1), Points);
+      if Map = null or else Lows = null or else Highs = null
+        or else Lefts = null or else Rights = null or else Points = null
+      then
+         Free (Map);
+         Free (Lows);
+         Free (Highs);
+         Free (Lefts);
+         Free (Rights);
+         Free (Points);
+         Outcome := No_Memory;
+         return;
+      end if;
+
+      DA.Binarise (Image.Pixels.all, Box.X_Lo, Box.Y_Lo, Contrast, Lows.all,
+                   Highs.all, Map.all);
+      Free (Lows);
+      Free (Highs);
+      if Region.Flags /= null then
+         Mask_Region (Region, Box.X_Lo, Box.Y_Lo, Map.all);
+      end if;
+
+      --  Every dark area once, at the first pixel of its outline.
+      Rows :
+      for Y in 0 .. H - 1 loop
+         pragma Loop_Invariant
+           (Map /= null and then Lefts /= null and then Rights /= null
+            and then Points /= null);
+         pragma Loop_Invariant
+           (Map'First (1) = 0 and then Map'Last (1) = H - 1
+            and then Map'First (2) = 0 and then Map'Last (2) = W - 1);
+         pragma Loop_Invariant
+           (DA.Extents_Fit (Lefts.all, Map.all)
+            and then DA.Extents_Fit (Rights.all, Map.all)
+            and then Points'First = 1
+            and then Points'Last = 2 * (H + 1));
+         pragma Loop_Invariant
+           (Outcome = Done and then Count <= Room
+            and then Symbols_OK (Symbols, Count, Used)
+            and then Pool_OK (Pool, Used));
+         for X in 0 .. W - 1 loop
+            pragma Loop_Invariant
+              (Map /= null and then Lefts /= null and then Rights /= null
+               and then Points /= null);
+            pragma Loop_Invariant
+              (Map'First (1) = 0 and then Map'Last (1) = H - 1
+               and then Map'First (2) = 0 and then Map'Last (2) = W - 1);
+            pragma Loop_Invariant
+              (DA.Extents_Fit (Lefts.all, Map.all)
+               and then DA.Extents_Fit (Rights.all, Map.all)
+               and then Points'First = 1
+               and then Points'Last = 2 * (H + 1));
+            pragma Loop_Invariant
+              (Outcome = Done and then Count <= Room
+               and then Symbols_OK (Symbols, Count, Used)
+               and then Pool_OK (Pool, Used));
+            if Map (Y, X) = DA.Dark
+              and then (X = 0 or else Map (Y, X - 1) = DA.Light)
+            then
+               Read_Area (Map.all, X, Y, Lefts.all, Rights.all, Points.all,
+                          Field, Shape, Centre, Text, Length, Success);
+               if Success then
+                  Add_Symbol (Shape, Centre, Box.X_Lo, Box.Y_Lo, Text,
+                              Length, Room, Symbols, Count, Pool, Used,
+                              Outcome);
+                  exit Rows when Outcome /= Done;
+               end if;
+            end if;
+         end loop;
+      end loop Rows;
+      Free (Map);
+      Free (Lefts);
+      Free (Rights);
+      Free (Points);
+   end Find_Symbols;
+
+   procedure Make_Matrix_Item
+     (Symbol : Matrix_Symbol;
+      Pool   : Text_Pool;
+      T      : KT.Ks_Transform_2D_Linear;
+      Item   : out Ks_Code_Reader_Result)
+   with
+     Pre  => KT.Bounded (T) and then Pool'First = 1
+             and then Symbol.Length <= Pool'Last
+             and then Symbol.Start - 1 <= Pool'Last - Symbol.Length,
+     Post => Valid_Item (Item)
+             and then Item.Symbology = Symbology_Data_Matrix
+             and then Item.Length = Int32 (Symbol.Length);
+   --  The result of a symbol, in the space that T maps pixel space to.
+
+   procedure Make_Matrix_Item
+     (Symbol : Matrix_Symbol;
+      Pool   : Text_Pool;
+      T      : KT.Ks_Transform_2D_Linear;
+      Item   : out Ks_Code_Reader_Result)
+   is
+      Shown : constant Positive :=
+        Positive'Min (Symbol.Length, Max_Text_Length);
+
+      --  Along the lower side of the symbol, from the corner of the L.
+      AX : constant Span := Between (Symbol.LL.X, Symbol.LR.X);
+      AY : constant Span := Between (Symbol.LL.Y, Symbol.LR.Y);
+
+      --  The same in the selected space.
+      DX : constant Long_Float := N.Mul (T.A, AX) + N.Mul (T.B, AY);
+      DY : constant Long_Float := N.Mul (T.C, AX) + N.Mul (T.D, AY);
+   begin
+      Item := No_Result;
+      Item.Symbology := Symbology_Data_Matrix;
+      Item.Length := Int32 (Symbol.Length);
+      for I in 1 .. Shown loop
+         Item.Text (I) := Pool (Symbol.Start - 1 + I);
+         pragma Loop_Invariant
+           (for all K in I + 1 .. Code_Text'Last =>
+              Item.Text (K) = ASCII.NUL);
+      end loop;
+      Item.Center_X :=
+        Sampling.Map_X (T, Symbol.Middle.X, Symbol.Middle.Y);
+      Item.Center_Y :=
+        Sampling.Map_Y (T, Symbol.Middle.X, Symbol.Middle.Y);
+      if DX /= 0.0 or else DY /= 0.0 then
+         Item.Angle := N.Direction (DY, DX);
+      end if;
+      Item.Corner_0_X := Sampling.Map_X (T, Symbol.UL.X, Symbol.UL.Y);
+      Item.Corner_0_Y := Sampling.Map_Y (T, Symbol.UL.X, Symbol.UL.Y);
+      Item.Corner_1_X := Sampling.Map_X (T, Symbol.UR.X, Symbol.UR.Y);
+      Item.Corner_1_Y := Sampling.Map_Y (T, Symbol.UR.X, Symbol.UR.Y);
+      Item.Corner_2_X := Sampling.Map_X (T, Symbol.LR.X, Symbol.LR.Y);
+      Item.Corner_2_Y := Sampling.Map_Y (T, Symbol.LR.X, Symbol.LR.Y);
+      Item.Corner_3_X := Sampling.Map_X (T, Symbol.LL.X, Symbol.LL.Y);
+      Item.Corner_3_Y := Sampling.Map_Y (T, Symbol.LL.X, Symbol.LL.Y);
+      Item.Num_Scan_Lines := 0;
+   end Make_Matrix_Item;
+
+   ---------------------------------------------------------------------
+   --  The results of a run
+   ---------------------------------------------------------------------
+
+   function In_Pool
+     (Item  : Ks_Code_Reader_Result;
+      Start : Natural;
+      Last  : Natural) return Boolean
+   is
+     (Item.Length in 1 .. Max_Matrix_Text_Length
+      and then Start >= 1
+      and then Last >= Natural (Item.Length)
+      and then Start - 1 <= Last - Natural (Item.Length));
+   --  The text of the item is in a pool of Last characters, from Start
+   --  on.
+
    procedure Build_Results
      (Table   : in out Candidate_Array;
       Count   : Natural;
       Spacing : Long_Float;
+      Symbols : access constant Symbol_Array;
+      Matrix  : Natural;
+      Pool    : in out Text_Pool_Access;
+      Used    : Natural;
       T       : KT.Ks_Transform_2D_Linear;
       Results : out Ks_Code_Reader_Results)
    with
      Pre  => Table_OK (Table, 0, Count)
              and then Spacing >= 1.0 and then Spacing <= Max_Line_Spacing
+             and then Count <= Max_Candidates
+             and then Matrix <= Max_Candidates - Count
+             and then (if Matrix > 0
+                       then Symbols /= null
+                            and then Symbols_OK (Symbols.all, Matrix, Used)
+                            and then Pool_OK (Pool, Used))
              and then KT.Bounded (T),
      Post => (if Results /= null then Gold_Results (Results));
    --  The results of the candidates Table (0 .. Count - 1): the one with
@@ -1301,25 +2112,36 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  (its centre in the area of the earlier one, or the other way round)
    --  or whose middle line crosses that of an earlier one. Two symbols
    --  cannot do either, so these are readings of one symbol in two
-   --  directions, or a misreading of a part of it.
+   --  directions, or a misreading of a part of it. After them the
+   --  symbols Symbols (0 .. Matrix - 1) in their order, with the pool of
+   --  their texts, which is then no longer the caller's (Pool is null).
    --  Null when the memory cannot be allocated.
 
    procedure Build_Results
      (Table   : in out Candidate_Array;
       Count   : Natural;
       Spacing : Long_Float;
+      Symbols : access constant Symbol_Array;
+      Matrix  : Natural;
+      Pool    : in out Text_Pool_Access;
+      Used    : Natural;
       T       : KT.Ks_Transform_2D_Linear;
       Results : out Ks_Code_Reader_Results)
    is
+      Most   : constant Positive := Positive'Max (Count + Matrix, 1);
       Items  : Item_Array_Access;
+      Starts : Offset_Array_Access;
       Found  : Natural := 0;
       Best   : Natural;
       Have   : Boolean;
       Hidden : Boolean;
    begin
       Results := null;
-      Allocate_Items (Positive'Max (Count, 1), Items);
-      if Items = null then
+      Allocate_Items (Most, Items);
+      Allocate_Starts (Most, Starts);
+      if Items = null or else Starts = null then
+         Free (Items);
+         Free (Starts);
          return;
       end if;
 
@@ -1327,10 +2149,12 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       for Round in 1 .. Count loop
          pragma Loop_Invariant (Items /= null);
          pragma Loop_Invariant
-           (Items'First = 0 and then Items'Last = Positive'Max (Count, 1) - 1);
+           (Items'First = 0 and then Items'Last = Most - 1);
          pragma Loop_Invariant (Found < Round);
          pragma Loop_Invariant
-           (for all I in 0 .. Found - 1 => Valid_Item (Items (I)));
+           (for all I in 0 .. Found - 1 =>
+              Valid_Item (Items (I))
+              and then not Is_Matrix (Items (I).Symbology));
 
          --  The candidate with the most lines among those not settled,
          --  the first of them when several have as many.
@@ -1368,13 +2192,35 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          end if;
       end loop;
 
+      --  The two-dimensional symbols after them.
+      if Matrix > 0 then
+         for I in 0 .. Matrix - 1 loop
+            Make_Matrix_Item (Symbols (I), Pool.all, T, Items (Found + I));
+            Starts (Found + I) := Symbols (I).Start;
+            pragma Loop_Invariant
+              (for all K in 0 .. Found + I => Valid_Item (Items (K)));
+            pragma Loop_Invariant
+              (for all K in 0 .. Found - 1 =>
+                 not Is_Matrix (Items (K).Symbology));
+            pragma Loop_Invariant
+              (for all K in Found .. Found + I =>
+                 In_Pool (Items (K), Starts (K), Pool'Last));
+         end loop;
+      end if;
+
       Allocate_Results (Results);
       if Results = null then
          Free (Items);
+         Free (Starts);
          return;
       end if;
-      Results.Count := Found;
+      Results.Count := Found + Matrix;
       Results.Items := Items;
+      Results.Starts := Starts;
+      if Matrix > 0 then
+         Results.Texts := Pool;
+         Pool := null;
+      end if;
    end Build_Results;
 
    ---------------------------------------------------------------------
@@ -1390,7 +2236,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
      Pre  => KI.Valid_Image (Image)
              and then (Region = null or else KR.Valid_Region (Region)),
      Post => (if not Empty
-              then Box.X_Lo <= Box.X_Hi and then Box.Y_Lo <= Box.Y_Hi
+              then Region /= null
+                   and then Box.X_Lo <= Box.X_Hi and then Box.Y_Lo <= Box.Y_Hi
                    and then Box.X_Hi < Natural (Image.Width)
                    and then Box.Y_Hi < Natural (Image.Height));
    --  The bounding box of the pixels of the region that are in the image.
@@ -1458,6 +2305,11 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Table    : Candidate_Array_Access;
       Count    : Natural := 0;
       Overflow : Boolean := False;
+      Symbols  : Symbol_Array_Access;
+      Matrix   : Natural := 0;
+      Pool     : Text_Pool_Access;
+      Used     : Natural := 0;
+      Outcome  : Pass_Outcome;
    begin
       Results := null;
       FI.Check_Input (Image, Region, Status);
@@ -1492,7 +2344,9 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          return;
       end if;
 
-      if not Empty then
+      --  The linear symbologies, along the scan lines.
+      if not Empty and then Params.Symbologies mod Symbology_Data_Matrix /= 0
+      then
          Span := (Box.X_Hi - Box.X_Lo) + (Box.Y_Hi - Box.Y_Lo);
          Allocate_Levels (Span + 1, Levels);
          Allocate_Extremes (Span + 1, Extremes);
@@ -1539,9 +2393,40 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          end if;
       end if;
 
-      Build_Results (Table.all, Count, Settings.Spacing,
-                     Selected_From_Pixel, Results);
+      --  Data Matrix, in the dark areas.
+      if not Empty and then Has (Params.Symbologies, Symbology_Data_Matrix)
+      then
+         Allocate_Symbols (Symbols);
+         Allocate_Texts (Pool_Start, Pool);
+         if Symbols = null or else Pool = null then
+            Free (Symbols);
+            Free (Pool);
+            Free (Table);
+            Out_Of_Memory (Status);
+            return;
+         end if;
+         Find_Symbols (Image, Region, Box, Settings.Threshold,
+                       Max_Candidates - Count, Symbols.all, Matrix, Pool,
+                       Used, Outcome);
+         if Outcome /= Done then
+            Free (Symbols);
+            Free (Pool);
+            Free (Table);
+            if Outcome = No_Memory then
+               Out_Of_Memory (Status);
+            else
+               Set_Failure (Status, Failure_Other,
+                            "CodeReader: more than 4096 candidates");
+            end if;
+            return;
+         end if;
+      end if;
+
+      Build_Results (Table.all, Count, Settings.Spacing, Symbols, Matrix,
+                     Pool, Used, Selected_From_Pixel, Results);
       Free (Table);
+      Free (Symbols);
+      Free (Pool);
       if Results = null then
          Out_Of_Memory (Status);
       else
@@ -1553,6 +2438,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    begin
       if Results /= null then
          Free (Results.Items);
+         Free (Results.Starts);
+         Free (Results.Texts);
          Free (Results);
       end if;
    end Results_Destroy;
@@ -1593,6 +2480,106 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       end if;
    end Results_Item;
 
+   procedure Results_Text
+     (Results : access constant Ks_Code_Reader_Results_Data;
+      Index   : Int32;
+      First   : Int32;
+      Text    : out Code_Text;
+      Length  : out Int32;
+      Status  : out Ks_Status) is
+   begin
+      Text := No_Text;
+      Length := 0;
+      if Results /= null and then not Valid_Results (Results) then
+         Bad (Status, "Results is not a valid code reader results handle");
+      elsif Results = null or else Index < 0
+        or else Index >= Int32 (Results.Count)
+      then
+         Set_Failure (Status, Failure_Index_Out_Of_Range,
+                      "Text: index outside the results");
+      elsif not Valid_Item (Results.Items (Natural (Index)))
+        or else (Is_Matrix (Results.Items (Natural (Index)).Symbology)
+                 and then not Text_In_Pool (Results, Natural (Index)))
+      then
+         Bad (Status, "Results is not a valid code reader results handle");
+      elsif First < 0
+        or else First > Results.Items (Natural (Index)).Length
+      then
+         Bad (Status, "Text: First must be in 0 .. the length of the text");
+      else
+         declare
+            I     : constant Natural := Natural (Index);
+            Whole : constant Natural := Natural (Results.Items (I).Length);
+            Skip  : constant Natural := Natural (First);
+            Count : constant Natural :=
+              Natural'Min (Whole - Skip, Max_Text_Length);
+         begin
+            if Is_Matrix (Results.Items (I).Symbology) then
+               for K in 1 .. Count loop
+                  Text (K) :=
+                    Results.Texts (Results.Starts (I) - 1 + Skip + K);
+                  pragma Loop_Invariant
+                    (for all J in K + 1 .. Code_Text'Last =>
+                       Text (J) = ASCII.NUL);
+               end loop;
+            else
+               for K in 1 .. Count loop
+                  Text (K) := Results.Items (I).Text (Skip + K);
+                  pragma Loop_Invariant
+                    (for all J in K + 1 .. Code_Text'Last =>
+                       Text (J) = ASCII.NUL);
+               end loop;
+            end if;
+            Length := Int32 (Count);
+            Set_Success (Status);
+         end;
+      end if;
+   end Results_Text;
+
+   procedure Results_Whole_Text
+     (Results : access constant Ks_Code_Reader_Results_Data;
+      Index   : Int32;
+      Text    : out String;
+      Length  : out Natural;
+      Status  : out Ks_Status) is
+   begin
+      Text := [others => ASCII.NUL];
+      Length := 0;
+      if Results /= null and then not Valid_Results (Results) then
+         Bad (Status, "Results is not a valid code reader results handle");
+      elsif Results = null or else Index < 0
+        or else Index >= Int32 (Results.Count)
+      then
+         Set_Failure (Status, Failure_Index_Out_Of_Range,
+                      "Text: index outside the results");
+      elsif not Valid_Item (Results.Items (Natural (Index)))
+        or else (Is_Matrix (Results.Items (Natural (Index)).Symbology)
+                 and then not Text_In_Pool (Results, Natural (Index)))
+      then
+         Bad (Status, "Results is not a valid code reader results handle");
+      elsif Natural (Results.Items (Natural (Index)).Length) > Text'Last
+      then
+         Bad (Status, "Text: the buffer is shorter than the text");
+      else
+         declare
+            I     : constant Natural := Natural (Index);
+            Whole : constant Natural := Natural (Results.Items (I).Length);
+         begin
+            if Is_Matrix (Results.Items (I).Symbology) then
+               for K in 1 .. Whole loop
+                  Text (K) := Results.Texts (Results.Starts (I) - 1 + K);
+               end loop;
+            else
+               for K in 1 .. Whole loop
+                  Text (K) := Results.Items (I).Text (K);
+               end loop;
+            end if;
+            Length := Whole;
+            Set_Success (Status);
+         end;
+      end if;
+   end Results_Whole_Text;
+
    procedure Check_Input_Image
      (Image  : access constant KI.Ks_Image_8_Grey_Data;
       Status : out Ks_Status) is
@@ -1615,10 +2602,10 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
      (Item   : Ks_Code_Reader_Result;
       Status : out Ks_Status) is
    begin
-      if Item.Length in 0 .. Max_Text_Length then
+      if Item.Length in 0 .. Max_Matrix_Text_Length then
          Set_Success (Status);
       else
-         Bad (Status, "Result.Length must be in 0 .. 255");
+         Bad (Status, "Result.Length must be in 0 .. 7089");
       end if;
    end Check_Result_Length;
 

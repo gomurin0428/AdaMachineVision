@@ -109,8 +109,53 @@ section 9.1.
   photographs of the ZXing project's tests (Apache-2.0), of which the
   default run parameters read 382, with no wrong text
   (`tests/real_images/README.md` has the table and the known failures).
-  Not read: two-dimensional codes, Extended Code 39, symbols without a
-  light margin inside the image, and modules narrower than 1.5 pixels.
+  Not read: Extended Code 39, symbols without a light margin inside the
+  image, and modules narrower than 1.5 pixels.
+* Code Reader: Data Matrix. With `KS_CODE_READER_SYMBOLOGY_DATA_MATRIX`
+  (128) among the symbologies of the run parameters, the tool also
+  reads the Data Matrix symbols (ECC 200) of the image: the 24 square
+  sizes (10 x 10 to 144 x 144 modules), the 6 rectangular ones and the
+  18 of the rectangular extension (DMRE, ISO/IEC 21471: 8 x 48 to
+  26 x 64 modules), at any orientation, seen at an angle or mirrored,
+  and any number of them per image. A symbol is found from the dark
+  area with its two solid sides (the "L"), its modules are looked up
+  through the perspective mapping of its four corners, and its
+  codewords are corrected (Reed-Solomon) and decoded (the ASCII, C40,
+  Text, X12, EDIFACT and Base 256 encodations). A result has the text,
+  the four corners of the symbol as it is printed, the centre and the
+  angle; its `num_scan_lines` is 0. A text can have up to 3125
+  characters: a result holds the first 255 and the whole length, and
+  the new `ks_code_reader_results_text` gives all of it. Data Matrix is
+  not among the default symbologies: its symbols are looked for in a
+  pass of its own over the image. C: `symbologies` is a sum in 1 .. 255
+  (1 .. 127 before), with the new constants
+  `KS_CODE_READER_SYMBOLOGY_DATA_MATRIX`, `KS_CODE_READER_SYMBOLOGY_ALL`
+  and `KS_CODE_READER_MAX_MATRIX_TEXT_LENGTH`; the `length` of a result
+  exceeds 255 only for a Data Matrix symbol, which a caller has to ask
+  for; no record and no existing function changes, so the ABI version
+  stays 3. Ada: `Data_Matrix` in `AMV.Code_Reader.Symbology`,
+  `All_Symbologies` and `Text`. The new children of the kernel,
+  `Dark_Areas` (the dark pixels, the outlines of the dark areas and
+  their convex hulls), `Data_Matrix.Finder` (the corners and the
+  modules), `Data_Matrix` (the codewords and the text) and
+  `Reed_Solomon`, and the Data Matrix pass of the kernel itself add
+  1710 checks, all proved: no run-time error for any image,
+  region and parameters, no memory leak, every result a symbology with
+  its text (1 to 255 characters for a linear barcode, 1 to 7089 for a
+  two-dimensional symbol, all of them in the results), and a word that
+  `Reed_Solomon` has corrected is a codeword of its code. That a symbol
+  is found and that the text is the one printed is tested, not proved:
+  on generated symbols of every size (turned, mirrored, seen at an
+  angle, blurred, noisy, at low contrast, shaded and damaged, with
+  modules of 3 to 20 pixels) and on the 59 Data Matrix photographs of
+  the ZXing project's tests (Apache-2.0). The default run parameters
+  read all 59, but the part that finds a symbol was written while
+  looking at these same photographs, so this number records what is
+  read and is not an evaluation (`tests/real_images/README.md`). Not
+  read: QR code and the other two-dimensional symbologies, the older
+  Data Matrix ECC 000 to 140, symbols that are light on dark or made of
+  separate dots, symbols without a light margin of two pixels, and
+  modules smaller than two pixels.
 * Real-image tests: `tools/fetch_real_images.sh` takes two more kinds of
   manifest entries (a PNG converted without loss by the new
   `tools/png_to_bmp.py`, and a text file), downloads in parallel, and

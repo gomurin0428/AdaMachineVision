@@ -2890,14 +2890,13 @@ procedure Test_Real_Images is
    end Test_Candles;
 
    ---------------------------------------------------------------------
-   --  Code Reader: ZXing's barcode photographs
+   --  Code Reader: ZXing's test images
    ---------------------------------------------------------------------
 
-   --  Every image of the 23 series of linear barcodes in ZXing's test
-   --  collection (tests/real_images/zxing.txt), read with the default run
-   --  parameters: nothing is set for a series or an image. The text of
-   --  each image is the one that ZXing's own tests expect of it (the text
-   --  file next to the image).
+   --  The images of ZXing's test collection
+   --  (tests/real_images/zxing.txt). The text of each image is the one
+   --  that ZXing's own tests expect of it (the text file next to the
+   --  image).
    --
    --  Two things are checked of every image. First, every text the reader
    --  reports is that of a symbol in the picture: the expected text, or
@@ -2908,11 +2907,99 @@ procedure Test_Real_Images is
    --  (Unread): those are the known failures, checked to still fail, so
    --  that a change shows up here.
 
-   procedure Test_Barcodes is
+   function Among (List : String; Text : String) return Boolean;
+   --  Whether Text is one of the texts of List, which "|" separates.
+
+   function Among (List : String; Text : String) return Boolean is
+      First : Positive := List'First;
+   begin
+      if List = "" then
+         return False;
+      end if;
+      for I in List'First .. List'Last + 1 loop
+         if I > List'Last or else List (I) = '|' then
+            if List (First .. I - 1) = Text then
+               return True;
+            end if;
+            First := I + 1;
+         end if;
+      end loop;
+      return False;
+   end Among;
+
+   procedure Read_Code_Image
+     (File     : String;
+      Label    : String;
+      Symbol   : AMV.Code_Reader.Ks_Code_Reader_Symbology_Constants;
+      Every    : Boolean;
+      Also     : String;
+      Unread   : Boolean;
+      Found    : out Boolean;
+      Run_Time : in out Ada.Real_Time.Time_Span);
+   --  Reads the image File, whose symbol is of the symbology Symbol, and
+   --  checks the two things above. Every: with every symbology enabled
+   --  (All_Symbologies), else with the default run parameters as they
+   --  are. Unread: the image is a known failure. Found: it was read.
+   --  Run_Time: the time of the run is added to it.
+
+   procedure Read_Code_Image
+     (File     : String;
+      Label    : String;
+      Symbol   : AMV.Code_Reader.Ks_Code_Reader_Symbology_Constants;
+      Every    : Boolean;
+      Also     : String;
+      Unread   : Boolean;
+      Found    : out Boolean;
+      Run_Time : in out Ada.Real_Time.Time_Span)
+   is
       use AMV.Code_Reader;
       use type Ada.Real_Time.Time;
       use type Ada.Real_Time.Time_Span;
       use type Ada.Strings.Unbounded.Unbounded_String;
+
+      Want  : constant String := Text_Of (File);
+      Tool  : Ks_Code_Reader_Tool;
+      Start : Ada.Real_Time.Time;
+      Wrong : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      Found := False;
+      Tool.Input_Image := Load (File);
+      if Every then
+         Tool.Run_Params.Symbologies := All_Symbologies;
+      end if;
+      Start := Ada.Real_Time.Clock;
+      Tool.Run;
+      Run_Time := Run_Time + (Ada.Real_Time.Clock - Start);
+      Check (Tool.Run_Status.Result = Accept_Result,
+             Label & "the run succeeds");
+      for I in 0 .. Tool.Results.Count - 1 loop
+         declare
+            Result : constant Ks_Code_Reader_Result := Tool.Results.Item (I);
+         begin
+            if Symbology (Result) = Symbol and then Text (Result) = Want then
+               Found := True;
+            elsif not Among (Also, Text (Result)) then
+               Ada.Strings.Unbounded.Append
+                 (Wrong, " " & Symbology (Result)'Image & " ["
+                  & Text (Result) & "]");
+            end if;
+         end;
+      end loop;
+      Check (Wrong = "",
+             Label & "a text that is not in the picture:"
+             & Ada.Strings.Unbounded.To_String (Wrong));
+      if Unread then
+         Check (not Found, Label & "known failure: still not read");
+      else
+         Check (Found, Label & "read as [" & Want & "]");
+      end if;
+   end Read_Code_Image;
+
+   --  Every image of the 23 series of linear barcodes, read with the
+   --  default run parameters: nothing is set for a series or an image.
+
+   procedure Test_Barcodes is
+      use AMV.Code_Reader;
 
       Images_Total : Natural := 0;
       Read_Total   : Natural := 0;
@@ -2921,26 +3008,6 @@ procedure Test_Real_Images is
       function Listed (List : String; N : Positive) return Boolean
       is (Ada.Strings.Fixed.Index (" " & List & " ", N'Image & " ") > 0);
       --  Whether N is one of the numbers of List ("3 12 14").
-
-      function Among (List : String; Text : String) return Boolean;
-      --  Whether Text is one of the texts of List, which "|" separates.
-
-      function Among (List : String; Text : String) return Boolean is
-         First : Positive := List'First;
-      begin
-         if List = "" then
-            return False;
-         end if;
-         for I in List'First .. List'Last + 1 loop
-            if I > List'Last or else List (I) = '|' then
-               if List (First .. I - 1) = Text then
-                  return True;
-               end if;
-               First := I + 1;
-            end if;
-         end loop;
-         return False;
-      end Among;
 
       procedure Series
         (Name   : String;
@@ -2967,49 +3034,19 @@ procedure Test_Real_Images is
          for N in 1 .. Last loop
             if not Listed (Absent, N) then
                declare
-                  Two    : constant String := Integer'Image (100 + N);
-                  File   : constant String :=
-                    "zxing_" & Name & "_" & Two (3 .. 4);
-                  Label  : constant String :=
-                    Name & " " & Two (3 .. 4) & ": ";
-                  Want   : constant String := Text_Of (File);
-                  Tool   : Ks_Code_Reader_Tool;
-                  Start  : Ada.Real_Time.Time;
-                  Found  : Boolean := False;
-                  Wrong  : Ada.Strings.Unbounded.Unbounded_String;
+                  Two   : constant String := Integer'Image (100 + N);
+                  Found : Boolean;
                begin
-                  Tool.Input_Image := Load (File);
-                  Start := Ada.Real_Time.Clock;
-                  Tool.Run;
-                  Run_Time := Run_Time + (Ada.Real_Time.Clock - Start);
+                  Read_Code_Image
+                    (File     => "zxing_" & Name & "_" & Two (3 .. 4),
+                     Label    => Name & " " & Two (3 .. 4) & ": ",
+                     Symbol   => Symbol,
+                     Every    => False,
+                     Also     => Also,
+                     Unread   => Listed (Unread, N),
+                     Found    => Found,
+                     Run_Time => Run_Time);
                   Images := Images + 1;
-                  Check (Tool.Run_Status.Result = Accept_Result,
-                         Label & "the run succeeds");
-                  for I in 0 .. Tool.Results.Count - 1 loop
-                     declare
-                        Result : constant Ks_Code_Reader_Result :=
-                          Tool.Results.Item (I);
-                     begin
-                        if Symbology (Result) = Symbol
-                          and then Text (Result) = Want
-                        then
-                           Found := True;
-                        elsif not Among (Also, Text (Result)) then
-                           Ada.Strings.Unbounded.Append
-                             (Wrong, " " & Symbology (Result)'Image & " ["
-                              & Text (Result) & "]");
-                        end if;
-                     end;
-                  end loop;
-                  Check (Wrong = "",
-                         Label & "a text that is not in the picture:"
-                         & Ada.Strings.Unbounded.To_String (Wrong));
-                  if Listed (Unread, N) then
-                     Check (not Found,
-                            Label & "known failure: still not read");
-                  else
-                     Check (Found, Label & "read as [" & Want & "]");
-                  end if;
                   if Found then
                      Read := Read + 1;
                   end if;
@@ -3083,6 +3120,95 @@ procedure Test_Real_Images is
       Check (Images_Total = 487, "487 images");
    end Test_Barcodes;
 
+   --  Every image of the three series of Data Matrix symbols, read with
+   --  every symbology enabled (Data Matrix is not among the default
+   --  ones) and nothing else set, for a series or an image: the linear
+   --  symbologies are looked for as well, and must find nothing.
+
+   procedure Test_Data_Matrix is
+      use AMV.Code_Reader;
+
+      Images_Total : Natural := 0;
+      Read_Total   : Natural := 0;
+      Run_Time     : Ada.Real_Time.Time_Span := Ada.Real_Time.Time_Span_Zero;
+
+      procedure Series (Name : String; Images : String);
+      --  Reads the images of the series Name: Images are their names in
+      --  the collection, which "|" separates.
+
+      procedure Series (Name : String; Images : String) is
+         First : Positive := Images'First;
+         Count : Natural := 0;
+         Read  : Natural := 0;
+         Found : Boolean;
+      begin
+         for I in Images'First .. Images'Last + 1 loop
+            if I > Images'Last or else Images (I) = '|' then
+               declare
+                  Image : constant String := Images (First .. I - 1);
+               begin
+                  Read_Code_Image
+                    (File     => "zxing_" & Name & "_" & Image,
+                     Label    => Name & " " & Image & ": ",
+                     Symbol   => Data_Matrix,
+                     Every    => True,
+                     Also     => "",
+                     Unread   => False,
+                     Found    => Found,
+                     Run_Time => Run_Time);
+               end;
+               Count := Count + 1;
+               if Found then
+                  Read := Read + 1;
+               end if;
+               First := I + 1;
+            end if;
+         end loop;
+         Ada.Text_IO.Put_Line
+           ("  " & Name & ":" & Read'Image & " of" & Count'Image & " read");
+         Images_Total := Images_Total + Count;
+         Read_Total := Read_Total + Read;
+      end Series;
+   begin
+      Section ("Code Reader: ZXing's Data Matrix images (every"
+               & " symbology)");
+
+      --  Drawn symbols (not photographs): square and rectangular sizes,
+      --  several of the ways to write the data (C40, Text, X12 and
+      --  EDIFACT among them), and symbols with some modules changed.
+      Series
+        ("datamatrix-1",
+         "0123456789|C40|EDIFACT|GUID|HelloWorld_Text_L_Kaywa"
+         & "|HelloWorld_Text_L_Kaywa_1_error_byte"
+         & "|HelloWorld_Text_L_Kaywa_2_error_byte"
+         & "|HelloWorld_Text_L_Kaywa_3_error_byte"
+         & "|HelloWorld_Text_L_Kaywa_4_error_byte"
+         & "|X12|abcd-18x8|abcd-26x12|abcd-32x8|abcd-36x12|abcd-36x16"
+         & "|abcd-48x16|abcd-52x52|abcd-52x52-IDAutomation|abcdefg"
+         & "|abcdefg-64x64|abcdefg-with-errors|reader-init"
+         & "|zxing_URL_L_Kayway");
+
+      --  Photographs of printed symbols, 240 x 240 pixels.
+      Series
+        ("datamatrix-2",
+         "01|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18");
+
+      --  Drawn symbols of the sizes of the rectangular extension (DMRE).
+      Series
+        ("datamatrix-3",
+         "abcd-120x8|abcd-144x8|abcd-36x20|abcd-40x26|abcd-44x20"
+         & "|abcd-48x22|abcd-48x24|abcd-48x26|abcd-48x8|abcd-64x12"
+         & "|abcd-64x16|abcd-64x20|abcd-64x24|abcd-64x26|abcd-64x8"
+         & "|abcd-80x8|abcd-88x12|abcd-96x8");
+
+      Ada.Text_IO.Put_Line
+        ("  all:" & Read_Total'Image & " of" & Images_Total'Image
+         & " read, in"
+         & Integer (Ada.Real_Time.To_Duration (Run_Time) * 1000.0)'Image
+         & " ms");
+      Check (Images_Total = 59, "59 images");
+   end Test_Data_Matrix;
+
    procedure Run_All is
       procedure Run (Test : not null access procedure) is
       begin
@@ -3116,6 +3242,7 @@ procedure Test_Real_Images is
       Run (Test_Nuclei'Access);
       Run (Test_Candles'Access);
       Run (Test_Barcodes'Access);
+      Run (Test_Data_Matrix'Access);
    end Run_All;
 
    procedure Main is new AMV_Test_Support.Standalone (Run_All);

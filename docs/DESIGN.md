@@ -39,7 +39,7 @@ The child packages of `AMV`, by area:
 | Correlation search                  | `AMV.NCC_Search`               |
 | Geometric pattern location          | `AMV.Shape_Match`              |
 | Fixtures and calibration            | `AMV.Calib_Fix`                |
-| Code reading (linear barcodes)      | `AMV.Code_Reader`              |
+| Code reading (linear barcodes, Data Matrix) | `AMV.Code_Reader`      |
 | Tool groups and tool blocks         | `AMV.Tool_Group`, `AMV.Tool_Block` |
 
 Support packages: `AMV.Regions`
