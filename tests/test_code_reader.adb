@@ -392,7 +392,7 @@ procedure Test_Code_Reader is
       Check (Code (EAN_13) = 1 and then Code (EAN_8) = 2
              and then Code (UPC_A) = 4 and then Code (UPC_E) = 8
              and then Code (Code_128) = 16 and then Code (Code_39) = 32
-             and then Code (ITF) = 64,
+             and then Code (ITF) = 64 and then Code (Data_Matrix) = 128,
              "the symbology codes are one bit each");
       declare
          Sum : Int32 := 0;
@@ -400,9 +400,12 @@ procedure Test_Code_Reader is
          for Value in Kind loop
             Sum := Sum + Code (Value);
          end loop;
-         Check (Sum = All_Linear_Symbologies
-                and then Sum = Defaults.Symbologies,
-                "AllLinearSymbologies is the sum of the codes");
+         Check (Sum = All_Symbologies and then Sum = 255,
+                "AllSymbologies is the sum of the codes");
+         Check (Sum - Code (Data_Matrix) = All_Linear_Symbologies
+                and then All_Linear_Symbologies = Defaults.Symbologies,
+                "AllLinearSymbologies is the sum of those of the linear"
+                & " barcodes, the default");
       end;
       Check (Tool.Results.Count = 0, "no results before a run");
       Check_Item_Of_None ("Item of empty results raises Constraint_Error");
@@ -1981,7 +1984,7 @@ procedure Test_Code_Reader is
 
       Symbologies : constant String :=
         "RunParams.Symbologies must be a sum of"
-        & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 127";
+        & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255";
       Directions  : constant String :=
         "RunParams.NumDirections must be in 1 .. 180";
       First       : constant String :=
@@ -2007,12 +2010,18 @@ procedure Test_Code_Reader is
 
       Check_Bad ((Defaults with delta Symbologies => 0), Symbologies,
                  "Symbologies 0");
-      Check_Bad ((Defaults with delta Symbologies => 128), Symbologies,
-                 "Symbologies 128");
+      Check_Bad ((Defaults with delta Symbologies => 256), Symbologies,
+                 "Symbologies 256");
       Check_Bad ((Defaults with delta Symbologies => -1), Symbologies,
                  "Symbologies -1");
       Check_Good ((Defaults with delta Symbologies => Code (EAN_8)),
                   "Symbologies: EAN-8 alone");
+      Check_None
+        (Run_On (Image,
+                 (Defaults with delta Symbologies => Code (Data_Matrix))),
+         "Symbologies: Data Matrix alone does not read a linear barcode");
+      Check_Good ((Defaults with delta Symbologies => All_Symbologies),
+                  "Symbologies: all of them");
 
       Check_Bad ((Defaults with delta Num_Directions => 0), Directions,
                  "NumDirections 0");
@@ -2454,8 +2463,15 @@ procedure Test_Code_Reader is
              "the symbology of No_Result");
       Odd := Shared.Item (0);
       Odd.Length := 300;
+      Check (Text (Odd)'Length = 255
+             and then Text (Odd) (1 .. 8) = "96385074",
+             "Text with Length 300: the 255 characters of the record");
+      Odd.Length := 7089;
+      Check (Text (Odd)'Length = 255,
+             "Text with Length 7089, the most that a symbol holds");
+      Odd.Length := 7090;
       Check_Long_Text
-        ("Text with Length 300 raises Ks_Bad_Parameter_Exception");
+        ("Text with Length 7090 raises Ks_Bad_Parameter_Exception");
       Odd.Length := -1;
       Check_Negative_Length
         ("Text with Length -1 raises Ks_Bad_Parameter_Exception");

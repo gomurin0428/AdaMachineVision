@@ -60,6 +60,11 @@ is
    --  the L, and how far from a corner of the hull next to the corner of
    --  a symbol the lines of two sides may meet, in pixels.
 
+   Widest_Cut : constant := 8.0;
+   --  Where an outline turns, the pixels cut its tip off, and a blurred
+   --  image takes more of it: how far apart the two corners that the
+   --  hull has in place of the tip may be, in pixels.
+
    Narrow : constant := 2.0;
    --  How far around an outline the dark pixels belong to the symbol,
    --  in pixels.
@@ -367,7 +372,9 @@ is
    --  corner on either side of the true one. The line has to pass
    --  within Loose of End_1, or (Has_Arm: the line through Arm_1 and
    --  Arm_2 is that of the arm) to meet the line of the arm within Loose
-   --  of End_2.
+   --  of End_2, or where the tip is that End_1 and End_2 are left of: no
+   --  farther from either than they are apart (Widest_Cut at most) and
+   --  Loose.
 
    function Passes
      (PI, PK : Corner;
@@ -380,6 +387,7 @@ is
    is
       Where : Corner;
       Met   : Boolean;
+      Reach : Long_Float;
    begin
       if not Anchor.Anchored
         or else abs Off_Line (PI, PK, Anchor.End_1)
@@ -390,7 +398,15 @@ is
          return False;
       end if;
       Meet (Anchor.Arm_1, Anchor.Arm_2, PI, PK, Where, Met);
-      return Met and then Distance (Where, Anchor.End_2) <= Loose;
+      if not Met then
+         return False;
+      end if;
+      Reach :=
+        Loose + Long_Float'Min (Distance (Anchor.End_1, Anchor.End_2),
+                                Widest_Cut);
+      return Distance (Where, Anchor.End_2) <= Loose
+        or else (Distance (Where, Anchor.End_1) <= Reach
+                 and then Distance (Where, Anchor.End_2) <= Reach);
    end Passes;
 
    procedure Longest_Run

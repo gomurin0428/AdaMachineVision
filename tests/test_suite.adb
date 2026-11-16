@@ -28,6 +28,8 @@ with Test_Image_Processing_Filters;
 with Test_Blob;
 with Test_Caliper;
 with Test_Code_Reader;
+with Test_Code_Reader_2D;
+with Test_Code_Reader_Data_Matrix;
 with Test_Find_Line;
 with Test_Find_Circle;
 with Test_IP_One_Image;
@@ -76,7 +78,10 @@ begin
    Run_Area ("Test_NCC_Search", Test_NCC_Search'Access);
    Run_Area ("Test_Shape_Match", Test_Shape_Match'Access);
    Run_Area ("Test_Tool_Group", Test_Tool_Group'Access);
+   Run_Area ("Test_Code_Reader_2D", Test_Code_Reader_2D'Access);
    Run_Area ("Test_Code_Reader", Test_Code_Reader'Access);
+   Run_Area ("Test_Code_Reader_Data_Matrix",
+             Test_Code_Reader_Data_Matrix'Access);
    Run_Area ("Test_Robustness", Test_Robustness'Access);
 
    Ada.Text_IO.Put_Line ("=== Total");
