@@ -15,7 +15,10 @@
 # "labels", a colour mask PNG is written as a 16-bit label image
 # (tools/zip_png_labels.py). The fourth field "png" converts a PNG to BMP
 # with tools/png_to_bmp.py, which gives the same pixels on every platform,
-# and "text" keeps the file as it is (the text of a barcode).
+# and "text" keeps the file as it is (the text of a barcode). "text+sjis"
+# keeps it as well and writes beside it, as <name>.sjis, the same text in
+# Shift JIS where it can be written so and is not the same bytes
+# (tools/text_to_sjis.py): the text of a symbol that may hold it so.
 #
 # The other conversions to BMP use ImageMagick (magick or convert) when it
 # is installed, otherwise sips (macOS). Run from the repository root.
@@ -114,9 +117,13 @@ manifest | while read -r name sum url option; do
             fi ;;
         *)
             case "$option" in
-                text)
+                text | text+sjis)
                     if [ ! -f "$out/$name" ] || [ "$raw" -nt "$out/$name" ]; then
                         cp "$raw" "$out/$name"
+                        if [ "$option" = text+sjis ]; then
+                            python3 -I -B tools/text_to_sjis.py "$raw" \
+                                "$out/${name%.*}.sjis"
+                        fi
                     fi ;;
                 *)
                     bmp="$out/${name%.*}.bmp"

@@ -21,8 +21,10 @@ PGMs by `tools/zip_tiff_to_pgm.py`, standard library only) and for the
 barcode photographs (PNGs written as BMPs by `tools/png_to_bmp.py`,
 standard library only, so that their pixels are the same on every
 platform: a barcode is read or not, with no tolerance to absorb a
-converter's rounding). The images are never committed. The test reads
-them from `$AMV_REAL_IMAGES` (`build/real-images` by default). CI runs it
+converter's rounding) and for the texts of the QR Code images (written
+in Shift JIS as well by `tools/text_to_sjis.py`, standard library
+only). The images are never committed. The test reads them from
+`$AMV_REAL_IMAGES` (`build/real-images` by default). CI runs it
 on every pull request.
 
 The test prints numbers. To see what the tools find, the examples of
@@ -74,7 +76,7 @@ that holds the text of its symbol).
 | `visa_candle_*.jpg` | VisA (Zou et al., ECCV 2022), category `candle` | CC BY 4.0 |
 | `bbbc006_*.pgm` | BBBC006v1 (Ljosa et al., Nature Methods 2012), nuclei at 17 focal planes | CC0 1.0 |
 | `bbbc039_*.pgm` | BBBC039v1 (Ljosa et al., Nature Methods 2012), U2OS nuclei with hand-drawn masks | CC0 1.0 |
-| `zxing_*.png`, `zxing_*.txt` | ZXing ("Zebra Crossing"), `core/src/test/resources/blackbox`: the 23 series of linear barcodes and the 3 series of Data Matrix symbols, with the expected text of each image | Apache-2.0 |
+| `zxing_*.png`, `zxing_*.txt` | ZXing ("Zebra Crossing"), `core/src/test/resources/blackbox`: the 23 series of linear barcodes, the 3 series of Data Matrix symbols and the 6 series of QR Code symbols, with the expected text of each image | Apache-2.0 |
 
 Debian ships OpenCV's sample images as free software and excludes only the
 `lena` images, none of which is used here.
@@ -600,6 +602,122 @@ light, views at an angle, damaged symbols) is in
 
 The 59 images take about 0.2 seconds in all on a desktop computer.
 
+### Code Reader on ZXing's QR Code images
+
+The QR Code images of the same collection (`zxing.txt`): every image of
+its six series, 179 images. `qrcode-1` are photographs of printed
+symbols. `qrcode-2` are drawn symbols and photographs of many sizes,
+among them a poster across a station hall and symbols with a picture in
+their middle. `qrcode-3` are photographs of printed symbols held at an
+angle, 240 × 240, and so are 15 images of `qrcode-5`; its other four
+are drawn symbols of version 40 with one pixel to the module and no
+margin, 177 × 177. `qrcode-4` are photographs of symbols on cloth.
+`qrcode-6` are a small symbol at many angles on a dark ground, and one
+photograph of a screen with a dark bar across the symbol. Nothing is
+left out, neither a series nor an image (the collection has no image 3
+in `qrcode-2`).
+
+**References.** As above, the text in the collection's text file next
+to each image. The three `metadata` files of the collection (what
+ZXing's tests expect besides the text) are not used. The reader reports
+the bytes of a symbol as they are encoded, and a text file is in UTF-8:
+an image counts as read when a QR Code result has, as its whole text,
+the expected text written in UTF-8, in ISO 8859-1 or in Shift JIS (the
+last is written by `tools/text_to_sjis.py` when the images are fetched,
+for the texts that can be written so). The rule is the same for every
+image and was fixed before any image was run.
+
+**Settings.** Every symbology enabled (`All_Symbologies`; QR Code is
+not among the default ones), the other run parameters at their
+defaults, for every image, one run each. Nothing is set for a series or
+an image.
+
+**Tuning and evaluation.** Before any of the images was opened or run,
+they were split by the number in their name: the reader was made on
+those with an odd number (90 images), and those with an even number
+(89) were put aside. The first run over the odd-numbered images read 79
+of the 90. Two rules of the reader were then changed while looking at
+them, which made it 81:
+
+* An alignment pattern is taken where two of the 25 middles of its
+  modules at most are not dark and light as the pattern is; before, all
+  had to be. Blur rounds the corners of its ring (`qrcode-4` 29).
+* A block of pixels has dark and light pixels when they differ by twice
+  the contrast threshold; before, by the threshold. In `qrcode-6` 15
+  the speckle in the middle of large dark squares was given light
+  pixels, and two finder patterns were lost.
+
+With the reader frozen at that, the even-numbered images were run once:
+80 of 89. Nothing in the reader has been changed since.
+
+**What is checked.** Of every image: every text the reader reports is
+that of a symbol in the picture, so a wrong reading fails; and the
+image is read, as a QR Code symbol, unless it is one of the known
+failures below, which are checked to still fail. The linear symbologies
+and Data Matrix are looked for as well and find nothing in these
+images. No wrong text is reported for any of the 179 images.
+
+One picture shows two symbols: in `qrcode-2` 16 a second, smaller
+symbol is printed in the middle of the first, and the reader reports
+both. In the one run of the even-numbered images the second text failed
+the check, as every text but the expected one does. The picture, looked
+at after the run, shows that symbol, and the rule fixed beforehand says
+that a text is wrong unless the picture shows its symbol as well: the
+test now allows that text for that image.
+
+| Series | Image size | Images | Read | Odd numbers (reader made on them) | Even numbers (run once) | Not read |
+|---|---|---|---|---|---|---|
+| `qrcode-1` | 640 × 480 | 20 | 20 | 10 of 10 | 10 of 10 | |
+| `qrcode-2` | 65 × 65 to 1280 × 960 | 35 | 32 | 15 of 17 | 17 of 18 | 12, 13, 33 |
+| `qrcode-3` | 240 × 240 | 42 | 39 | 19 of 21 | 20 of 21 | 21, 22, 23 |
+| `qrcode-4` | 240 × 240 | 48 | 36 | 19 of 24 | 17 of 24 | 05, 06, 08, 09, 13, 14, 26, 30, 31, 32, 33, 34 |
+| `qrcode-5` | 240 × 240, 177 × 177 | 19 | 19 | 10 of 10 | 9 of 9 | |
+| `qrcode-6` | 500 × 500, 774 × 1037 | 15 | 15 | 8 of 8 | 7 of 7 | |
+| all | | 179 | 161 | 81 of 90 | 80 of 89 | 18 |
+
+**Known failures** (18 images, checked to still fail). The reason was
+looked into for the odd-numbered ones:
+
+* `qrcode-2` 13: a symbol drawn as a picture, whose finder patterns are
+  not the squares the reader looks for.
+* `qrcode-2` 33: its text is in the Hanzi mode of the Chinese standard
+  GB/T 18284, which ISO/IEC 18004 does not define. The reader does not
+  read that mode and reports nothing for the symbol.
+* `qrcode-3` 21 and 23: a symbol of version 7 at an angle, blurred,
+  with modules of about three pixels. Its alignment patterns are not
+  found.
+* `qrcode-4` 05, 13, 31 and 33: the cloth is not flat. The reader takes
+  a symbol to be flat (its modules where the view of a plane puts
+  them), and 60 to 88 modules of these are then read wrong.
+* `qrcode-4` 09: blur. 13 to 16 modules are read wrong, more than the
+  error correction of the symbol (level L) takes.
+
+The even-numbered ones were not examined beyond a look at the pictures
+after the run: `qrcode-2` 12 is the drawn symbol of 13, `qrcode-3` 22
+the sheet of 21 and 23, `qrcode-4` 06, 08 and 14 the cloth symbol of
+05, 09 and 13, and `qrcode-4` 26, 30, 32 and 34 that of 31 and 33.
+
+**What the figures say.** 81 of 90 is what the reader does on the
+images it was made on. 80 of 89 is an evaluation by the protocol above:
+images that were neither opened nor run before the reader was frozen,
+run once, with nothing left out. But the two parts are not different
+subjects. A series is mostly photographs of the same few symbols with
+one camera, so an even-numbered image is much like the odd-numbered
+ones beside it, as the known failures show. The figure says what the
+reader does on photographs it has not seen of the kinds it was made on,
+not what it does on other symbols, cameras and surfaces. What the
+reader does on symbols drawn for the purpose (every version, the levels
+and masks, modules of 2 to 20 pixels, blur, noise, uneven light, views
+at an angle, damaged symbols) is in `tests/test_code_reader_qr_code.adb`.
+
+The second rule also changed the Data Matrix part of the reader, which
+finds its dark areas with the same blocks. The Data Matrix images and
+the barcode photographs above were run again after it: the same images
+are read as before (59 of 59 and 382 of 487).
+
+The 179 images take about one and a half seconds in all on a desktop
+computer.
+
 ## Status
 
 Evaluated by the protocol above: the VisA candle rims (one known failure
@@ -607,8 +725,11 @@ in each set), the VisA pcb1 gauging tests (holes,
 outlines, widths with Find Line and with one caliper pair, the holes
 unwrapped), Shape Match on VisA pcb1 (resampled and across boards), the NCC
 shifts and partial matches, the checkerboard calibration (`right*` images),
-the BBBC006 focus stacks and Blob on BBBC039 nuclei
-(one known failure).
+the BBBC006 focus stacks, Blob on BBBC039 nuclei
+(one known failure) and the Code Reader on the even-numbered half of
+ZXing's QR Code images (9 known failures; the odd-numbered half is what
+the reader was made on, and the two halves show the same symbols, see
+its section).
 
 Single-image regression examples, tuned on the image they are judged on
 (no second image of the same series is available): Blob on coins.png (the
