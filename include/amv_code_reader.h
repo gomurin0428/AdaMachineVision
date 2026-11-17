@@ -147,7 +147,8 @@
  *    The versions 1 to 40 of QR Code Model 2 (21 x 21 to 177 x 177
  *    modules) are read at the four error correction levels; Micro QR Code
  *    and QR Code Model 1 are not. A symbol whose text is empty is not
- *    reported.
+ *    reported, and neither is one with a segment in a mode that ISO/IEC
+ *    18004 does not define (the Hanzi mode of GB/T 18284, say).
  *
  *    The QR Code results follow those of the Data Matrix symbols, in the
  *    order in which the rows of the area, from its top, meet the finder

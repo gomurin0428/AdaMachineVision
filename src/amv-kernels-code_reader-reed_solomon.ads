@@ -5,7 +5,7 @@
 --  The field. An element is a polynomial over GF(2) of degree below 8,
 --  held as the byte whose bit k is the coefficient of x**k. The sum of
 --  two elements is their xor; the product is taken modulo the polynomial
---  of the field (Data Matrix: x**8 + x**5 + x**3 + x**2 + 1, 16#12D#).
+--  of the field (16#12D# for Data Matrix and 16#11D# for QR Code).
 --  Alpha is the element x. Make_Field builds the tables of the powers of
 --  Alpha and of their logarithms.
 --
@@ -14,8 +14,8 @@
 --  codeword of the code with Parity check elements and the first root
 --  First_Root when it is zero at Alpha ** (First_Root + j) for j in
 --  0 .. Parity - 1: its Parity syndromes are zero. Data Matrix has
---  First_Root = 1. Two codewords differ in more than Parity places, so a
---  word with at most Parity / 2 wrong elements has one nearest codeword.
+--  First_Root = 1, QR Code 0. Two codewords differ in more than Parity
+--  places: at most Parity / 2 wrong elements leave one nearest codeword.
 --
 --  Correct finds it: the syndromes, the error locator by the
 --  Berlekamp-Massey algorithm, its roots by trying every place (Chien),

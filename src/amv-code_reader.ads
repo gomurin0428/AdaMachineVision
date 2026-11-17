@@ -81,7 +81,9 @@
 --  orientation, seen at an angle or from behind (mirrored), in the
 --  versions 1 to 40 (21 x 21 to 177 x 177 modules) and at the four
 --  error correction levels; Micro QR Code and QR Code Model 1 are not
---  read. It must be dark on a light ground, with its three finder
+--  read, and a symbol with a segment in a mode that ISO/IEC 18004 does
+--  not define (the Hanzi mode of GB/T 18284, say) is not reported. It
+--  must be dark on a light ground, with its three finder
 --  patterns whole, light pixels around each of them and one of its two
 --  timing patterns to be seen; its modules should be three pixels or
 --  more (two are enough in a sharp image).

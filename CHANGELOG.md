@@ -152,14 +152,100 @@ section 9.1.
   read all 59, but the part that finds a symbol was written while
   looking at these same photographs, so this number records what is
   read and is not an evaluation (`tests/real_images/README.md`). Not
-  read: QR code and the other two-dimensional symbologies, the older
-  Data Matrix ECC 000 to 140, symbols that are light on dark or made of
-  separate dots, symbols without a light margin of two pixels, and
-  modules smaller than two pixels.
-* Real-image tests: `tools/fetch_real_images.sh` takes two more kinds of
-  manifest entries (a PNG converted without loss by the new
-  `tools/png_to_bmp.py`, and a text file), downloads in parallel, and
-  the CI keeps the downloads from run to run.
+  read: the older Data Matrix ECC 000 to 140, symbols that are light on
+  dark or made of separate dots, symbols without a light margin of two
+  pixels, and modules smaller than two pixels.
+* Code Reader: QR Code. With `KS_CODE_READER_SYMBOLOGY_QR_CODE` (256)
+  among the symbologies of the run parameters, the tool also reads the
+  QR Code symbols (Model 2) of the image, in the pass that reads Data
+  Matrix: the versions 1 to 40 (21 x 21 to 177 x 177 modules) at the
+  four error correction levels, at any orientation, seen at an angle
+  or mirrored, and any number of them per image. A symbol is found
+  from its three finder patterns (dark and light in the proportions
+  1 : 1 : 3 : 1 : 1 along a row, a column and the two diagonals). They
+  give the version and, with the alignment pattern nearest to the
+  fourth corner, the place of every module in perspective; the format
+  and the version information are read, and the codewords are
+  corrected (Reed-Solomon) and decoded (the numeric, alphanumeric, byte
+  and Kanji modes, with FNC1; ECI and structured append are passed
+  over). A result has the text, the four corners of the symbol as it
+  is printed, the centre and the angle; its `num_scan_lines` is 0. The
+  text is the bytes as the symbol encodes them (no character set is
+  applied; a Kanji character is the two bytes of its Shift JIS code),
+  up to 7089 of them, held and given like the text of a Data Matrix
+  symbol. QR Code is not among the default symbologies. C:
+  `symbologies` is a sum in 1 .. 511 (1 .. 255 before), with the new
+  constant `KS_CODE_READER_SYMBOLOGY_QR_CODE`, and
+  `KS_CODE_READER_SYMBOLOGY_ALL` is 511; no record and no function
+  changes, so the ABI version stays 3. Ada: `QR_Code` in
+  `AMV.Code_Reader.Symbology`. The new children of the kernel,
+  `QR_Code` (the codewords and the text), `QR_Code.Finder` (the finder
+  patterns and the modules) and `Views` (what the two-dimensional
+  symbologies share: the dark pixel at a point and the perspective
+  mapping, which the Data Matrix finder now takes from it), and the QR
+  Code pass of the kernel itself bring the code reader kernel from
+  2991 to 3964 checks, all proved: no run-time error for any image,
+  region and parameters, no memory leak, and every result a symbology
+  with its text. That a symbol is found and that the text is the one
+  printed is tested, not proved: on symbols painted by an encoder of
+  the tests' own (every version, level and mask, modules of 2 to 20
+  pixels, turned, mirrored, seen at an angle, blurred, noisy, at low
+  contrast, shaded and damaged) and on the 179 QR Code photographs of
+  the ZXing project's tests (Apache-2.0). These were split in two by
+  the number in their name before any of them was opened. The reader
+  was made on the 90 odd-numbered ones, of which it reads 81, and
+  frozen; the 89 even-numbered ones were then run once, and 80 are
+  read. No wrong text is reported. The two halves show the same
+  symbols in other photographs, so the second figure is of photographs
+  not seen before, not of other kinds of symbols
+  (`tests/real_images/README.md` has the table and the 18 known
+  failures: symbols on cloth that is not flat, a blurred symbol with
+  modules of about three pixels, a symbol drawn as a picture and one
+  in the Hanzi mode of GB/T 18284). Not read: Micro QR Code, QR Code
+  Model 1, the modes that ISO/IEC 18004 does not define, symbols that
+  are light on dark, symbols with a finder pattern that is covered or
+  has no light pixels around it, symbols on a surface that is not
+  flat, and modules smaller than two pixels (three where the image is
+  not sharp).
+* Code Reader: in the pass for the two-dimensional symbols, a block of
+  8 by 8 pixels has dark and light pixels when its lightest and its
+  darkest pixel differ by twice `contrast_threshold` (24 grey levels
+  with the default; it was the threshold itself, in the entry of Data
+  Matrix above). The lightest and the darkest of 64 pixels differ by
+  the whole swing of the noise, so the blocks in the middle of a large
+  dark area were given light pixels. A faint Data Matrix symbol needs
+  twice the contrast that it needed: one of 30 grey levels is read
+  with a threshold of up to 15. The 59 Data Matrix photographs are
+  read as before.
+* Real-image tests: `tools/fetch_real_images.sh` takes three more kinds
+  of manifest entries (a PNG converted without loss by the new
+  `tools/png_to_bmp.py`, a text file, and a text file whose text is
+  also written in Shift JIS by the new `tools/text_to_sjis.py`),
+  downloads in parallel, and the CI keeps the downloads from run to
+  run.
+* Mutation testing: `make mutation` and `make mutation-diff` run
+  AdaMutant (https://github.com/gomurin0428/AdaMutant, `adamutant.toml`)
+  on the bodies of the library: every small change of a body (a mutant)
+  is built, and the areas of `test_suite` that test its unit are run
+  (`tools/mutant_tests.sh`; `test_suite <area> ...` runs only the areas
+  named). On the code reader it found what the tests did not check: 390
+  of the 1076 mutants of the QR Code finder survived the tests, which
+  paint whole and even symbols. Three new test units check the finder
+  on maps made pixel by pixel, at the limits of its search for finder
+  patterns, of the placing of a symbol on three of them and of the
+  sampling of its modules (`tests/test_code_reader_qr_patterns.adb`,
+  `test_code_reader_qr_placing.adb`, `test_code_reader_qr_sampling.adb`).
+  The tests of the kernel got symbols whose dark modules are a pixel
+  thinner on each side (their finder patterns give a version one or two
+  above theirs), the 16 pairs that a corner is tried with, and the
+  exact number of symbols that the 256 finder patterns of a run give.
+  A mutant that no test can tell from the source is marked in the
+  source with the reason (`docs/DESIGN.md` 8). AdaMutant now finds
+  99.89 % of the mutants of the finder that it runs (906 of 907; it
+  was 62.89 %, and the one left is explained in the source), 100 % of
+  those of `QR_Code` (89.63 %) and of `Views` (78.43 %), and 100 % of
+  those of the lines of the kernel (74.71 %) and of the Data Matrix
+  finder that this release changes.
 * Examples: every example writes a picture of its results, the input
   image with what the tools found drawn on it (`examples/example_draw`,
   for the examples only), and four new examples run on photographs

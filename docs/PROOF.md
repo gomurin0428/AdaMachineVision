@@ -199,19 +199,25 @@ kernel), took three hours with two on
 a heavily loaded machine (another proof run sharing it).
 
 The code reader kernel (`AMV.Kernels.Code_Reader` with its private
-children `Linear` and `Profiles` and the children of its Data Matrix
-pass, `Dark_Areas`, `Data_Matrix`, `Data_Matrix.Finder` and
-`Reed_Solomon`, 2991 checks: 2499 discharged by the provers, 914 of them
-in `AMV.Kernels.Code_Reader`, 397 in `Linear`, 209 in `Profiles`, 232 in
-`Dark_Areas`, 231 in `Data_Matrix`, 420 in `Data_Matrix.Finder` and 96
-in `Reed_Solomon`, and 492 by flow analysis) takes about ten minutes
-from cold with three prover processes on a lightly loaded machine (five
-minutes before the Data Matrix pass, when it had 1281 checks). Three of
-its checks need a second or more there: the postcondition of
-`Add_Symbol` 1.2 seconds, and two checks of `Meet` in the finder 1.1 and
-1.0 seconds, counting for each part of a check the quickest prover that
-proves it (the provers run side by side, and the others are stopped when
-one succeeds).
+children `Linear` and `Profiles` and the children of its Data Matrix and
+QR Code passes, `Dark_Areas`, `Views`, `Reed_Solomon`, `Data_Matrix`,
+`Data_Matrix.Finder`, `QR_Code` and `QR_Code.Finder`, 3964 checks: 3256
+discharged by the provers, 967 of them in `AMV.Kernels.Code_Reader`, 397
+in `Linear`, 209 in `Profiles`, 232 in `Dark_Areas`, 43 in `Views`, 96
+in `Reed_Solomon`, 231 in `Data_Matrix`, 392 in `Data_Matrix.Finder`,
+254 in `QR_Code` and 435 in `QR_Code.Finder`, and 708 by flow analysis)
+takes about fourteen minutes from cold with three prover processes on a
+machine shared with other work (ten minutes before the QR Code pass,
+when it had 2991 checks, and five before the Data Matrix pass, with
+1281). Ten of its checks needed a second or more in that run, eight of
+them in the QR Code finder: four preconditions of `Numerics.Mul_Within`
+in `Tilt` 2.5 to 3.5 seconds (29000 to 34000 steps of CVC5 each; 0.6
+seconds or less when the machine is quiet), two overflow checks there
+1.1 and 1.4 seconds, the range check of the version in `Place` and the
+postcondition of `Module_Along` 1.6 seconds each; and two checks of
+`Meet` in the Data Matrix finder 1.1 and 1.0 seconds. The times count
+for each part of a check the quickest prover that proves it (the provers
+run side by side, and the others are stopped when one succeeds).
 
 `amv.gpr` proves every unit at `--level=2`, except the units its `Prove`
 package raises.
@@ -260,7 +266,7 @@ package raises.
 | `AMV.Kernels.NCC_Search.Region_Modes` | `ks_ncc_search_pattern_train_affine`, `ks_ncc_search_execute_affine` (and, for Ada, `Check_Affine_Train_Region`) | absence of run-time errors for any image, mask and pattern handle that is null or came from the kernels and any rectangle, transform, offset and parameter values (non-finite ones included, checked before the resampling); **no memory leaks** (the resampled pattern and search images, the resampling's output image mask, the resampled train image mask and the work region are freed on every path); a pattern handle `train_affine` leaves is `Valid_Pattern` (when not null) and trained exactly when it succeeded; only the documented failure codes; **Gold**: a pattern trained by `train_affine` has exactly the size `AMV.Kernels.Affine_Transform` gives the rectangle with its default run parameters (`Resampled_Width`, `Resampled_Height`), and no care flags without a mask; every results handle of `execute_affine` has the proved facts of `ks_ncc_search_execute` (`Gold_Results`: scores in [0, 1] and at least AcceptThreshold, at most MaxResults, sorted, IDs, EdgeHit; the margins those of the run, EdgeHit None with the limits 0), with every window inside the resampled rectangle of that size extended by the limits (`Area_In_Image`); a null or untrained pattern never yields results. The pixels, the care flags and the search come from the proved entry points it calls (`ks_affine_transform_execute`, `Restore_Trained`, `ks_ncc_search_execute`). **Not proved** (tested against the pixel aligned modes with upright rectangles on whole pixels, which resample exactly, and against turned scenes with known ground truth): the resampled pixels and care flags, and the origin and the locations carried through the resampling | 2 |
 | `AMV.Kernels.Shape_Match` (with the private children `Poses`, `Pyramids`, `Masks`, `Training`, `Search`, `Refinement`, `Overlaps`) | `ks_shape_match_train_params_default`, `ks_shape_match_run_params_default`, `ks_shape_match_check_run_params`, `ks_shape_match_pattern_*` (create, destroy, duplicate, get_train_params, set_train_params, train, train_masked, trained, untrain, levels, feature_count, feature), `ks_shape_match_execute`, `ks_shape_match_results_*` (destroy, count, item), `ks_shape_match_result_get_pose` | absence of run-time errors for any image or region handle that is null or came from the kernels, any pattern or results handle that is null or came from this kernel (null patterns and untrained ones included), any transform and any parameter values, non-finite ones included (rejected with Bad_Parameter naming the property); **no memory leaks** (every image of the two pyramids comes from the proved entry points of the image and real image kernels and is freed on every path, the work images of a pyramid, the score buffer, the clutter mask and the train image mask's summed-area table included; the results are destroyed on every failure path); the stream helpers accept only finite features and ignored points within the bounds and complete levels (Image_File otherwise); the train image mask's summed-area table (`Masks`, counts of pixels read through a limit of 2**31 that never acts) and its ignored points (the clutter marks them within a margin of at most 482 pixels) stay within bounds; the overlap of two results' footprints (`Overlaps`, polygon clipping and shoelace areas on coordinates within 2**40, every clipped point and sum through a limit that never acts) is in [0, 1]; **Gold: an untrained (or null) pattern never yields results** (Execute succeeds only for a trained pattern, and returns null otherwise), and of every results handle Execute returns (`Gold_Results`): **at most ApproximateNumberToFind results, sorted by score (highest first), every Score in [AcceptThreshold, 1], Coverage, Clutter and OutsideRegionFeatureProportion in [0, 1], FitError and Contrast >= 0, the rotation and the scaling in their zones** (exactly Nominal for a Nominal zone, within [Low, High] for a LowHigh one) **and the translation within 1.0E150**, so that every value of the pose is a valid argument of `AMV.Kernels.Transforms` again. **Not proved** (tested): that the search finds every instance, the accuracy of the refinement, the measures' meaning | 2 |
 | `AMV.Kernels.Tool_Group` | `ks_tool_group_*` (create, destroy, duplicate, own_key, set_own_key, count, item, index_of, add, insert, remove_at, remove, move, clear, disabled, set_disabled, set_name, name, index_of_name, item_by_name, abort_run_on_tool_failure, set_abort_run_on_tool_failure, run_begin, run_next, run_report, run_end, run_tool_begin, run_tool_end), `ks_tool_block_terminals_*` (create, destroy, duplicate, count, clear, add, add_real, add_integer, add_boolean, add_string, add_object, insert, remove_at, remove, move, index_of, name, value_type, has_value, set_real, get_real, set_integer, get_integer, set_boolean, get_boolean, set_string, get_string, set_object, get_object) | absence of run-time errors for any group or terminal collection handle that is null or came from the kernel, any cursor record (checked against the group's run in progress and for consistency first), any text (lengths beyond the limit or negative included) and any codes, indices and values, non-finite reals included (rejected); **no memory leaks**; every failure leaves the group or the collection unchanged (a failed run_next or run_report marks only the cursor, run_end only ends the run); **Gold: no key is a member twice and no member has the group's own key, and no two terminals of a collection have the same name** (`Distinct_Members`, `Distinct_Names`: every entry point keeps them, a new handle has them), the counts within Max_Members and Max_Terminals; a member's name moves with it, setting a name changes nothing else (not even the change counter, so a run in progress goes on), and a lookup by name returns the first member with that name (none before it has it) or none at all; **of a run, as relations between each call and the cursor it gets: members are offered in order and each at most once, only enabled ones, every member skipped is disabled, every member after the last offered is disabled when none is left and the run has not stopped, nothing is offered after the run stopped (the script's run_tools = 0, or a member's Error with AbortRunOnToolFailure set), the worst result is the worst of the script's and the reported ones and the first failure the first member whose report was not Accept, and run_end returns both; a set of a scalar terminal value stores exactly the value given in the terminal of that name and changes nothing else, a get returns exactly the value it holds, a failed set changes nothing**. **Not proved** (tested): the text of the messages; RunTool (`run_tool_begin`, `run_tool_end`), **Gold**: a tool runs exactly when it is not a disabled member of the group, the result becomes the worse of the two (`Worse`), the message is replaced exactly when the tool's result is strictly worse, and the run aborts exactly when the tool reported Error and the group has AbortRunOnToolFailure | 2 |
-| `AMV.Kernels.Code_Reader` (with the private children `Linear` and `Profiles` and the children of its Data Matrix pass, `Dark_Areas`, `Data_Matrix`, `Data_Matrix.Finder` and `Reed_Solomon`) | `ks_code_reader_run_params_default`, `ks_code_reader_execute`, `ks_code_reader_results_*` (destroy, count, item, text) (and, for Ada, `Check_Input_Image`, `Check_Result_Symbology`, `Check_Result_Length`, `Results_Whole_Text`) | absence of run-time errors for any image or region handle that is null or came from the kernels, any run parameters (checked first, non-finite ones included), any transform (one that is not finite and within 1.0E150 is rejected) and any results handle that is null or came from execute (a record that is not one is rejected with Bad_Parameter); **no memory leaks** (the levels of a scan line, the work space of the edge finder, the two edge arrays, the candidate table and, in the Data Matrix pass, the map of the dark pixels, the two matrices of block levels, the two arrays of row extents, the corners of the hull and the table of the symbols are freed on every path, also when a later allocation fails; the pool of the texts is freed or becomes part of the results; a results handle is returned only on success); only the documented failure codes; a failed execute returns null; **Gold**: every result of a successful execute (`Gold_Results`) has one of the eight symbologies and a text that is not empty, followed in the record by NUL up to the end of its array: a linear barcode has 1 .. 255 characters and at least one scan line that read it, a Data Matrix symbol 1 .. 7089 characters (3125 is the most that the decoder gives), no scan line, and its whole text in the pool of the handle; and there are at most 4096 results; `results_count` returns 0 .. 4096, `results_item` exactly the stored item and `results_text` 0 .. 255 characters followed by NUL up to the end of the array (`Results_Whole_Text`, for Ada: no more characters than its buffer holds); `Linear.Decode_At` reports a symbol only with one of the seven symbologies of linear barcodes, a text that is not empty and a last edge at least 16 edges after its first one and within the segment, for any edges that are well formed (`Well_Formed`); `Profiles.Find_Edges` returns well-formed edges for any levels; **a word that `Reed_Solomon.Correct` reports as corrected is a codeword** (every syndrome zero, `Is_Codeword`), differs from the word given in exactly the number of elements reported, at most half the check elements, and a word that is not corrected is unchanged; `Dark_Areas` (the dark pixels, an outline and its hull), `Data_Matrix.Finder` (the corners and the modules of a symbol) and `Data_Matrix` (the places of the codewords, the blocks and the text) have no run-time error for any map, hull, outline and grid of modules, and a text never exceeds its buffer. **Not proved** (tested, `tests/test_code_reader.adb`, `tests/test_code_reader_2d.adb` and `tests/test_code_reader_data_matrix.adb` on generated symbols and `tests/real_images` on photographs): that a reported text is the text of a symbol of the image (the pattern tables, the check digits and the rules of each symbology; for Data Matrix that the symbol is found, the places of the codewords, the tables of GF(256) and the rules of the encodations, and that a word with no more errors than half its check elements is corrected), that at least MinScanLines lines read a linear barcode, and the accuracy of the positions and of the angle | 2 |
+| `AMV.Kernels.Code_Reader` (with the private children `Linear` and `Profiles` and the children of its Data Matrix and QR Code passes, `Dark_Areas`, `Views`, `Reed_Solomon`, `Data_Matrix`, `Data_Matrix.Finder`, `QR_Code` and `QR_Code.Finder`) | `ks_code_reader_run_params_default`, `ks_code_reader_execute`, `ks_code_reader_results_*` (destroy, count, item, text) (and, for Ada, `Check_Input_Image`, `Check_Result_Symbology`, `Check_Result_Length`, `Results_Whole_Text`) | absence of run-time errors for any image or region handle that is null or came from the kernels, any run parameters (checked first, non-finite ones included), any transform (one that is not finite and within 1.0E150 is rejected) and any results handle that is null or came from execute (a record that is not one is rejected with Bad_Parameter); **no memory leaks** (the levels of a scan line, the work space of the edge finder, the two edge arrays, the candidate table and, in the pass for the two-dimensional symbols, the map of the dark pixels, the two matrices of block levels, the two arrays of row extents, the corners of the hull and the table of the symbols are freed on every path, also when a later allocation fails; the pool of the texts is freed or becomes part of the results; a results handle is returned only on success); only the documented failure codes; a failed execute returns null; **Gold**: every result of a successful execute (`Gold_Results`) has one of the nine symbologies and a text that is not empty, followed in the record by NUL up to the end of its array: a linear barcode has 1 .. 255 characters and at least one scan line that read it, a Data Matrix or QR Code symbol 1 .. 7089 characters (3125 is the most that the Data Matrix decoder gives, 7089 the most of a QR Code symbol), no scan line, and its whole text in the pool of the handle; and there are at most 4096 results; `results_count` returns 0 .. 4096, `results_item` exactly the stored item and `results_text` 0 .. 255 characters followed by NUL up to the end of the array (`Results_Whole_Text`, for Ada: no more characters than its buffer holds); `Linear.Decode_At` reports a symbol only with one of the seven symbologies of linear barcodes, a text that is not empty and a last edge at least 16 edges after its first one and within the segment, for any edges that are well formed (`Well_Formed`); `Profiles.Find_Edges` returns well-formed edges for any levels; **a word that `Reed_Solomon.Correct` reports as corrected is a codeword** (every syndrome zero, `Is_Codeword`), differs from the word given in exactly the number of elements reported, at most half the check elements, and a word that is not corrected is unchanged; `Dark_Areas` (the dark pixels, an outline and its hull), `Views` (the points, the dark pixel at a point and the perspective mapping of a symbol), `Data_Matrix.Finder` (the corners and the modules of a symbol), `Data_Matrix` (the places of the codewords, the blocks and the text), `QR_Code.Finder` (the finder patterns, the three that make a symbol, its alignment pattern and its modules) and `QR_Code` (the format and version information, the places of the codewords, the blocks and the text) have no run-time error for any map, hull, outline, mapping, patterns and grid of modules, and a text never exceeds its buffer. **Not proved** (tested, `tests/test_code_reader.adb`, `tests/test_code_reader_2d.adb`, `tests/test_code_reader_data_matrix.adb`, `tests/test_code_reader_qr_symbol.adb`, `tests/test_code_reader_qr_finder.adb` and `tests/test_code_reader_qr_code.adb` on generated symbols, `tests/test_code_reader_qr_patterns.adb`, `tests/test_code_reader_qr_placing.adb` and `tests/test_code_reader_qr_sampling.adb` on maps made pixel by pixel, and `tests/real_images` on photographs): that a reported text is the text of a symbol of the image (the pattern tables, the check digits and the rules of each symbology; for Data Matrix and QR Code that the symbol is found, the places of the codewords, the tables of GF(256) and of the blocks, the rules of the encodations and of the modes, for QR Code also the format and version information and the masks, and that a word with no more errors than half its check elements is corrected), that at least MinScanLines lines read a linear barcode, and the accuracy of the positions and of the angle | 2 |
 
 `AMV.Kernels.Regions` added Ada-only functions to `AMV.Kernels.Shapes`:
 `Rectangle_Contains`, `Rectangle_Affine_Contains`, `Circle_Contains`,
@@ -270,9 +276,9 @@ entry point returns exactly that function's result once its arguments
 pass; the `ks_*_boundary_slack` postconditions say that the region is
 valid when they succeed.
 
-Total (2026-11-16): 37505 checks, the 34514 of `main` at 2026-11-12 and
-the 2991 of the code reader kernel (1281 before its Data Matrix pass),
-which was proved as its own group
+Total (2026-11-16): 38478 checks, the 34514 of `main` at 2026-11-12 and
+the 3964 of the code reader kernel (2991 before its QR Code pass, 1281
+before its Data Matrix pass), which was proved as its own group
 (33720 before the four additions before it: the region modes of the IP
 one-image tool added 296, the soft segmentation of the blob tool 335,
 the region modes of the Sobel edge tool 129, and the train region mode
@@ -546,9 +552,12 @@ are the trusted ones listed below (and the runtime's
     corners of a hull and the pool from 1), and every extent has the
     value given; a results record that is not null has no items and no
     texts. The children of the kernel (`Linear`, `Profiles`,
-    `Dark_Areas`, `Data_Matrix`, `Data_Matrix.Finder` and
-    `Reed_Solomon`) have no such body: they work in the arrays they are
-    given.
+    `Dark_Areas`, `Views`, `Reed_Solomon`, `Data_Matrix`,
+    `Data_Matrix.Finder`, `QR_Code` and `QR_Code.Finder`) have no such
+    body: they work in the arrays they are given. The QR Code pass
+    allocates nothing: it reads the map of the dark pixels, and its
+    tables (256 finder patterns, the modules of a symbol, its codewords)
+    have a fixed size.
 
 ## Run-time guards that stand in for missing contracts
 
@@ -1100,13 +1109,15 @@ length is not read).
 
 The Data Matrix pass of the code reader works on a map of the dark
 pixels of the area to scan, whose rows and columns are 1048576 together
-at most (the limit above). `Dark_Areas` and `Data_Matrix.Finder` carry
-their bounds in subtypes (a map has at most 2**26 rows and columns, and
-the corners of a hull are corners of its pixels; in the finder a
-coordinate lies within 2**28 pixels, a difference of two within 2**29
-and a distance within 2**30). The finder forms its products through
-`AMV.Kernels.Numerics` and its quotients through one function,
-`Quotient`, which gives a bound where a quotient exceeds it.
+at most (the limit above). `Dark_Areas`, `Views` and
+`Data_Matrix.Finder` carry their bounds in subtypes (a map has at most
+2**26 rows and columns, and the corners of a hull are corners of its
+pixels; in `Views`, the points and the mapping that the finders of the
+two passes share, a coordinate lies within 2**28 pixels, a difference
+of two within 2**29 and a distance within 2**30). The finder forms its
+products through `AMV.Kernels.Numerics` and its quotients through one
+function, `Views.Quotient`, which gives a bound where a quotient
+exceeds it.
 `Data_Matrix`, `Reed_Solomon` and the outlines and hulls of `Dark_Areas`
 compute with integers only. The limits of the pass that never act:
 
@@ -1193,6 +1204,120 @@ modules along a side are not tried; a text in which an upper shift
 would give a character above 255 is not read; an item holds the first
 255 characters of a longer Data Matrix text and its whole length
 (`Results_Text` gives all of it).
+
+The QR Code pass works on the same map of the dark pixels, with the
+points, the quotient and the mapping of `Views` and the bounds that
+their subtypes carry. `QR_Code.Finder` forms its products through
+`AMV.Kernels.Numerics` and its quotients through `Views.Quotient`;
+`QR_Code` and `Reed_Solomon` compute with integers only. The limits of
+the pass that never act:
+
+* `Cross_Check` tests that the middle of the third of the five runs is
+  a pixel of the row or the column that it follows: the pixels of that
+  run are pixels of the map;
+* `Find_Patterns` follows the runs of a column and of a diagonal for
+  the pixels of the third run of the row and for 2**26 at most (no run
+  is longer than a side of a map); the bound of `Quotient` (2**28) is
+  not reached for the middle of a pattern (half of twice a coordinate
+  of a pixel) nor for the width of its modules (a fourteenth of the
+  pixels of a row and of a column);
+* `Add` takes the mean of the places and of the widths that the rows
+  give for a pattern: the bound of the quotient in `Mean` (2**28) is
+  not reached (a mean of coordinates of the map), a mean of widths is
+  not negative (the larger of it and 0.0 is taken), and the rows in
+  which a pattern was found are counted up to 2**20 - 1, more than a
+  map of the pass has;
+* `Settle` takes the whole part of four modules up to 4000 pixels (a
+  pattern with modules of more than 1000 pixels has been left as it is
+  before); the bound 2**28 of the two quotients that give the middle of
+  the dark pixels is not reached (a mean of coordinates of pixels); and
+  it tests that the rows followed have a pixel, which the row of the
+  middle has (the pixel of the middle is dark);
+* `Module_Along` goes 2**20 steps of half a pixel at most: it goes
+  twelve modules and four steps, and a module of a map of the pass has
+  at most 74898 pixels (a fourteenth of its rows and columns together,
+  2**20 at most);
+* in `Arm` the bound 2**32 of the modules between two patterns is not
+  reached (a distance of at most 2**30 pixels by a width of half a
+  pixel or more), nor the upper limit 1.0 of how much farther one of
+  them is (the ratio of the two widths is limited to 4, and so its root
+  to 2);
+* `Share` and `Beside_Corner` give a coordinate in the plane of the
+  symbol within 4: the middles of the finder patterns are at 0 and 1
+  there, and the places that the pass looks at lie between -0.25 (a
+  side of the smallest symbol) and 1.6 (eleven modules after the place
+  of the alignment pattern);
+* `Mean_Of` gives a mean of shifts within the widest shift (nine
+  modules), which a mean of shifts is;
+* in `Tilt` the place of the alignment pattern between the finder
+  patterns is below 1, and 1 by it at most 1.2 (15 of 18 modules in the
+  smallest symbol that has an alignment pattern; the bounds are 1 and
+  4); the bound 2**100 of the two factors that make the view a
+  perspective one is not reached (a numerator below 2**61 by a
+  determinant of at least 1.0E-9: below 2**91);
+* in `QR_Code`, `Read_Codewords` tests that the modules outside the
+  function patterns give the codewords of the version and no eighth
+  bit more, which they do for every version (seven bits at most are
+  left over); `Correct_Blocks` tests that the blocks of a version and
+  level have its codewords together and at most 2956 of the message,
+  that every codeword of a block is one of the symbol and that the
+  codewords of the message of the blocks are among those of the
+  version and level, which holds for the tables of the symbology; and
+  `Put` tests that the text has room (a symbol holds at most 7089
+  characters, and the buffer of the kernel has room for them). These
+  are not proved: the tests read a symbol of every version and level.
+  The mutation tests agree with them: a mutant of one of these tests
+  passes every test of the suite, and its line carries a mark with the
+  reason (`docs/DESIGN.md` 8).
+
+Limits of the QR Code pass that can act and so belong to the documented
+behaviour: the symbols count as candidates, as those of the Data Matrix
+pass do; a run of a column or of a diagonal through the middle of a
+finder pattern is followed no farther than the pixels of the third run
+of its row (a longer one is not that of a pattern); the pass keeps 256
+finder patterns, those of 85 symbols: when the table is full, the ones
+found in one row only that the rows are past are taken out, a further
+pattern is not kept while the table stays full, and at the end only
+those found in two rows or more remain; the middle of a pattern stays
+where the runs put it where its modules have more than 1000 pixels,
+where the pixel there is not dark, where a row of dark pixels through
+it has more than four modules and two pixels or more rows than that
+follow on one side, and where the middle of those dark pixels is more
+than a module away; three patterns are a symbol only where the two
+others are 10 pixels or more from the one in the corner and neither is
+more than twice as far as the other, where the angle between them is
+between 60 and 120 degrees and the three are not on one line, where no
+pattern has modules more than twice as wide as another, where the two
+others are seven modules of the narrowest of the three or more away,
+where the width of a module along an arm is seen at one end at least
+(the third change between dark and light within twelve modules and
+four steps of half a pixel) and is half a pixel or more, and where the
+arms have 10 to 176 modules (their mean); the version is that mean
+less 10, by 4, rounded and limited to 1 .. 40 (which acts for a mean
+below 12 and from 172 on); the components of the unit vector along an
+arm are limited to [-1, 1] (rounding); the ratio of the widths of a
+module at the two ends of an arm is limited to 4, and what it says of
+the view to -0.5 below; a mapping is used only where at most 4 of the
+42 modules looked at in the three finder patterns are not as those of
+a pattern and where one of the two timing patterns changes as often as
+it should, a quarter more or less (two changes at least); the
+alignment pattern is looked for within four modules of its place, and
+within eight where it is not whole there, at places a quarter of a
+module apart, and it is taken where at most two of its 25 modules are
+amiss: at the place with the fewest of them, the nearest of such (its
+middle is the mean of the places at the odd sixteenths of a module
+within a module of that one that have no more amiss, or that place
+itself where there is none); the mapping stays the one of the three
+finder patterns where the determinant of the four points is below
+1.0E-9; a symbol is not read with a mapping that gives no point for
+one of its corners or for its middle, or one beyond 2**28 pixels; a
+module where the mapping gives no point is light; a corner pattern is
+tried with the 32 nearest patterns whose modules are about as wide,
+and with 16 pairs of them at most that can be the two others without
+giving a text; the versions tried are the one that the patterns give
+and the two before and after it; a symbol whose text is empty is not
+reported; an item holds the first 255 characters of a longer text and
+its whole length, as for Data Matrix.
 
 ## Proof notes
 
@@ -1971,6 +2096,65 @@ Lessons from the Data Matrix pass of `AMV.Kernels.Code_Reader`
 * `Dark_Areas.Point` has its components in a subtype (0 .. 2**26): the
   finder gets the bounds of the corners of a hull from their type, and
   needs no precondition about them beyond their number (`Valid_Hull`).
+
+Lessons from the QR Code pass of `AMV.Kernels.Code_Reader` (`Views`,
+`QR_Code` and `QR_Code.Finder`):
+
+* What two finders need is proved once. The points of an image, the
+  quotient with a bound and the mapping of a plane were local to the
+  Data Matrix finder. They are a unit of their own now (`Views`), with
+  contracts, and the QR Code finder uses them as they are: the Data
+  Matrix finder has 392 prover checks where it had 420, and `Views` 43.
+* The slowest checks of the group are four preconditions in `Tilt`, of
+  3 to 4 seconds each: that RX and RY, each a coordinate less two
+  products, are within 2**30 where they go into `Numerics.Mul_Within`.
+  With the two products and the differences in subtypes the same checks
+  take half a second at most (tried). The code has the first form: a
+  subtype is a range check in the code, and the reader was frozen for
+  the evaluation on photographs by then. It is for the next change of
+  the finder.
+* Mutation testing checks the tests, and what this document says of
+  limits that never act. A test of a body that cannot fail may be
+  replaced by `True` without any test of the suite failing, so such a
+  test shows up as a mutant that survives; a mutant that survives where
+  the document says nothing is a gap in the tests or in the document.
+  The tests of the finder painted whole, even symbols, and 390 of its
+  1076 mutants survived them: the tolerances of the search for finder
+  patterns (how far five runs may be from 1 : 1 : 3 : 1 : 1, how far a
+  column from its row, what the diagonals must show), the settling of
+  their middles, and the limits of the placing and of the sampling (the
+  arms, the angle between them, the widths of a module, the modules of
+  the finder patterns that may be amiss, the changes along the timing
+  patterns, where the alignment pattern is looked for and which of the
+  two mappings is used). Three test units of maps made pixel by pixel
+  check them now (`tests/test_code_reader_qr_patterns.adb`,
+  `test_code_reader_qr_placing.adb`, `test_code_reader_qr_sampling.adb`):
+  277 of the 390 fail a test now, 92 are marked with their reason (24 of
+  them not pinned), 20 that fail a test now are taken out with them by
+  the marks of their lines, and one is left with its reason in a
+  comment. AdaMutant gives the finder 99.89 % (906 of 907 mutants found,
+  146 marked out) where it gave 62.89 %. The mutants agreed with every
+  limit above that never acts, and showed two comments of the finder
+  to be imprecise (which patterns `Purge` takes away, and when
+  `Rows_Of` gives up); they are corrected.
+* A map that tells a mutant from the source can be searched for. The
+  finder was linked twice into one program, as it is and, renamed,
+  with the mutant, and the two were run on millions of random maps, or
+  on symbols painted with modules changed and placed with values
+  changed; a map on which they differ, made smaller where it could be,
+  is a test case. Where millions gave none, the mark says "not pinned"
+  and its comment says what map would.
+* The file cache of the proofs (`PROVE_CACHE`) keys a check by its
+  place in the source as well. With 65 comment lines added to the body
+  of `QR_Code`, which moved the lines after them, the proof of that
+  unit took 3 minutes 54 seconds and wrote 773 new entries: its checks
+  were proved again. After a change of comments that moved no line it
+  took a second and a half and wrote none. A comment that is added
+  costs a proof of the unit; a comment that is changed in place does
+  not. The marks of the mutation tests are comment lines as well: 164
+  lines added to the body of the finder and 13 to that of `Views` cost
+  a proof of 91 seconds that wrote 2232 new entries, and those of the
+  body of the kernel one of 5 minutes 24 seconds that wrote 2096.
 
 ## Assumptions and limits
 
