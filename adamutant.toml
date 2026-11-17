@@ -1,0 +1,24 @@
+# Mutation testing with AdaMutant (https://github.com/gomurin0428/AdaMutant):
+# it changes the sources in small ways and looks whether a test fails for
+# every change. "make mutation-diff" takes the lines changed since
+# origin/main, "make mutation MUTATE=<file>" one file or pattern.
+
+# Bodies only: the specifications hold declarations and contracts.
+mutate = ["src/*.adb"]
+# The build of the tests, less three passes of the optimiser. AdaMutant
+# compiles all the mutants of a file as one unit, and on such a unit
+# (the 1076 mutants of the QR Code finder) these passes take the
+# compiler 16 minutes instead of 3; a build of more than 10 minutes
+# ends the run. AdaMutant runs the tests on this build first, without
+# a mutant and then with all of them in it and switched off.
+build = "gprbuild -q -p -j2 -P amv_tests.gpr test_suite.adb -cargs -fno-tree-fre -fno-tree-pta -fno-var-tracking"
+# The areas of test_suite that check the unit of the mutated file.
+test = "sh tools/mutant_tests.sh"
+# A mutant of a size or of a loop bound can allocate without limit.
+test_memory_limit_mb = 2048
+sandbox_exclude = [".git", "build", "alire", "config", "obj"]
+
+[thresholds]
+high = 80
+low = 60
+break = 0

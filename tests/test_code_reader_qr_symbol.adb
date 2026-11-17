@@ -1491,6 +1491,7 @@ procedure Test_Code_Reader_QR_Symbol is
    procedure Test_Version_Information is
       Three    : Boolean := True;
       One_Copy : Boolean := True;
+      Edge     : Boolean := True;
       Four     : Boolean := True;
       Beside   : Boolean := True;
       Refusals : Natural := 0;
@@ -1523,6 +1524,20 @@ procedure Test_Code_Reader_QR_Symbol is
             Read (Hurt, V);
             One_Copy := One_Copy and then Read_Is (T, 0);
 
+            --  One copy at the limit, the other beyond it: each copy
+            --  is taken with three wrong bits, whatever the other says.
+            Hurt := Sym;
+            Enc.Put_Version (Hurt, 1, Flipped (Word, 18, 3));
+            Enc.Put_Version (Hurt, 2, Flipped (Word, 18, 4));
+            Read (Hurt, V);
+            Edge := Edge and then Read_Is (T, 0);
+
+            Hurt := Sym;
+            Enc.Put_Version (Hurt, 1, Flipped (Word, 18, 4));
+            Enc.Put_Version (Hurt, 2, Flipped (Word, 18, 3));
+            Read (Hurt, V);
+            Edge := Edge and then Read_Is (T, 0);
+
             Hurt := Sym;
             Enc.Put_Version (Hurt, 1, Flipped (Word, 18, 4));
             Enc.Put_Version (Hurt, 2, Flipped (Word, 18, 4));
@@ -1547,6 +1562,7 @@ procedure Test_Code_Reader_QR_Symbol is
              "the versions 7 to 40 with three wrong bits in both copies");
       Check (One_Copy,
              "one copy with four wrong bits, or inverted, the other whole");
+      Check (Edge, "three wrong bits in one copy and four in the other");
       Check (Four, "four wrong bits in both copies: no text");
       Check (Beside,
              "read as the version before or after its own: never the text");

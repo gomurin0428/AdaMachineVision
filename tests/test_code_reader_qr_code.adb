@@ -18,6 +18,7 @@
 with Ada.Calendar;
 with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Text_IO;
+with Ada.Unchecked_Deallocation;
 
 with AMV;                    use AMV;
 with AMV.Code_Reader;        use AMV.Code_Reader;
@@ -560,6 +561,7 @@ procedure Test_Code_Reader_QR_Code is
       procedure Blur_More (Image : in out Ks_Image_8_Grey; Seed : Positive);
       procedure Noise (Image : in out Ks_Image_8_Grey; Seed : Positive);
       procedure Shading (Image : in out Ks_Image_8_Grey; Seed : Positive);
+      procedure Thin (Image : in out Ks_Image_8_Grey; Seed : Positive);
 
       procedure Blur_Little
         (Image : in out Ks_Image_8_Grey; Seed : Positive)
@@ -589,6 +591,36 @@ procedure Test_Code_Reader_QR_Code is
          BC.Blur (Image, 0.5);
          BC.Shade (Image, 1.0, 0.4);
       end Shading;
+
+      procedure Thin (Image : in out Ks_Image_8_Grey; Seed : Positive) is
+         pragma Unreferenced (Seed);
+         --  Every pixel gets the lightest level of itself and its four
+         --  neighbours: the dark areas lose a pixel on every side.
+         type Levels is array (Natural range <>, Natural range <>) of Grey_8;
+         type Levels_Access is access Levels;
+         procedure Free is
+           new Ada.Unchecked_Deallocation (Levels, Levels_Access);
+         W   : constant Positive := Width (Image);
+         H   : constant Positive := Height (Image);
+         Old : Levels_Access := new Levels (0 .. H - 1, 0 .. W - 1);
+      begin
+         for Y in 0 .. H - 1 loop
+            for X in 0 .. W - 1 loop
+               Old (Y, X) := Get_Pixel (Image, X, Y);
+            end loop;
+         end loop;
+         for Y in 1 .. H - 2 loop
+            for X in 1 .. W - 2 loop
+               Set_Pixel
+                 (Image, X, Y,
+                  Grey_8'Max
+                    (Grey_8'Max (Old (Y, X), Old (Y - 1, X)),
+                     Grey_8'Max (Grey_8'Max (Old (Y + 1, X), Old (Y, X - 1)),
+                                 Old (Y, X + 1))));
+            end loop;
+         end loop;
+         Free (Old);
+      end Thin;
    begin
       Section ("CodeReader: QR Code symbols in images of less quality");
       Check_Series ("modules of 4 pixels, blurred by 0.7 pixels",
@@ -601,6 +633,18 @@ procedure Test_Code_Reader_QR_Code is
                     Dark => 100, Light => 130);
       Check_Series ("the right side of the image at 0.4 of the light",
                     Some_Versions, 4.0, Spoil => Shading'Access);
+      --  Modules of 6 pixels whose dark ones are 4 pixels wide: the
+      --  finder patterns are a pixel smaller on each side, and an arm
+      --  seems to have a twentieth more modules than it has, so that
+      --  the patterns of the versions 10, 15 and 22 give the version
+      --  after the right one, and those of 28 and 30 the one after
+      --  that.
+      Check_Series ("modules of 6 pixels, the dark ones a pixel thinner "
+                    & "on each side", Some_Versions, 6.0,
+                    Spoil => Thin'Access);
+      Check_Series ("modules of 6 pixels, the dark ones a pixel thinner "
+                    & "on each side", [28, 30], 6.0, Turns => 2,
+                    Spoil => Thin'Access);
    end Test_Quality;
 
    ---------------------------------------------------------------------
@@ -1002,10 +1046,13 @@ procedure Test_Code_Reader_QR_Code is
              & "a row");
 
       --  More finder patterns than a run holds: the symbols whose
-      --  three patterns are among the first 256 are read.
+      --  three patterns are among the first 256 are read. Those are
+      --  the 72 symbols of the first four rows (216 patterns), and of
+      --  the fifth row, whose 36 upper patterns come next, the first
+      --  four.
       Read_Grid (18, False, "90 symbols", Tool, Right, Ordered);
       Check (Tool.Run_Status.Result = Accept_Result
-             and then Tool.Results.Count in 72 .. 85
+             and then Tool.Results.Count = 76
              and then Right = Tool.Results.Count,
              "90 symbols: those whose patterns the run holds, each with "
              & "its text (found" & Tool.Results.Count'Image & ", right"
@@ -1508,6 +1555,62 @@ procedure Test_Code_Reader_QR_Code is
       Time (Everything, "all symbologies");
    end Test_Timing;
 
+   ---------------------------------------------------------------------
+   --  Finder patterns of no symbol around a corner
+   ---------------------------------------------------------------------
+
+   procedure Test_Pairs is
+      type Offset is record
+         DX, DY : Integer;
+      end record;
+
+      type Offset_List is array (Positive range <>) of Offset;
+
+      function Read_Among (Decoys : Offset_List) return Boolean;
+      --  A symbol of version 5 with modules of 3 pixels whose upper
+      --  left finder pattern has its middle at (160.5, 160.5), with
+      --  finder patterns of the same width and of no symbol whose
+      --  middles are Decoys modules from that one, is read.
+
+      function Read_Among (Decoys : Offset_List) return Boolean is
+         Version : constant QR.Version_Number := 5;
+         Side    : constant Real := Real (QR.Side (Version));
+         Image   : Ks_Image_8_Grey := TI.Blank (600, 600, 255);
+         Where   : Paint.Corners;
+         Pattern : Enc.Module_Matrix (0 .. 6, 0 .. 6);
+         Tool    : Ks_Code_Reader_Tool;
+      begin
+         for R in 0 .. 6 loop
+            for C in 0 .. 6 loop
+               Pattern (R, C) := Integer'Max (abs (R - 3), abs (C - 3)) /= 2;
+            end loop;
+         end loop;
+         Put_Symbol (Image, Message ("pairs", Version),
+                     150.0 + 1.5 * Side, 150.0 + 1.5 * Side, 3.0, Where);
+         for O of Decoys loop
+            Put_Symbol (Image, Pattern, 160.5 + 3.0 * Real (O.DX),
+                        160.5 + 3.0 * Real (O.DY), 3.0, Where);
+         end loop;
+         Tool := Run_On (Image);
+         return Is_Only (Tool, "pairs");
+      end Read_Among;
+
+      Fifteen : constant Offset_List :=
+        [(0, -27), (-9, -18), (0, -18), (-18, 0), (-27, 9), (-18, 9)];
+   begin
+      Section ("CodeReader: finder patterns of no symbol around a corner");
+      --  The corner is tried with pairs of the patterns nearest to it,
+      --  the nearest first, and with 16 pairs at most that can make a
+      --  symbol with it as far as the three patterns tell but give no
+      --  text. The patterns of no symbol are nearer to it than its own
+      --  two others (30 modules away). With these six, 15 such pairs
+      --  come before the pair of its own two, and it is read; with one
+      --  more, 16, and it is not.
+      Check (Read_Among (Fifteen), "15 pairs before its own two");
+      Check (not Read_Among (Fifteen & Offset'(18, -18)),
+             "16 pairs before its own two");
+   end Test_Pairs;
+
    procedure Run_All is
    begin
       Test_Versions;
@@ -1518,6 +1621,7 @@ procedure Test_Code_Reader_QR_Code is
       Test_Texts;
       Test_Several;
       Test_Many;
+      Test_Pairs;
       Test_Region;
       Test_Run_Params;
       Test_Fixture;

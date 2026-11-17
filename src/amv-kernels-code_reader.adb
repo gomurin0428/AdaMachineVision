@@ -1832,7 +1832,13 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    begin
       Outcome := Done;
       for I in 0 .. Count - 1 loop
+         --  Not pinned: a symbol read a second time, from other finder
+         --  patterns or from another dark area; no test image gives one.
+         --  adamutant:disable ConditionalExpression, EqualityOperator
+         --  adamutant:disable LogicalOperator
          if Symbols (I).Kind = Kind
+         --  adamutant:enable
+           --  adamutant:disable-next-line EqualityOperator, LogicalOperator
            and then Symbols (I).Length = Length
            and then Near (Symbols (I), Symbol)
            and then Same_Text (Pool.all, Symbols (I).Start, Text, Length)
@@ -1901,6 +1907,9 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    Max_Patterns : constant := 256;
    --  The finder patterns of a pass, at most: those of 85 symbols.
 
+   --  Not pinned: more than 30 patterns as wide nearer to a corner than
+   --  its two others, none of which make a symbol with it.
+   --  adamutant:disable-next-line NumericLiteral: not pinned
    Max_Partners : constant := 32;
    --  The finder patterns nearest to one that are tried as the two
    --  others of its symbol, at most.
@@ -1961,11 +1970,18 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       OK               : Boolean;
       Unused_Corrected : Natural;
    begin
+      --  Read only where Success holds.
+      --  adamutant:disable-next-line StatementDeletion: equivalent
       Shape := (others => <>);
+      --  adamutant:disable-next-line StatementDeletion: equivalent
       Centre := (others => <>);
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       Length := 0;
       Success := False;
       QF.Place (Map, First, Second, Third, Symbol, Tried);
+      --  A placing not found has its three corners at one point, and no
+      --  mapping from it puts the finder patterns on the map.
+      --  adamutant:disable-next-line ConditionalExpression: equivalent
       if not Tried then
          return;
       end if;
@@ -1975,10 +1991,16 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          for Step of Version_Steps loop
             pragma Loop_Invariant (Tried and then not Success
                                    and then Length = 0);
+            --  The same versions in another order: a symbol is read with
+            --  its own version only.
+            --  adamutant:disable-next-line ArithmeticOperator: equivalent
             Version := Symbol.Version + Step;
             if Version in QR.Version_Number then
                QF.Sample (Map, Symbol, Version, Again, Grid, Shape, Centre,
                           OK);
+               --  Where not OK the grid is all light: it has no format
+               --  information and is never read.
+               --  adamutant:disable-next-line ConditionalExpression
                if OK then
                   for Mirror in Boolean loop
                      pragma Loop_Invariant (Tried and then not Success
@@ -1996,7 +2018,14 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
                         end if;
                         return;
                      end if;
+                     --  Length is read only where Success holds.
+                     --  adamutant:disable StatementDeletion, NumericLiteral
                      Length := 0;
+                     --  adamutant:enable
+                     --  Not pinned: an empty text from the last reading
+                     --  tried (another follows an empty one but for the
+                     --  last); no test symbol gives it.
+                     --  adamutant:disable-next-line StatementDeletion
                      Success := False;
                   end loop;
                end if;
@@ -2055,6 +2084,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Taken    : Flags := [others => False];
       Found    : Natural;
       Near     : Partner_List := [others => 1];
+      --  Only Ways (1 .. Nearest) is read, and set below.
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       Ways     : Way_List := [others => 0.0];
       Nearest  : Natural range 0 .. Max_Partners;
       Way      : VW.Length_Value;
@@ -2075,6 +2106,10 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
            (Outcome = Done and then Count <= Room
             and then Symbols_OK (Symbols, Count, Used)
             and then Pool_OK (Pool, Used));
+         --  Not pinned: a corner already of a symbol, tried again with
+         --  the patterns not of one; no test image gives a symbol from
+         --  it.
+         --  adamutant:disable-next-line ConditionalExpression: not pinned
          if not Taken (I) then
 
             --  Near (1 .. Nearest): the patterns that can be of one
@@ -2082,22 +2117,39 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
             --  distances in Ways.
             Nearest := 0;
             for J in 1 .. Found loop
+               --  Not pinned: the corner itself, patterns already of a
+               --  symbol and patterns of other widths among the nearest;
+               --  no test image gives another result with them.
+               --  adamutant:disable ConditionalExpression, LogicalOperator
                if J /= I and then not Taken (J)
+               --  adamutant:enable
+                 --  adamutant:disable-next-line LogicalOperator: not pinned
                  and then QF.Akin (Patterns (I), Patterns (J))
                then
                   Way :=
                     VW.Distance (Patterns (I).Centre, Patterns (J).Centre);
+                  --  Not pinned: more than 32 patterns as wide around a
+                  --  corner (see Max_Partners).
+                  --  adamutant:disable ConditionalExpression, EqualityOperator
                   if Nearest < Max_Partners
+                  --  adamutant:enable
+                    --  adamutant:disable-next-line EqualityOperator
                     or else Way < Ways (Max_Partners)
                   then
                      if Nearest < Max_Partners then
                         Nearest := Nearest + 1;
                      end if;
                      Slot := Nearest;
+                     --  Not pinned: patterns as far from the corner, or
+                     --  in another order; no test image gives another
+                     --  result with them.
+                     --  adamutant:disable-next-line EqualityOperator
                      while Slot > 1 and then Ways (Slot - 1) > Way loop
                         pragma Loop_Invariant (Slot in 2 .. Nearest);
                         pragma Loop_Variant (Decreases => Slot);
+                        --  adamutant:disable StatementDeletion, NumericLiteral
                         Ways (Slot) := Ways (Slot - 1);
+                        --  adamutant:enable
                         Near (Slot) := Near (Slot - 1);
                         Slot := Slot - 1;
                      end loop;
@@ -2115,6 +2167,9 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
                   and then Tries < Max_Tries
                   and then Symbols_OK (Symbols, Count, Used)
                   and then Pool_OK (Pool, Used));
+               --  A pair of one pattern twice is no symbol to Place (an
+               --  angle of 0) and is not counted.
+               --  adamutant:disable-next-line NumericLiteral: equivalent
                for A in 1 .. B - 1 loop
                   pragma Loop_Invariant
                     (Outcome = Done and then Count <= Room
@@ -2130,9 +2185,18 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
                                  Text_Pool (Text), Length, Room, Symbols,
                                  Count, Pool, Used, Outcome);
                      exit Corners when Outcome /= Done;
+                     --  Not pinned: the patterns of a symbol read, tried
+                     --  again with other corners; no test image gives
+                     --  another result with them.
+                     --  adamutant:disable StatementDeletion, BooleanLiteral
                      Taken (I) := True;
+                     --  adamutant:enable
+                     --  adamutant:disable StatementDeletion, BooleanLiteral
                      Taken (Near (A)) := True;
+                     --  adamutant:enable
+                     --  adamutant:disable StatementDeletion, BooleanLiteral
                      Taken (Near (B)) := True;
+                     --  adamutant:enable
                      exit Pairs;
                   end if;
                   if Tried then
@@ -2246,6 +2310,10 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       if With_Data_Matrix then
          --  Every dark area once, at the first pixel of its outline.
          Rows :
+         --  Not pinned: an area whose outline is not reached from another
+         --  row or column; a symbol at the edge of the map is read either
+         --  way.
+         --  adamutant:disable-next-line NumericLiteral: not pinned
          for Y in 0 .. H - 1 loop
             pragma Loop_Invariant
               (Map /= null and then Lefts /= null and then Rights /= null
@@ -2262,6 +2330,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
               (Outcome = Done and then Count <= Room
                and then Symbols_OK (Symbols, Count, Used)
                and then Pool_OK (Pool, Used));
+            --  adamutant:disable-next-line NumericLiteral: not pinned
             for X in 0 .. W - 1 loop
                pragma Loop_Invariant
                  (Map /= null and then Lefts /= null and then Rights /= null

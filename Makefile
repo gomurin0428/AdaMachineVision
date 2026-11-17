@@ -10,10 +10,18 @@ PROVE_CACHE_SWITCH = $(if $(PROVE_CACHE),--memcached-server=file:$(abspath $(PRO
 # Source files to prove (empty = the whole project), for example one proof
 # group of the CI: make prove PROVE_UNITS="$$(tools/prove_groups.sh core)".
 PROVE_UNITS ?=
+# Mutation testing (adamutant.toml) with AdaMutant
+# (https://github.com/gomurin0428/AdaMutant): the file or pattern to
+# mutate for make mutation (empty = every body), the revision whose
+# changed lines make mutation-diff takes, and the number of sandboxes.
+ADAMUTANT ?= adamutant
+MUTATE ?=
+MUTATION_BASE ?= origin/main
+MUTATION_JOBS ?= 2
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	prove clean
+	prove mutation mutation-diff clean
 
 all: build
 
@@ -107,6 +115,19 @@ prove:
 	$(GNATPROVE) -P amv.gpr -j$(PROVE_JOBS) --checks-as-errors=on \
 	  --warnings=error --report=fail $(PROVE_CACHE_SWITCH) \
 	  $(foreach u,$(PROVE_UNITS),-u $(u))
+
+# Mutation testing: every small change of a source (a mutant) is built
+# and the tests of its unit are run (tools/mutant_tests.sh); a mutant
+# that no test notices shows a gap in the tests. Run make mutation-diff
+# before a pull request that changes a kernel, and
+# make mutation MUTATE=src/<file>.adb for a whole file.
+mutation:
+	$(ADAMUTANT) run --concurrency $(MUTATION_JOBS) \
+	  $(if $(MUTATE),--mutate '$(MUTATE)')
+
+mutation-diff:
+	$(ADAMUTANT) run --concurrency $(MUTATION_JOBS) \
+	  --since $(MUTATION_BASE) $(if $(MUTATE),--mutate '$(MUTATE)')
 
 clean:
 	rm -rf build

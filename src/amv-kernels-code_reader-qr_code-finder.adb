@@ -23,6 +23,8 @@ is
    --  The runs of a finder pattern
    ---------------------------------------------------------------------
 
+   --  A run is at most DA.Max_Side (2 ** 26) pixels.
+   --  adamutant:disable-next-line NumericLiteral: not reached
    subtype Run_Length is Natural range 0 .. 2 ** 28;
    --  The pixels of a run (a map has 2 ** 26 a side at most).
 
@@ -111,6 +113,9 @@ is
       A := Counts (0);
       B := Counts (1);
       C := Counts (2);
+      --  B is 0 only where C is, and a run of no pixels is never in
+      --  proportion (In_Proportion).
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       OK := A <= Most and then B in 1 .. Most and then C in 1 .. Most;
    end Walk;
 
@@ -166,14 +171,25 @@ is
       Runs := [C1, B1, A1 + 1 + A2, B2, C2];
       Sum := Total (Runs);
       First := Start - A1;
+      --  Place and Twice are read only where OK holds.
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       Place := 0;
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       Twice := 0;
       OK := OK_1 and then OK_2 and then In_Proportion (Runs)
         and then Alike (Sum, Width)
+        --  Changed, these two still hold: two runs come before the third
+        --  and two after it.
+        --  adamutant:disable-next-line EqualityOperator, NumericLiteral
         and then First >= 0
+        --  adamutant:disable ArithmeticOperator, NumericLiteral
+        --  adamutant:disable EqualityOperator
         and then First + (A1 + A2) / 2 <= Last;
+        --  adamutant:enable
       --  The last two conditions always hold: the pixels of the third
       --  run are pixels of the map.
+      --  Place and Twice are read only where OK holds.
+      --  adamutant:disable-next-line ConditionalExpression: equivalent
       if OK then
          Place := First + (A1 + A2) / 2;
          Twice := 2 * First + A1 + 1 + A2;
@@ -236,6 +252,8 @@ is
       Count : constant Long_Float := Long_Float (Seen);
    begin
       return VW.Quotient
+        --  Count is at most Max_Seen (2 ** 20).
+        --  adamutant:disable-next-line NumericLiteral: not reached
         (N.Mul_Within (Old, Count, VW.Limit, 2.0 ** 20) + Value,
          Count + 1.0, VW.Limit);
    end Mean;
@@ -248,8 +266,8 @@ is
         Post => Count <= Count'Old;
    --  Takes away the patterns found in one row only that the row Row
    --  is past: those whose middle is more than three of their modules
-   --  and a pixel above it, which no further row finds again. The
-   --  others keep their order.
+   --  and a pixel above it (no row so far below finds an even pattern
+   --  again). The others keep their order.
 
    procedure Purge
      (Patterns : in out Pattern_Array;
@@ -296,12 +314,26 @@ is
    begin
       for I in 1 .. Count loop
          P := Patterns (I);
+         --  A module smaller than P.Module is never more than P.Module
+         --  smaller: the test below holds either way.
+         --  adamutant:disable-next-line UnaryOperator: equivalent
          Apart := abs (Module - P.Module);
          if abs (X - P.Centre.X) <= P.Module
            and then abs (Y - P.Centre.Y) <= P.Module
+           --  Not pinned: a candidate at the middle of a pattern with
+           --  more than twice its module; no map was found on which these
+           --  act.
+           --  adamutant:disable EqualityOperator, NumericLiteral
+           --  adamutant:disable LogicalOperator
            and then (Apart <= 1.0 or else Apart <= P.Module)
+           --  adamutant:enable
          then
+            --  A pattern in the table was seen once at least, and in
+            --  fewer than 2 ** 20 - 1 rows: a map of the pass has fewer.
+            --  adamutant:disable ConditionalExpression, NumericLiteral
+            --  adamutant:disable ArithmeticOperator
             if P.Seen in 1 .. Max_Seen - 1 then
+            --  adamutant:enable
                Patterns (I) :=
                  (Centre => (X => Mean (P.Centre.X, P.Seen, X),
                              Y => Mean (P.Centre.Y, P.Seen, Y)),
@@ -323,6 +355,8 @@ is
       end if;
    end Add;
 
+   --  Reach is at most 4002.
+   --  adamutant:disable-next-line NumericLiteral: not reached
    Max_Reach : constant := 2 ** 12;
    --  The pixels of a row of the middle of a pattern, and its rows on
    --  one side of the middle one, as far as they are followed.
@@ -352,6 +386,8 @@ is
    is
       Count : Natural := 0;
    begin
+      --  Called on dark pixels only: K = 0 would count nothing.
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       for K in 1 .. Reach loop
          pragma Loop_Invariant
            (Count = K - 1
@@ -392,8 +428,8 @@ is
    --  middle of the one before it, to the first that has a light pixel
    --  there or to the edge of the map. Area: their pixels; Sum_X and
    --  Sum_Y: twice the coordinates of the middles of the pixels,
-   --  together. Not OK: a row of more than Reach pixels, or more than
-   --  Reach rows.
+   --  together. Not OK: a row of more than Reach pixels, or Reach rows
+   --  or more.
 
    procedure Rows_Of
      (Map    : DA.Mark_Map;
@@ -451,8 +487,8 @@ is
    --  followed through the middle of the one before it. The pattern
    --  stays as it is where its modules have more than 1000 pixels,
    --  where the pixel of its middle is not dark, where a row has more
-   --  than four modules and two pixels or there are more rows than
-   --  that on one side (dark pixels that are not only those of the
+   --  than four modules and two pixels, or there are that many rows or
+   --  more on one side (dark pixels that are not only those of the
    --  middle of a pattern), and where the pixels have their middle
    --  more than a module from the one found.
 
@@ -470,11 +506,16 @@ is
       OK_1, OK_2 : Boolean;
       CX, CY     : VW.Coordinate;
    begin
+      --  Not pinned: a module of 1000 pixels exactly needs a map of 7000
+      --  by 7000 pixels.
+      --  adamutant:disable-next-line EqualityOperator: not pinned
       if P.Module > 1000.0
         or else not VW.Dark_At (Map, P.Centre.X, P.Centre.Y)
       then
          return;
       end if;
+      --  P.Module is at most 1000 here.
+      --  adamutant:disable-next-line NumericLiteral: not reached
       Reach := 2 + VW.Floor_Index (4.0 * P.Module, 4000);
       X0 := VW.Floor_Index (P.Centre.X, Map'Last (2));
       Y0 := VW.Floor_Index (P.Centre.Y, Map'Last (1));
@@ -483,6 +524,10 @@ is
       X0 := X0 - Left + (Left + Right) / 2;
       Rows_Of (Map, X0, Y0, True, Reach, A1, X1, Y1, OK_1);
       Rows_Of (Map, X0, Y0, False, Reach, A2, X2, Y2, OK_2);
+      --  A1 is 1 at least where OK_1 holds (the row of the middle). Not
+      --  pinned: A1 + A2 = 1 (a middle of one pixel, where the rows and
+      --  columns put it already); no map was found on which it acts.
+      --  adamutant:disable-next-line EqualityOperator, NumericLiteral
       if OK_1 and then OK_2 and then A1 + A2 > 0 then
          CX := VW.Quotient
            (Long_Float (X1 + X2), Long_Float (2 * (A1 + A2)), VW.Limit);
@@ -533,6 +578,9 @@ is
          X := X_End - Runs (5) - Runs (4) - (Runs (3) + 1) / 2;
          Cross_Check
            (Map, X, Y, False, Most, Width, Row, Twice_Y, Sum_Y, OK);
+         --  Where not OK, Row is 0, and no diagonal through the row 0 or
+         --  1 holds five runs.
+         --  adamutant:disable-next-line ConditionalExpression: equivalent
          if not OK then
             return;
          end if;
@@ -543,7 +591,12 @@ is
          --  A pattern with narrow modules may have a row that is not
          --  in proportion: then the row after the middle one, or the
          --  one before it.
+         --  Row is two rows above the last at least: two runs are below
+         --  it.
+         --  adamutant:disable-next-line EqualityOperator: equivalent
          if not OK and then Row < Map'Last (1)
+           --  Not pinned: no map was found on which this acts.
+           --  adamutant:disable-next-line NumericLiteral: not pinned
            and then Map (Row + 1, X) /= DA.Light
          then
             Line := Row + 1;
@@ -551,7 +604,11 @@ is
               (Map, X, Line, True, Most, Width, Middle, Twice_X, Sum_X,
                OK);
          end if;
+         --  Row is 2 at least: two runs are above it.
+         --  adamutant:disable-next-line EqualityOperator, NumericLiteral
          if not OK and then Row > 0
+           --  Not pinned: no map was found on which these act.
+           --  adamutant:disable-next-line ArithmeticOperator, NumericLiteral
            and then Map (Row - 1, X) /= DA.Light
          then
             Line := Row - 1;
@@ -576,9 +633,13 @@ is
       end Check;
    begin
       Count := 0;
+      --  The row 0 has no pattern: no runs are above it.
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       for Y in 0 .. Map'Last (1) loop
          pragma Loop_Invariant (Count <= Patterns'Length);
          Runs := [others => 0];
+         --  The runs come out the same.
+         --  adamutant:disable-next-line BooleanLiteral: equivalent
          Dark := False;
          for X in 0 .. Map'Last (2) loop
             pragma Loop_Invariant
@@ -601,6 +662,8 @@ is
 
       --  The patterns found in two rows or more, each where the pixels
       --  of its middle have theirs.
+      --  Both are beyond every row.
+      --  adamutant:disable-next-line NumericLiteral: not reached
       Purge (Patterns, Count, 2.0 ** 40);
       for I in 1 .. Count loop
          pragma Loop_Invariant (Count <= Patterns'Length);
@@ -618,6 +681,8 @@ is
    Min_Module : constant := 0.5;
    --  The narrowest module, in pixels.
 
+   --  Steps is at most 2 ** 20 (Module_Along).
+   --  adamutant:disable-next-line NumericLiteral: not reached
    Most_Steps : constant := 2 ** 20;
    --  The steps of half a pixel for which the way across a pattern is
    --  followed, at most.
@@ -649,6 +714,8 @@ is
       Changes : Natural range 0 .. 3 := 0;
       T       : Long_Float;
    begin
+      --  Length is read only where OK holds.
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       Length := 0.0;
       OK := False;
       for K in 1 .. Steps loop
@@ -689,6 +756,9 @@ is
       OK     : out Boolean)
    is
       Steps : constant Natural :=
+        --  A module has 74898 pixels at most (a fourteenth of 2 ** 20):
+        --  the steps are fewer than 2 ** 20.
+        --  adamutant:disable-next-line NumericLiteral: not reached
         Natural (Long_Float'Min (12.0 * P.Module + 4.0, 2.0 ** 20));
       Ahead : Long_Float;
       Back  : Long_Float;
@@ -698,6 +768,8 @@ is
       Half_Way (Map, P.Centre, UX, UY, Steps, Ahead, OK_1);
       Half_Way (Map, P.Centre, -UX, -UY, Steps, Back, OK_2);
       OK := OK_1 and then OK_2;
+      --  Width is read only where OK holds.
+      --  adamutant:disable-next-line ConditionalExpression, NumericLiteral
       Width := (if OK then (Ahead + Back) / 7.0 else 0.0);
    end Module_Along;
 
@@ -732,9 +804,13 @@ is
       Width  : Long_Float;
       Root   : Long_Float;
    begin
+      --  Modules is read only where OK holds.
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       Modules := 0.0;
       Change := 0.0;
       OK := False;
+      --  Place has rejected shorter arms already.
+      --  adamutant:disable-next-line ConditionalExpression: equivalent
       if Length < Min_Arm then
          return;
       end if;
@@ -750,12 +826,17 @@ is
          end if;
       elsif OK_1 then
          Width := W1;
+      --  Where not OK_2, W2 is 0.0: below Min_Module.
+      --  adamutant:disable-next-line ConditionalExpression: equivalent
       elsif OK_2 then
          Width := W2;
       else
          return;
       end if;
       if Width >= Min_Module then
+         --  Length / Width is below 2 ** 31: at most 2 ** 30 by 0.5 or
+         --  more.
+         --  adamutant:disable-next-line NumericLiteral: not reached
          Modules := VW.Quotient (Length, Width, 2.0 ** 32);
          OK := True;
       end if;
@@ -789,11 +870,23 @@ is
       Version : Version_Number;
       OK      : Boolean;
    begin
+      --  Symbol is read only where Found holds.
+      --  adamutant:disable-next-line StatementDeletion: equivalent
       Symbol := (others => <>);
       Found := False;
+      --  Not marked: "D1 < Min_Arm and then D2 < Min_Arm" changes
+      --  nothing, as Arm rejects an arm shorter than Min_Arm as well, but
+      --  a mark would take with it the other regroupings of this test,
+      --  which the tests tell from it.
       if D1 < Min_Arm or else D2 < Min_Arm
         or else D1 > 2.0 * D2 or else D2 > 2.0 * D1
+        --  No two arms whose ends have coordinates that are fractions
+        --  make 60 degrees exactly.
+        --  adamutant:disable-next-line EqualityOperator: equivalent
         or else abs Dot > 0.5 * N.Mul_Within (D1, D2, VW.Far, VW.Far)
+        --  Turn is 86.6 or more, or -86.6 or less, here: arms of 10
+        --  pixels or more, 60 degrees apart or more.
+        --  adamutant:disable-next-line NumericLiteral: equivalent
         or else Turn = 0.0
         or else not Akin (First, Second) or else not Akin (First, Third)
         or else not Akin (Second, Third)
@@ -823,6 +916,8 @@ is
            Integer'Min
              (Max_Version,
               Integer (Long_Float'Rounding ((Mean - 10.0) / 4.0))));
+      --  Turn is 86.6 or more, or -86.6 or less, here.
+      --  adamutant:disable-next-line EqualityOperator, NumericLiteral
       if Turn > 0.0 then
          Symbol :=
            (Upper_Left  => P0,
@@ -917,7 +1012,10 @@ is
             pragma Loop_Invariant (Count <= Allow);
             if VW.Dark_In
                  (Map, M,
+                  --  The template is the same mirrored.
+                  --  adamutant:disable-next-line ArithmeticOperator
                   Share (Home + P + Fine * I, Size),
+                  --  adamutant:disable-next-line ArithmeticOperator
                   Share (Home + Q + Fine * J, Size))
               /= (Integer'Max (abs I, abs J) /= 1)
             then
@@ -955,6 +1053,9 @@ is
       for Which in 0 .. 2 loop
          pragma Loop_Invariant (Amiss <= 14 * Which);
          declare
+            --  Which = 0 here: the upper left and the upper right pattern
+            --  swap places, and all three are looked at.
+            --  adamutant:disable-next-line NumericLiteral: equivalent
             P : constant Natural := (if Which = 1 then Arm else 0);
             Q : constant Natural := (if Which = 2 then Arm else 0);
          begin
@@ -962,12 +1063,16 @@ is
                pragma Loop_Invariant
                  (Amiss <= 14 * Which + 2 * (K + 3));
                if VW.Dark_In
+                    --  The modules in the other order: K and -K expect
+                    --  the same.
+                    --  adamutant:disable-next-line ArithmeticOperator
                     (Map, M, Share (P + Fine * K, Size), Share (Q, Size))
                  /= (abs K /= 2)
                then
                   Amiss := Amiss + 1;
                end if;
                if VW.Dark_In
+                    --  adamutant:disable-next-line ArithmeticOperator
                     (Map, M, Share (P, Size), Share (Q + Fine * K, Size))
                  /= (abs K /= 2)
                then
@@ -1009,6 +1114,10 @@ is
       for Down in Boolean loop
          Changes := 0;
          Dark := True;
+         --  Not pinned: from K = 1 on, as the first two looks are in the
+         --  same module, that of the finder pattern; no map was found on
+         --  which they differ.
+         --  adamutant:disable-next-line NumericLiteral: not pinned
          for K in 0 .. 2 * Due + 1 loop
             pragma Loop_Invariant (Changes <= K);
             Along := Share (3 * Fine - Fine / 4 + K * (Fine / 2), Size);
@@ -1076,7 +1185,10 @@ is
       Found : out Boolean)
    is
       Span   : constant := Reach / (2 * Coarse);
+      --  Read only after a place has been taken, which sets them.
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       Best_P : Integer range -Reach .. Reach := 0;
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       Best_Q : Integer range -Reach .. Reach := 0;
       Fewest : Awry_Count := Most_Awry + 1;
       Least  : Natural := Natural'Last;
@@ -1085,19 +1197,30 @@ is
       Count  : Natural := 0;
       P, Q   : Shift;
    begin
+      --  U and V are read only where Found holds.
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       U := 0.0;
+      --  adamutant:disable-next-line StatementDeletion, NumericLiteral
       V := 0.0;
       Found := False;
 
       --  The place where the fewest modules are amiss, and of such
       --  places the one nearest to the expected one: four modules
       --  around it, and eight where the pattern is not whole there.
+      --  A round 0 looks at the place itself, which round 1 looks at as
+      --  well: the place taken has the fewest modules amiss and is the
+      --  nearest of those either way.
+      --  adamutant:disable-next-line NumericLiteral: equivalent
       for Round in 1 .. 2 loop
          for J in -(Round * Span) .. Round * Span loop
             for I in -(Round * Span) .. Round * Span loop
                declare
                   Far   : constant Natural := I * I + J * J;
                   Allow : constant Integer :=
+                    --  Not pinned: of two places as near with as few
+                    --  modules amiss, the first is taken; no map was
+                    --  found on which the last changes the middle.
+                    --  adamutant:disable-next-line EqualityOperator
                     (if Far < Least then Integer'Min (Fewest, Most_Awry)
                      else Fewest - 1);
                   --  A nearer place may have as many amiss, a farther
@@ -1127,17 +1250,31 @@ is
       --  steps, where no more modules are amiss: those of a pattern
       --  that lies on the pixels exactly are as many on either side of
       --  its middle.
+      --  Not pinned: a further row of places, a module from the one
+      --  taken; no map was found with an alignment pattern that matches
+      --  there.
+      --  adamutant:disable-next-line ArithmeticOperator, NumericLiteral
       for J in -Fine / 2 .. Fine / 2 - 1 loop
          pragma Loop_Invariant
            (Count <= Fine * (J + Fine / 2)
             and then abs Sum_P <= (Reach + Fine) * Count
             and then abs Sum_Q <= (Reach + Fine) * Count);
+         --  Not pinned: the places 15 steps up and 17 down; no map was
+         --  found on which they differ.
+         --  adamutant:disable-next-line ArithmeticOperator: not pinned
          Q := Best_Q + 2 * J + 1;
+         --  Not pinned: a further column of places, a module from the one
+         --  taken; no map was found with an alignment pattern that
+         --  matches there.
+         --  adamutant:disable-next-line ArithmeticOperator, NumericLiteral
          for I in -Fine / 2 .. Fine / 2 - 1 loop
             pragma Loop_Invariant
               (Count <= Fine * (J + Fine / 2) + I + Fine / 2
                and then abs Sum_P <= (Reach + Fine) * Count
                and then abs Sum_Q <= (Reach + Fine) * Count);
+            --  Not pinned: the places 15 steps to the left and 17 to the
+            --  right; no map was found on which they differ.
+            --  adamutant:disable-next-line ArithmeticOperator: not pinned
             P := Best_P + 2 * I + 1;
             if Awry (Map, M, Size, P, Q, Fewest) <= Fewest then
                Count := Count + 1;
@@ -1222,6 +1359,8 @@ is
 
       G, H : VW.Tilt;
    begin
+      --  Not pinned: a determinant of 1.0E-9 exactly.
+      --  adamutant:disable-next-line EqualityOperator: not pinned
       if abs Den < 1.0E-9 then
          return;
       end if;
@@ -1267,9 +1406,14 @@ is
       Ahead : Boolean;
    begin
       VW.Project (M, U, V, X, Y, Ahead);
+      --  Not pinned: a corner 2 ** 28 pixels or more from an axis that
+      --  the mapping still gives (W above 1.0E-6); no map was found.
+      --  adamutant:disable-next-line UnaryOperator, EqualityOperator
       if Ahead and then abs X <= VW.Limit and then abs Y <= VW.Limit then
          P := (X => X, Y => Y);
       else
+         --  P is read only where OK holds.
+         --  adamutant:disable-next-line StatementDeletion: equivalent
          P := (others => <>);
          OK := False;
       end if;
@@ -1311,8 +1455,14 @@ is
       Q     : Corner;
       Found : Boolean := False;
    begin
+      --  The modules beyond Side (Version) are not part of the result,
+      --  and the others are all set below.
+      --  adamutant:disable-next-line StatementDeletion, BooleanLiteral
       Grid := [others => [others => False]];
+      --  Read only where OK holds, and set below where it does.
+      --  adamutant:disable-next-line StatementDeletion: equivalent
       Shape := (others => <>);
+      --  adamutant:disable-next-line StatementDeletion: equivalent
       Centre := (others => <>);
 
       --  Nothing to sample where neither mapping has the finder
@@ -1320,6 +1470,8 @@ is
       --  one has them.
       OK := (if Again then Fits_1 and then Fits_2
              else Fits_1 or else Fits_2);
+      --  Going on leaves OK false: Point only makes it false.
+      --  adamutant:disable-next-line ConditionalExpression: equivalent
       if not OK then
          return;
       end if;
@@ -1327,12 +1479,18 @@ is
       if Version >= 2 then
          if Fits_1 then
             Find_Alignment (Map, First, Size, U, V, Found);
+            --  Where not Found, U and V are 0.0: Point on them never
+            --  fails, and only makes Found false.
+            --  adamutant:disable-next-line ConditionalExpression: equivalent
             if Found then
                Point (First, U, V, Q, Found);
             end if;
          end if;
          if not Found and then Fits_2 then
             Find_Alignment (Map, Second, Size, U, V, Found);
+            --  Where not Found, U and V are 0.0: Point on them never
+            --  fails, and only makes Found false.
+            --  adamutant:disable-next-line ConditionalExpression: equivalent
             if Found then
                Point (Second, U, V, Q, Found);
             end if;

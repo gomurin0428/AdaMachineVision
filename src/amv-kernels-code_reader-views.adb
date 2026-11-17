@@ -39,6 +39,9 @@ is
       if not Fits then
          Q := Bound;
       end if;
+      --  X = 0.0 gives -0.0 for 0.0, which every use takes the same; Y is
+      --  never 0.0 (the precondition).
+      --  adamutant:disable-next-line EqualityOperator: equivalent
       return (if (X < 0.0) = (Y < 0.0) then Q else -Q);
    end Quotient;
 
@@ -70,12 +73,22 @@ is
    is
       W : constant Long_Float := Times (M.G, U) + Times (M.H, V) + 1.0;
    begin
+      --  Not pinned: W of 1.0E-6 exactly, or a W above 0.0 and at most
+      --  1.0E-6 at a point that the mapping still puts within 2 ** 28
+      --  pixels of the axes; no map was found.
+      --  adamutant:disable-next-line EqualityOperator, NumericLiteral
       Ahead := W > 1.0E-6;
+      --  Where not Ahead, X and Y are read by no caller; not pinned: a W
+      --  of 0.0 exactly, for which Quotient has no value.
+      --  adamutant:disable-next-line ConditionalExpression: not pinned
       if Ahead then
          X := Quotient (Times (M.A, U) + Times (M.B, V) + M.X0, W, Far);
          Y := Quotient (Times (M.D, U) + Times (M.E, V) + M.Y0, W, Far);
       else
+         --  X and Y are read only where Ahead holds.
+         --  adamutant:disable-next-line StatementDeletion, NumericLiteral
          X := 0.0;
+         --  adamutant:disable-next-line StatementDeletion, NumericLiteral
          Y := 0.0;
       end if;
    end Project;

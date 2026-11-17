@@ -8,7 +8,14 @@
 --
 --  Run it from the repository root: Test_Image_File writes its files to
 --  tests/output relative to the current directory.
+--
+--  With arguments, only the areas that they name are run, each named
+--  once as it is printed (Test_Kernels, say; the case of the letters
+--  does not matter): tools/mutant_tests.sh runs the areas of one unit
+--  for a mutant of it. A name that is not that of an area is an error.
 
+with Ada.Characters.Handling;
+with Ada.Command_Line;
 with Ada.Text_IO;
 
 with AMV_Test_Support;
@@ -32,6 +39,9 @@ with Test_Code_Reader_2D;
 with Test_Code_Reader_Data_Matrix;
 with Test_Code_Reader_QR_Code;
 with Test_Code_Reader_QR_Finder;
+with Test_Code_Reader_QR_Patterns;
+with Test_Code_Reader_QR_Placing;
+with Test_Code_Reader_QR_Sampling;
 with Test_Code_Reader_QR_Symbol;
 with Test_Find_Line;
 with Test_Find_Circle;
@@ -47,10 +57,31 @@ with Test_Robustness;
 
 procedure Test_Suite is
 
+   Named : constant Natural := Ada.Command_Line.Argument_Count;
+   Run   : Natural := 0;
+   --  The areas named by the arguments, and those of them that were run.
+
+   function Wanted (Name : String) return Boolean is
+      use Ada.Characters.Handling;
+   begin
+      if Named = 0 then
+         return True;
+      end if;
+      for I in 1 .. Named loop
+         if To_Lower (Ada.Command_Line.Argument (I)) = To_Lower (Name) then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Wanted;
+
    procedure Run_Area (Name : String; Area : not null access procedure) is
    begin
-      Ada.Text_IO.Put_Line ("=== " & Name);
-      Area.all;
+      if Wanted (Name) then
+         Run := Run + 1;
+         Ada.Text_IO.Put_Line ("=== " & Name);
+         Area.all;
+      end if;
    end Run_Area;
 
 begin
@@ -87,6 +118,12 @@ begin
              Test_Code_Reader_Data_Matrix'Access);
    Run_Area ("Test_Code_Reader_QR_Symbol",
              Test_Code_Reader_QR_Symbol'Access);
+   Run_Area ("Test_Code_Reader_QR_Patterns",
+             Test_Code_Reader_QR_Patterns'Access);
+   Run_Area ("Test_Code_Reader_QR_Placing",
+             Test_Code_Reader_QR_Placing'Access);
+   Run_Area ("Test_Code_Reader_QR_Sampling",
+             Test_Code_Reader_QR_Sampling'Access);
    Run_Area ("Test_Code_Reader_QR_Finder",
              Test_Code_Reader_QR_Finder'Access);
    Run_Area ("Test_Code_Reader_QR_Code", Test_Code_Reader_QR_Code'Access);
@@ -94,4 +131,10 @@ begin
 
    Ada.Text_IO.Put_Line ("=== Total");
    AMV_Test_Support.Finish;
+   if Run < Named then
+      Ada.Text_IO.Put_Line
+        ("test_suite: an argument is not the name of an area"
+         & " (or an area is named twice)");
+      Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+   end if;
 end Test_Suite;

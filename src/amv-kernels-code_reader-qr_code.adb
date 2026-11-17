@@ -10,6 +10,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
 
    use type RS.Element;
 
+   --  adamutant:disable-next-line: a wider range changes nothing
    subtype Module_Number is Natural range 0 .. Max_Side - 1;
    --  A row or a column, for arithmetic.
 
@@ -55,6 +56,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
    is
       S    : constant Side_Length := Side (Version);
       List : constant Centre_List := Centres (Version);
+      --  adamutant:disable-next-line: any start below 6 gives the same
       Last : Centre_Value := 0;
       --  The last row and column with alignment patterns.
    begin
@@ -68,8 +70,10 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       Fill (Map, S - 8, S - 1, 0, 8);
 
       --  The timing patterns.
+      --  adamutant:disable NumericLiteral: their module 0 is marked above
       Fill (Map, 6, 6, 0, S - 1);
       Fill (Map, 0, S - 1, 6, 6);
+      --  adamutant:enable
 
       --  The alignment patterns: where the rows and columns of the list
       --  cross, but not in the three corners with a finder pattern.
@@ -83,6 +87,8 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
                C : constant Centre_Value := List (J);
             begin
                if R >= 6 and then C >= 6
+                 --  Marked or not: around (6, 6) all is marked above.
+                 --  adamutant:disable-next-line NumericLiteral: equivalent
                  and then not (R = 6 and then C = 6)
                  and then not (R = 6 and then C = Last)
                  and then not (R = Last and then C = 6)
@@ -95,8 +101,10 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
 
       --  The version information.
       if Version >= 7 then
+         --  adamutant:disable NumericLiteral: 6 is the timing pattern
          Fill (Map, 0, 5, S - 11, S - 9);
          Fill (Map, S - 11, S - 9, 0, 5);
+         --  adamutant:enable
       end if;
    end Mark_Functions;
 
@@ -113,6 +121,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       V      : Info_Bits := Word;
       Result : Bit_Total := 0;
    begin
+      --  adamutant:disable-next-line: one more turn finds no bit
       for K in 1 .. 18 loop
          pragma Loop_Invariant (Result <= K - 1);
          if V mod 2 = 1 then
@@ -144,13 +153,17 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
    begin
       return
         (case Mask is
+            --  adamutant:disable-next-line ArithmeticOperator: same parity
             when 0 => (I + J) mod 2 = 0,
             when 1 => I mod 2 = 0,
             when 2 => J mod 3 = 0,
             when 3 => (I + J) mod 3 = 0,
+            --  adamutant:disable-next-line ArithmeticOperator: same parity
             when 4 => (I / 2 + J / 3) mod 2 = 0,
             when 5 => (I * J) mod 2 + (I * J) mod 3 = 0,
+            --  adamutant:disable-next-line ArithmeticOperator: same parity
             when 6 => ((I * J) mod 2 + (I * J) mod 3) mod 2 = 0,
+            --  adamutant:disable-next-line ArithmeticOperator: same parity
             when 7 => ((I + J) mod 2 + (I * J) mod 3) mod 2 = 0);
    end Masked;
 
@@ -171,6 +184,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       --  The two copies, from the bit 14 down to the bit 0.
       Diff  : Bit_Total;
       Best  : Bit_Total := Bit_Total'Last;
+      --  adamutant:disable-next-line: the first word replaces it
       Which : Natural range 0 .. 31 := 0;
    begin
       --  Around the upper left finder pattern: along the row 8 to the
@@ -197,6 +211,8 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       for D in Format_Words'Range loop
          Diff := Bit_Total'Min
            (Ones (A xor Format_Words (D)), Ones (B xor Format_Words (D)));
+         --  Two words as near, one for each copy: which is unspecified.
+         --  adamutant:disable-next-line EqualityOperator: unspecified
          if Diff < Best then
             Best := Diff;
             Which := D;
@@ -228,12 +244,14 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
    is
       S    : constant Side_Length := Side (Version);
       Word : constant Info_Bits := Version_Words (Version);
+      --  adamutant:disable-next-line: eighteen pushes leave nothing of it
       A, B : Info_Bits := 0;
       --  The copy beside the upper right finder pattern (six rows of
       --  three modules) and the one beside the lower left pattern (six
       --  columns of three), from the bit 17 down to the bit 0.
       Far  : Module_Number;
    begin
+      --  adamutant:disable-next-line NumericLiteral: a 19th bit drops out
       for Bit in reverse 0 .. 17 loop
          Far := S - 11 + Bit mod 3;
          Push (A, Dark (Grid, Mirror, Bit / 3, Far));
@@ -275,18 +293,22 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
 
       Count  : Codeword_Count := 0;
       Over   : Boolean := False;
+      --  adamutant:disable-next-line: eight doublings push it out
       V      : RS.Element := 0;
       Bits   : Natural range 0 .. 7 := 0;
       Right  : Module_Number;
       Row    : Module_Number;
       Column : Module_Number;
    begin
+      --  adamutant:disable-next-line: 1 .. Total is all set, and alone read
       Words := [others => 0];
 
       --  The pairs of columns from the right; the column 6 (a timing
       --  pattern) is in none of them.
+      --  adamutant:disable-next-line NumericLiteral: the side is odd
       for Pair in 0 .. (S - 1) / 2 - 1 loop
          Right := S - 1 - 2 * Pair;
+         --  adamutant:disable-next-line NumericLiteral: Right is even
          if Right <= 6 then
             Right := Right - 1;
          end if;
@@ -308,13 +330,18 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
                   if Bits < 7 then
                      Bits := Bits + 1;
                   else
+                     --  Always less: the modules hold the codewords and seven
+                     --  bits more at most (the tests read every version).
+                     --  adamutant:disable-next-line: always true
                      if Count < Total then
                         Count := Count + 1;
                         Words (Count) := V;
                      else
+                        --  adamutant:disable-next-line: cannot be
                         Over := True;
                      end if;
                      Bits := 0;
+                     --  adamutant:disable-next-line: eight doublings do it
                      V := 0;
                   end if;
                end if;
@@ -322,9 +349,11 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
          end loop;
       end loop;
 
+      --  adamutant:disable-next-line LogicalOperator: both always hold
       OK := Count = Total and then not Over;
    end Read_Codewords;
 
+   --  adamutant:disable-next-line: a bound in a postcondition only
    Max_Corrected : constant := 126 * 15;
    --  A bound of the codewords that Correct_Blocks changes, from the
    --  ranges of Block_Info: the blocks, and half the check codewords of
@@ -370,6 +399,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       D      : constant Positive := Info.Data_1 * NB + Info.Blocks_2;
       --  The codewords of the message.
 
+      --  adamutant:disable-next-line: a block is set before it is read
       Word   : RS.Word (RS.Word_Index) := [others => 0];
       N      : Natural;
       N_Own  : Natural;
@@ -380,8 +410,10 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       Fixed  : Natural;
       Good   : Boolean;
    begin
+      --  adamutant:disable: read after Success only, and set then
       Data := [others => 0];
       N_Data := 0;
+      --  adamutant:enable
       Corrected := 0;
       Success := False;
 
@@ -389,9 +421,11 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       --  every version and level): the blocks have as many codewords as
       --  the version, and those of the message are no more than
       --  Max_Data.
+      --  adamutant:disable ConditionalExpression, LogicalOperator: cannot be
       if D + Info.Check * NB /= Total or else D > Max_Data then
          return;
       end if;
+      --  adamutant:enable
 
       for B in 0 .. NB - 1 loop
          pragma Loop_Invariant (Corrected <= B * 15);
@@ -403,19 +437,23 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
             P := I * NB + B + 1;
             --  Cannot be: a place of the block is a place of the
             --  symbol. So for the three tests of P below.
+            --  adamutant:disable: cannot be
             if P > Total then
                Corrected := 0;
                return;
             end if;
+            --  adamutant:enable
             N := N + 1;
             Word (N) := Words (P);
          end loop;
          if Long then
             P := Info.Data_1 * NB + (B - Info.Blocks_1) + 1;
+            --  adamutant:disable: cannot be
             if P > Total then
                Corrected := 0;
                return;
             end if;
+            --  adamutant:enable
             N := N + 1;
             Word (N) := Words (P);
          end if;
@@ -423,7 +461,9 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
          for J in 0 .. Info.Check - 1 loop
             pragma Loop_Invariant (N = N_Own + J);
             P := D + J * NB + B + 1;
+            --  adamutant:disable-next-line ConditionalExpression: cannot be
             if P > Total then
+               --  adamutant:disable-next-line: cannot be
                Corrected := 0;
                return;
             end if;
@@ -433,6 +473,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
 
          RS.Correct (Field, Word (1 .. N), Info.Check, 0, Fixed, Good);
          if not Good or else Fixed > Limit then
+            --  adamutant:disable-next-line: Decode gives 0 as well
             Corrected := 0;
             return;
          end if;
@@ -440,10 +481,12 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
          --  Cannot be: the codewords of the message of the blocks
          --  before this one, and its own, are among the D of them.
          Offset := B * Info.Data_1 + (if Long then B - Info.Blocks_1 else 0);
+         --  adamutant:disable: cannot be
          if Offset + N_Own > D then
             Corrected := 0;
             return;
          end if;
+         --  adamutant:enable
          for I in 1 .. N_Own loop
             Data (Offset + I) := Word (I);
          end loop;
@@ -466,16 +509,19 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       Length  : out Natural;
       OK      : out Boolean)
    is
+      --  adamutant:disable-next-line NumericLiteral: never over 16 bits
       type Value_16 is mod 2 ** 16;
 
       subtype Bit_Count is Positive range 1 .. 16;
 
       type Value_List is array (Bit_Count) of Value_16;
 
+      --  adamutant:disable NumericLiteral: no count is 1, 2, 3, 5 or 15
       Lowest : constant Value_List :=
         [1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383,
          32767, 65535];
       --  Lowest (K): the lowest K bits.
+      --  adamutant:enable
 
       type Element_List is array (0 .. 7) of RS.Element;
 
@@ -500,17 +546,20 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       Ended   : Boolean := False;
       FNC1    : Boolean := False;
       --  FNC1 in the first or in the second position.
+      --  adamutant:disable-next-line: Alphanumeric clears it first
       Percent : Boolean := False;
       --  With FNC1, the last character of the alphanumeric segment was
       --  a "%" that the text does not have yet.
       Mode    : Natural;
       Unused  : Natural;
 
+      --  adamutant:disable LogicalOperator: a weaker one holds as well
       function Valid return Boolean is
         (Data'First = 1 and then N = Data'Last and then N_Bits = 8 * N
          and then Pos <= N_Bits
          and then Text'First = 1 and then Len <= Text'Last);
       --  What the steps below rely on and keep.
+      --  adamutant:enable
 
       function Width (Short, Medium, Long : Bit_Count) return Bit_Count is
         (if Version <= 9 then Short
@@ -527,8 +576,10 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       --  left, the message is not good, and Value is 0.
 
       procedure Get (Count : Bit_Count; Value : out Natural) is
+         --  adamutant:disable-next-line: the mask takes a higher bit off
          V : Value_16 := 0;
       begin
+         --  adamutant:disable-next-line NumericLiteral: unused when not Good
          Value := 0;
          if N_Bits - Pos < Count then
             Good := False;
@@ -602,6 +653,9 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
             Get (7, V);
             if V > 99 then
                Good := False;
+            --  Without this test, digits follow a Get that failed, in
+            --  a message that is not good: its text is not given.
+            --  adamutant:disable-next-line ConditionalExpression: unspecified
             elsif Good then
                Put_Digits (V, 2);
             end if;
@@ -609,6 +663,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
             Get (4, V);
             if V > 9 then
                Good := False;
+            --  adamutant:disable-next-line ConditionalExpression: unspecified
             elsif Good then
                Put_Digits (V, 1);
             end if;
@@ -648,6 +703,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
          Count : Natural;
          V     : Natural;
       begin
+         --  adamutant:disable-next-line StatementDeletion: the end clears it
          Percent := False;
          Get (Width (9, 11, 13), Count);
          for I in 1 .. Count / 2 loop
@@ -665,12 +721,14 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
             Get (6, V);
             if V >= 45 then
                Good := False;
+            --  adamutant:disable-next-line ConditionalExpression: unspecified
             elsif Good then
                Put_Of_Set (V);
             end if;
          end if;
          if Percent then
             Put (29);
+            --  adamutant:disable-next-line: the next segment clears it
             Percent := False;
          end if;
       end Alphanumeric;
@@ -752,6 +810,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       begin
          FNC1 := True;
          Get (8, V);
+         --  adamutant:disable-next-line ConditionalExpression: unspecified
          if not Good then
             null;
          elsif V < 100 then
@@ -764,10 +823,12 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       end Second_Position;
 
    begin
+      --  adamutant:disable-next-line: beyond Length, Text is unspecified
       Text := [others => ' '];
 
       --  Every segment takes the four bits of its mode at least, so
       --  2 * N steps are enough.
+      --  adamutant:disable-next-line NumericLiteral: it leaves before the last
       for Step in 1 .. 2 * N loop
          pragma Loop_Invariant (Valid);
 
@@ -830,6 +891,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
       Mask       : Mask_Pattern;
       OK         : Boolean;
    begin
+      --  adamutant:disable-next-line: beyond Length, Text is unspecified
       Text := [others => ' '];
       Length := 0;
       Corrected := 0;
@@ -845,6 +907,7 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
 
       Mark_Functions (Version, Functions);
       Read_Codewords (Grid, Version, Mirror, Mask, Functions, Words, OK);
+      --  adamutant:disable-next-line ConditionalExpression: always OK
       if not OK then
          return;
       end if;
@@ -853,12 +916,14 @@ package body AMV.Kernels.Code_Reader.QR_Code with SPARK_Mode is
         (Blocks (Version, Level_Read), Correctable (Version, Level_Read),
          Total, Field, Words, Data, N_Data, Corrected, OK);
       if not OK then
+         --  adamutant:disable-next-line StatementDeletion: 0 already
          Corrected := 0;
          return;
       end if;
 
       To_Text (Data (1 .. N_Data), Version, Text, Length, OK);
       if not OK then
+         --  adamutant:disable-next-line StatementDeletion: 0 already
          Length := 0;
          Corrected := 0;
          return;

@@ -39,7 +39,7 @@ The child packages of `AMV`, by area:
 | Correlation search                  | `AMV.NCC_Search`               |
 | Geometric pattern location          | `AMV.Shape_Match`              |
 | Fixtures and calibration            | `AMV.Calib_Fix`                |
-| Code reading (linear barcodes, Data Matrix) | `AMV.Code_Reader`      |
+| Code reading (linear barcodes, Data Matrix, QR Code) | `AMV.Code_Reader` |
 | Tool groups and tool blocks         | `AMV.Tool_Group`, `AMV.Tool_Block` |
 
 Support packages: `AMV.Regions`
@@ -232,6 +232,31 @@ packages; their entry points form the C API (section 9).
   the same values. Every exception must be an AMV one, or the
   Constraint_Error a spec documents for an index. A new tool or
   subprogram that takes numbers gets its place in that sweep.
+* Mutation testing checks the tests themselves. AdaMutant
+  (https://github.com/gomurin0428/AdaMutant, set up in `adamutant.toml`)
+  makes small changes to a body, one at a time (a mutant: `<` for `<=`,
+  a literal one higher, a statement taken out), builds each and runs the
+  areas of `test_suite` that test the unit (`tools/mutant_tests.sh`;
+  `test_suite <area> ...` runs only the areas named). A mutant that the
+  tests pass shows something that no test checks. A pull request that
+  adds or changes a body under `src/` runs `make mutation-diff` (the
+  changed lines) or `make mutation MUTATE=src/<file>.adb` (a whole file)
+  first. Every mutant that survives gets the test that fails for it;
+  where no test can tell it from the source (the same result for every
+  input, a guard that cannot act, a value that the contract leaves
+  open), its line is marked with
+  `--  adamutant:disable-next-line <mutators>: <reason>`. Where only an
+  input that no search has found, or one too large to make in a test,
+  would tell it (a map of thousands of pixels a side), the reason is
+  "not pinned" and the comment above the mark says what input would.
+  Such a mark takes every mutant of the named mutators on the line out
+  of the run, so it names the mutators wherever the line has other
+  mutants that the tests catch; where it would take many of those with
+  it, the line stays unmarked, with a comment that says why its mutant
+  survives. Contracts and loop invariants are not mutated (they are
+  for the proof), and the kernels run their preconditions only
+  (`Assertion_Policy`), so a mutant that only a postcondition or a loop
+  invariant would notice passes the tests.
 
 ## 9. SPARK kernels and the C API
 
