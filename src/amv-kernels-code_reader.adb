@@ -2711,7 +2711,11 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
             Out_Of_Memory (Status);
             return;
          end if;
-         Find_Symbols (Image, Region, Box, Settings.Threshold,
+         --  A block has dark and light pixels when they differ by
+         --  twice the contrast threshold: the lightest and the darkest
+         --  of its 64 pixels differ by the whole swing of the noise.
+         Find_Symbols (Image, Region, Box,
+                       Integer'Min (2 * Settings.Threshold, 255),
                        Has (Params.Symbologies, Symbology_Data_Matrix),
                        Has (Params.Symbologies, Symbology_QR_Code),
                        Max_Candidates - Count, Symbols.all, Matrix, Pool,

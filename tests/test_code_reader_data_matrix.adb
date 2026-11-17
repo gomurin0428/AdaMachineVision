@@ -988,11 +988,11 @@ procedure Test_Code_Reader_Data_Matrix is
       Check_Only (Run_On (Faint, Matrix_Only), "PARAMS 12",
                   "30 grey levels of contrast, the default threshold");
       Check_Only
-        (Run_On (Faint, (Matrix_Only with delta Contrast_Threshold => 30)),
-         "PARAMS 12", "a threshold of 30");
+        (Run_On (Faint, (Matrix_Only with delta Contrast_Threshold => 15)),
+         "PARAMS 12", "a threshold of 15, half the contrast");
       Check_None
-        (Run_On (Faint, (Matrix_Only with delta Contrast_Threshold => 31)),
-         "a threshold of 31");
+        (Run_On (Faint, (Matrix_Only with delta Contrast_Threshold => 16)),
+         "a threshold of 16");
       Check_Only
         (Run_On (Image, (Matrix_Only with delta Contrast_Threshold => 255)),
          "PARAMS 12", "black on white, a threshold of 255");

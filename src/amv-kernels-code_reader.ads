@@ -81,8 +81,11 @@
 --      Dark_Areas. The pixels are marked dark or light against a
 --      threshold of their neighbourhood, from the blocks of 8 by 8
 --      pixels around them whose lightest and darkest pixel differ by
---      ContrastThreshold or more (an area without such a difference has
---      no dark pixel); the pixels outside the region are light.
+--      twice ContrastThreshold or more (an area without such a
+--      difference has no dark pixel); the pixels outside the region
+--      are light. Twice: the lightest and the darkest of the 64 pixels
+--      of a block differ by the whole swing of the noise, and a block
+--      of noise alone would be given dark and light pixels.
 --
 --   6. Data Matrix. Every connected dark area is followed along its
 --      outline, once, and the convex hull of the outline is formed
@@ -356,8 +359,10 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
 
       Contrast_Threshold   : Int32 := 12;
       --  The smallest rise or fall that is an edge, in grey levels, in
-      --  1 .. 255. For Data Matrix and QR Code: the smallest difference
-      --  between the light and the dark pixels of a neighbourhood.
+      --  1 .. 255. For Data Matrix and QR Code: half the smallest
+      --  difference between the lightest and the darkest pixel of a
+      --  block that has dark and light pixels (24 grey levels with
+      --  the default; 255 at most).
 
       Min_Scan_Lines       : Int32 := 2;
       --  The fewest scan lines that must read the same symbol, in

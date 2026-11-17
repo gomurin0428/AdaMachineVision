@@ -83,18 +83,21 @@
 --  From version 2 on, the alignment pattern nearest to the corner
 --  without a finder pattern is looked for around where the first
 --  mapping puts it, four modules to either side in steps of a quarter
---  of a module, then eight, and then likewise with the other mapping: a
---  place is one where the 25 middles of its modules are dark and light
---  as the pattern is. Of the places a sixteenth of a module on either
---  side of the steps of an eighth, within a module of the place nearest
---  to where the pattern was expected, the mean is its middle (those of
---  a pattern that lies exactly on the pixels are as many on either side
---  of it). With the alignment pattern, the mapping is the perspective
---  one that takes the four middles to where they are; without it, the
---  mapping is the first one of use. The middle of every module is
---  looked up in the map through the mapping. A caller that cannot read
---  the modules asks again, for the other mapping to be the first: that
---  is something else only where both are of use.
+--  of a module, eight unless it is whole within the four, and then
+--  likewise with the other mapping. Its place is where the fewest of
+--  the 25 middles of its modules are not dark and light as the pattern
+--  is, two at most (blur rounds the corners of its ring), and of such
+--  places the one nearest to where the pattern was expected. Of the
+--  places a sixteenth of a module on either side of the steps of an
+--  eighth, within a module of that place, where no more middles are
+--  amiss, the mean is its middle (those of a pattern that lies exactly
+--  on the pixels are as many on either side of it). With the alignment
+--  pattern, the mapping is the perspective one that takes the four
+--  middles to where they are; without it, the mapping is the first one
+--  of use. The middle of every module is looked up in the map through
+--  the mapping. A caller that cannot read the modules asks again, for
+--  the other mapping to be the first: that is something else only where
+--  both are of use.
 --
 --  Proved (docs/PROOF.md): no run-time error for any map and patterns.
 --  Not proved (tested): that the patterns are those of a symbol and the

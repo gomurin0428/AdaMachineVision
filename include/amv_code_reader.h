@@ -68,9 +68,13 @@
  *    scan are marked dark or light against a threshold of their
  *    neighbourhood: the level halfway between the lightest and the
  *    darkest pixel of the blocks of 8 by 8 pixels around them whose
- *    lightest and darkest pixel differ by contrast_threshold or more (an
- *    area that has no such difference has no dark pixel); pixels outside
- *    the region are light.
+ *    lightest and darkest pixel differ by twice contrast_threshold or
+ *    more (an area that has no such difference has no dark pixel); pixels
+ *    outside the region are light. Twice, 24 grey levels with the
+ *    default: the lightest and the darkest of the 64 pixels of a block
+ *    differ by the whole swing of the noise, which must stay below it, or
+ *    the middle of a large dark area is given light pixels; raise
+ *    contrast_threshold in a noisy image.
  *
  * 6. Data Matrix. Every connected dark area is followed along its
  *    outline. An area whose convex hull has two solid sides that
@@ -241,9 +245,9 @@ typedef struct {
                                     lines, in 1.0 .. 1000.0 */
     int32_t contrast_threshold;  /* 12; the smallest rise or fall that is
                                     an edge, in grey levels, 1 .. 255; for
-                                    Data Matrix and QR Code the smallest
-                                    difference of the light and the dark
-                                    level of a neighbourhood */
+                                    Data Matrix and QR Code half the
+                                    smallest difference of the light and
+                                    the dark level of a neighbourhood */
     int32_t min_scan_lines;      /* 2; the fewest scan lines that must
                                     read the same symbol, in 1 .. 1000 */
     int32_t code_39_check_digit; /* 0; 1: a Code 39 symbol must end with

@@ -881,39 +881,55 @@ is
         (Long_Float (Steps), Long_Float (Fine * (Size - 7)), 4.0);
    end Share;
 
-   function Aligned
-     (Map  : DA.Mark_Map;
-      M    : VW.Mapping;
-      Size : Side_Length;
-      P, Q : Shift) return Boolean
-   with Pre => DA.Valid_Map (Map);
-   --  The 25 modules around the point P and Q steps to the right of
-   --  and below the place of the alignment pattern are dark and light
-   --  as that pattern is: its middle and the ring two modules from it
-   --  dark, the ring between them light.
+   Most_Awry : constant := 2;
+   --  The modules of an alignment pattern, of its 25, that may be
+   --  other than they should: blur rounds the corners of its ring.
 
-   function Aligned
-     (Map  : DA.Mark_Map;
-      M    : VW.Mapping;
-      Size : Side_Length;
-      P, Q : Shift) return Boolean
+   subtype Awry_Count is Natural range 0 .. Most_Awry + 1;
+
+   function Awry
+     (Map   : DA.Mark_Map;
+      M     : VW.Mapping;
+      Size  : Side_Length;
+      P, Q  : Shift;
+      Allow : Awry_Count) return Awry_Count
+   with Pre  => DA.Valid_Map (Map) and then Allow <= Most_Awry,
+        Post => Awry'Result <= Allow + 1;
+   --  How many of the 25 modules around the point P and Q steps to the
+   --  right of and below the place of the alignment pattern are not
+   --  dark and light as that pattern is (its middle and the ring two
+   --  modules from it dark, the ring between them light). They are
+   --  counted as far as Allow + 1: more than Allow are too many.
+
+   function Awry
+     (Map   : DA.Mark_Map;
+      M     : VW.Mapping;
+      Size  : Side_Length;
+      P, Q  : Shift;
+      Allow : Awry_Count) return Awry_Count
    is
-      Home : constant Positive := Fine * (Size - 10);
+      Home  : constant Positive := Fine * (Size - 10);
+      Count : Awry_Count := 0;
    begin
       for J in Template_Index loop
+         pragma Loop_Invariant (Count <= Allow);
          for I in Template_Index loop
+            pragma Loop_Invariant (Count <= Allow);
             if VW.Dark_In
                  (Map, M,
                   Share (Home + P + Fine * I, Size),
                   Share (Home + Q + Fine * J, Size))
               /= (Integer'Max (abs I, abs J) /= 1)
             then
-               return False;
+               Count := Count + 1;
+               if Count > Allow then
+                  return Count;
+               end if;
             end if;
          end loop;
       end loop;
-      return True;
-   end Aligned;
+      return Count;
+   end Awry;
 
    Most_Amiss : constant := 4;
    --  The modules of the three finder patterns, of the 42 looked at,
@@ -1062,6 +1078,7 @@ is
       Span   : constant := Reach / (2 * Coarse);
       Best_P : Integer range -Reach .. Reach := 0;
       Best_Q : Integer range -Reach .. Reach := 0;
+      Fewest : Awry_Count := Most_Awry + 1;
       Least  : Natural := Natural'Last;
       Sum_P  : Integer := 0;
       Sum_Q  : Integer := 0;
@@ -1072,29 +1089,44 @@ is
       V := 0.0;
       Found := False;
 
-      --  The place nearest to the expected one, four modules around
-      --  it, and eight where there is none.
+      --  The place where the fewest modules are amiss, and of such
+      --  places the one nearest to the expected one: four modules
+      --  around it, and eight where the pattern is not whole there.
       for Round in 1 .. 2 loop
          for J in -(Round * Span) .. Round * Span loop
             for I in -(Round * Span) .. Round * Span loop
-               if I * I + J * J < Least
-                 and then Aligned (Map, M, Size, Coarse * I, Coarse * J)
-               then
-                  Least := I * I + J * J;
-                  Best_P := Coarse * I;
-                  Best_Q := Coarse * J;
-               end if;
+               declare
+                  Far   : constant Natural := I * I + J * J;
+                  Allow : constant Integer :=
+                    (if Far < Least then Integer'Min (Fewest, Most_Awry)
+                     else Fewest - 1);
+                  --  A nearer place may have as many amiss, a farther
+                  --  one must have fewer.
+                  Amiss : Awry_Count;
+               begin
+                  if Allow >= 0 then
+                     Amiss := Awry
+                       (Map, M, Size, Coarse * I, Coarse * J, Allow);
+                     if Amiss <= Allow then
+                        Fewest := Amiss;
+                        Least := Far;
+                        Best_P := Coarse * I;
+                        Best_Q := Coarse * J;
+                     end if;
+                  end if;
+               end;
             end loop;
          end loop;
-         exit when Least < Natural'Last;
+         exit when Fewest = 0;
       end loop;
-      if Least = Natural'Last then
+      if Fewest > Most_Awry then
          return;
       end if;
 
       --  The mean of the places within a module of it, at the odd
-      --  steps: those of a pattern that lies on the pixels exactly are
-      --  as many on either side of its middle.
+      --  steps, where no more modules are amiss: those of a pattern
+      --  that lies on the pixels exactly are as many on either side of
+      --  its middle.
       for J in -Fine / 2 .. Fine / 2 - 1 loop
          pragma Loop_Invariant
            (Count <= Fine * (J + Fine / 2)
@@ -1107,7 +1139,7 @@ is
                and then abs Sum_P <= (Reach + Fine) * Count
                and then abs Sum_Q <= (Reach + Fine) * Count);
             P := Best_P + 2 * I + 1;
-            if Aligned (Map, M, Size, P, Q) then
+            if Awry (Map, M, Size, P, Q, Fewest) <= Fewest then
                Count := Count + 1;
                Sum_P := Sum_P + P;
                Sum_Q := Sum_Q + Q;

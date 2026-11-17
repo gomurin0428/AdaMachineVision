@@ -56,10 +56,13 @@
 --  modules). It must be dark on a light ground, with a light margin of
 --  two pixels or more all around; its L must be one solid dark area
 --  that touches nothing else dark (a symbol of separate dots is not
---  read), and its modules about two pixels or more. Here
+--  read), and its modules about two pixels or more. Here twice
 --  ContrastThreshold is the smallest difference between the light and
---  the dark pixels of a neighbourhood. The corners of such a result are
---  those of the symbol as it is printed (0: upper left, 1: upper right,
+--  the dark pixels of a neighbourhood (24 grey levels with the
+--  default): it must be above the swing of the noise in an even area,
+--  or the middle of a large dark area is given light pixels; raise it
+--  in a noisy image. The corners of such a result are those of the
+--  symbol as it is printed (0: upper left, 1: upper right,
 --  2: lower right, 3: lower left, the corner of the L), its angle is
 --  the direction of the lower side from the corner of the L, its centre
 --  is the middle of the symbol as it is printed (where the diagonals

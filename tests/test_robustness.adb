@@ -82,6 +82,7 @@ with AMV.Tools;                            use AMV.Tools;
 with AMV.Transforms;                       use AMV.Transforms;
 with AMV_Test_Barcodes;
 with AMV_Test_Data_Matrix;
+with AMV_Test_QR_Code;
 with AMV_Test_Images;
 with AMV_Test_Support;                     use AMV_Test_Support;
 
@@ -6015,9 +6016,12 @@ procedure Test_Robustness is
 
    function Matrix_Scene return Ks_Image_8_Grey is
       package Enc renames AMV_Test_Data_Matrix;
+      package QR renames AMV_Test_QR_Code;
       Symbol : constant Enc.Module_Matrix :=
         Enc.Symbol (Enc.ASCII ("ROBUST"));
-      Result : Ks_Image_8_Grey := TI.Blank (200, 120, 255);
+      Square : constant Enc.Module_Matrix :=
+        QR.Symbol (QR.Segment (QR.Bytes, "ROBUST", 1), 1, QR.QR.M);
+      Result : Ks_Image_8_Grey := TI.Blank (200, 200, 255);
    begin
       AMV_Test_Barcodes.Draw
         (Result, AMV_Test_Barcodes.EAN_8 ("96385074"), 100.0, 30.0, 2.0,
@@ -6025,9 +6029,13 @@ procedure Test_Robustness is
       Enc.Draw (Result, Symbol,
                 Enc.Placed (100.0, 88.0, 3.0 * Real (Symbol'Length (2)),
                             3.0 * Real (Symbol'Length (1))));
+      Enc.Draw (Result, Square,
+                Enc.Placed (100.0, 152.0, 3.0 * Real (Square'Length (2)),
+                            3.0 * Real (Square'Length (1))));
       return Result;
    end Matrix_Scene;
-   --  The EAN-8 symbol with a Data Matrix symbol under it.
+   --  The EAN-8 symbol with a Data Matrix symbol and a QR Code symbol
+   --  under it.
 
    Matrix_Image : constant Ks_Image_8_Grey := Matrix_Scene;
 
@@ -6042,7 +6050,7 @@ procedure Test_Robustness is
          T.Input_Image := Matrix_Image;
          T.Run_Params.Symbologies := R.All_Symbologies;
       end Prepare_Matrix;
-      --  Every symbology, on the image that has a symbol of both kinds.
+      --  Every symbology, on the image that has a symbol of each kind.
       procedure Use_Results (T : R.Ks_Code_Reader_Tool; Call : String) is
          procedure Read is
          begin
@@ -6079,7 +6087,7 @@ procedure Test_Robustness is
       package S is new Sweeps (R.Ks_Code_Reader_Tool, "CodeReader", Prepare,
                                Use_Results);
       package SM is new Sweeps (R.Ks_Code_Reader_Tool,
-                                "CodeReader with Data Matrix",
+                                "CodeReader with matrix symbols",
                                 Prepare_Matrix, Use_Results);
       procedure Set_Image (T : in out R.Ks_Code_Reader_Tool;
                            Field : Positive; I : Ks_Image_8_Grey) is
@@ -6124,7 +6132,7 @@ procedure Test_Robustness is
          T.Input_Image :=
            With_Root (Matrix_Image, Create (A, 0.0, 0.0, D, X, 0.0));
          T.Run_Params.Symbologies := R.All_Symbologies;
-         SM.Run_Case (T, "CodeReader on two symbols, " & Name);
+         SM.Run_Case (T, "CodeReader on three symbols, " & Name);
       end Symbol_With_Root;
       --  The positions of a symbol in a root space that is far from the
       --  pixels.
@@ -6152,17 +6160,19 @@ procedure Test_Robustness is
       S.Integers ("Symbologies,NumDirections,ContrastThreshold,"
                   & "MinScanLines,Code39CheckDigit,ITFCheckDigit,"
                   & "ITFMinDigits", Set_Integer'Access,
-                  Bad_Integers & [1, 127, 128, 180, 181, 255, 256, 1_000]);
+                  Bad_Integers
+                  & [1, 127, 128, 180, 181, 255, 256, 384, 511, 512,
+                     1_000]);
       S.Regions ("Region", All_Regions, Set_Region'Access);
       declare
          T : R.Ks_Code_Reader_Tool;
       begin
          Prepare_Matrix (T);
          T.Run;
-         Check (T.Results.Count = 2,
-                "Code Reader: the image of the sweep with Data Matrix has"
-                & " a symbol of both kinds (found" & T.Results.Count'Image
-                & ")");
+         Check (T.Results.Count = 3,
+                "Code Reader: the image of the sweep with matrix symbols"
+                & " has a symbol of each kind (found"
+                & T.Results.Count'Image & ")");
       end;
       SM.Default_Run;
       SM.Images ("InputImage", Set_Image'Access);
@@ -6170,10 +6180,12 @@ procedure Test_Robustness is
       SM.Integers ("Symbologies,NumDirections,ContrastThreshold,"
                    & "MinScanLines,Code39CheckDigit,ITFCheckDigit,"
                    & "ITFMinDigits", Set_Integer'Access,
-                   Bad_Integers & [1, 127, 128, 180, 181, 255, 256, 1_000]);
+                   Bad_Integers
+                   & [1, 127, 128, 180, 181, 255, 256, 384, 511, 512,
+                      1_000]);
       SM.Regions ("Region", All_Regions, Set_Region'Access);
       Integer_Sweep ("Symbology (forged result)",
-                     Bad_Integers & [1, 3, 64, 128, 256],
+                     Bad_Integers & [1, 3, 64, 128, 256, 512],
                      Forged_Symbology'Access);
       Integer_Sweep ("Text (forged result)",
                      Bad_Integers & [255, 256, 7_089, 7_090],
