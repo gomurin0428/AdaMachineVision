@@ -5,7 +5,8 @@
  * The code reader reads the linear barcodes of an 8-bit grey image, at
  * any orientation and any number of them per image: EAN-13, EAN-8, UPC-A,
  * UPC-E, Code 128, Code 39 and Interleaved 2 of 5 (ITF); and its Data
- * Matrix symbols (ECC 200), when the run parameters ask for them.
+ * Matrix (ECC 200) and QR Code (Model 2) symbols, when the run parameters
+ * ask for them.
  *
  * A run takes the image, the pixels to read as a pixel region
  * (ks_pixel_region_whole_image for the whole image; NULL is the empty
@@ -60,15 +61,19 @@
  *    by the most lines is kept. The results are ordered by the number of
  *    scan lines, greatest first.
  *
- * 5. Data Matrix. When KS_CODE_READER_SYMBOLOGY_DATA_MATRIX is among the
- *    symbologies, a pass of its own (without the scan lines) follows. The
- *    pixels of the area to scan are marked dark or light against a
- *    threshold of their neighbourhood: the level halfway between the
- *    lightest and the darkest pixel of the blocks of 8 by 8 pixels around
- *    them whose lightest and darkest pixel differ by contrast_threshold or
- *    more (an area that has no such difference has no dark pixel); pixels
- *    outside the region are light. Every connected dark area is followed
- *    along its outline. An area whose convex hull has two solid sides that
+ * 5. Two-dimensional symbols. When
+ *    KS_CODE_READER_SYMBOLOGY_DATA_MATRIX or
+ *    KS_CODE_READER_SYMBOLOGY_QR_CODE is among the symbologies, a pass of
+ *    its own (without the scan lines) follows. The pixels of the area to
+ *    scan are marked dark or light against a threshold of their
+ *    neighbourhood: the level halfway between the lightest and the
+ *    darkest pixel of the blocks of 8 by 8 pixels around them whose
+ *    lightest and darkest pixel differ by contrast_threshold or more (an
+ *    area that has no such difference has no dark pixel); pixels outside
+ *    the region are light.
+ *
+ * 6. Data Matrix. Every connected dark area is followed along its
+ *    outline. An area whose convex hull has two solid sides that
  *    meet (the "L" of a symbol) and two sides that are not solid gives the
  *    four corners of a symbol; they are refined with all dark pixels near
  *    that outline. The numbers of modules are counted along the two
@@ -101,6 +106,54 @@
  *    diagonals cross; for a symbol at least twice as wide as high, the
  *    middle of its columns as they were read), and num_scan_lines is 0.
  *
+ * 7. QR Code. The symbols are looked for by their finder patterns, in the
+ *    same dark and light pixels. A line through the middle of a finder
+ *    pattern crosses dark, light, dark, light and dark in the proportions
+ *    1 : 1 : 3 : 1 : 1. Every row is searched for five such runs; the
+ *    column through their middle, the row through the middle that the
+ *    column gives and the two diagonals must show them too, and a pattern
+ *    must be found in two rows. Its middle is that of the dark pixels of
+ *    the three modules by three in it. Three patterns can be those of a
+ *    symbol when the two arms from one of them to the others are about as
+ *    long as each other and stand at 60 to 120 degrees, and their modules
+ *    are about as wide. The length of the arms in modules gives the
+ *    version. The three middles, with the alignment pattern nearest to
+ *    the fourth corner (from version 2 on; it is looked for around where
+ *    the finder patterns put it), give the grid in perspective. One of
+ *    the two timing patterns at least (the modules in turn dark and light
+ *    from one finder pattern to the next) must be where the grid has it.
+ *    Then the modules are looked up at their middles, and the format
+ *    information, the version information and the codewords are read,
+ *    corrected (Reed-Solomon) and decoded; the versions one or two off
+ *    the one that the arms give, and the mirror image of the symbol, are
+ *    tried as well.
+ *
+ *    Every finder pattern is tried as the one in the corner between the
+ *    two others, with the pairs of the 32 patterns nearest to it whose
+ *    modules are about as wide, the nearest first, until 16 pairs that
+ *    could be those of a symbol have given no text. The finder patterns
+ *    of a symbol that was read are not tried again; of 256 finder
+ *    patterns or more in the area, some are passed over.
+ *
+ *    A symbol must be dark on light, with its three finder patterns whole
+ *    and with light pixels around each of them (the border of the image
+ *    and the pixels outside the region count as light), and with one of
+ *    its two timing patterns to be seen; its modules should be three
+ *    pixels or more, and two pixels are enough where the image is sharp.
+ *    The versions 1 to 40 of QR Code Model 2 (21 x 21 to 177 x 177
+ *    modules) are read at the four error correction levels; Micro QR Code
+ *    and QR Code Model 1 are not. A symbol whose text is empty is not
+ *    reported.
+ *
+ *    The QR Code results follow those of the Data Matrix symbols, in the
+ *    order in which the rows of the area, from its top, meet the finder
+ *    pattern of their corner 0. The corners are those of the symbol as it
+ *    is printed (0: upper left, 1: upper right, 3: lower left, the three
+ *    with a finder pattern, and 2: lower right; in the image the symbol
+ *    may be turned or mirrored), the angle is the direction from corner 0
+ *    to corner 1, the centre is the middle of the symbol as it is
+ *    printed, and num_scan_lines is 0.
+ *
  * Text:
  *  - Data Matrix: the characters of the ASCII, C40, Text, X12, EDIFACT
  *    and Base 256 encodations, each as one char (0 .. 255; no character
@@ -111,6 +164,15 @@
  *    codewords are passed over. The text can have up to 3125 characters:
  *    the result holds its first 255 and its whole length, and
  *    ks_code_reader_results_text gives all of it.
+ *  - QR Code: the bytes of the numeric, alphanumeric, byte and Kanji
+ *    segments as they are encoded, each as one char (0 .. 255; no
+ *    character set is applied, so a Kanji character is the two bytes of
+ *    its Shift JIS code). FNC1 in the first position (GS1) adds nothing
+ *    to the text; FNC1 in the second position adds its application
+ *    indicator before the text. After either, "%" in an alphanumeric
+ *    segment is the character GS (29) and "%%" is "%". ECI and structured
+ *    append are passed over. The text can have up to 7089 characters,
+ *    held and given like that of a Data Matrix symbol.
  *  - EAN-13: 13 digits; EAN-8: 8 digits; UPC-A: 12 digits; UPC-E: 8
  *    digits (the number system, the six digits of the symbol and the
  *    check digit). An EAN-13 symbol whose first digit is 0 is a UPC-A
@@ -149,7 +211,8 @@ extern "C" {
 #define KS_CODE_READER_SYMBOLOGY_ITF        64
 #define KS_CODE_READER_SYMBOLOGY_ALL_LINEAR 127
 #define KS_CODE_READER_SYMBOLOGY_DATA_MATRIX 128
-#define KS_CODE_READER_SYMBOLOGY_ALL        255
+#define KS_CODE_READER_SYMBOLOGY_QR_CODE    256
+#define KS_CODE_READER_SYMBOLOGY_ALL        511
 
 /* Limits. */
 #define KS_CODE_READER_MAX_TEXT_LENGTH  255     /* of a linear barcode
@@ -168,7 +231,7 @@ extern "C" {
 /* Run parameters; ks_code_reader_run_params_default fills in the
    defaults. */
 typedef struct {
-    int32_t symbologies;         /* ALL_LINEAR; a sum in 1 .. 255 */
+    int32_t symbologies;         /* ALL_LINEAR; a sum in 1 .. 511 */
     int32_t num_directions;      /* 12; in 1 .. 180, evenly spaced over
                                     half a turn */
     double  first_direction;     /* 0.0; the angle of direction 0 with the
@@ -178,9 +241,9 @@ typedef struct {
                                     lines, in 1.0 .. 1000.0 */
     int32_t contrast_threshold;  /* 12; the smallest rise or fall that is
                                     an edge, in grey levels, 1 .. 255; for
-                                    Data Matrix the smallest difference of
-                                    the light and the dark level of a
-                                    neighbourhood */
+                                    Data Matrix and QR Code the smallest
+                                    difference of the light and the dark
+                                    level of a neighbourhood */
     int32_t min_scan_lines;      /* 2; the fewest scan lines that must
                                     read the same symbol, in 1 .. 1000 */
     int32_t code_39_check_digit; /* 0; 1: a Code 39 symbol must end with
@@ -192,23 +255,26 @@ typedef struct {
 } ks_code_reader_run_params;
 
 /* One symbol. text holds length characters (the first 255 of them when
-   length is greater, which only the text of a Data Matrix symbol can be)
-   followed by NUL up to its end, so it is a C string whenever the text
-   itself holds no NUL (Code 128 and Data Matrix can encode one). For a
-   linear barcode the corners are those of the area the reading scan lines
-   cover: they bound the scan lines that read the symbol, not the full
-   height of its bars, and the centre is the middle of that area (across
-   the scan lines it can be about half a line spacing away from the middle
-   of the symbol). For a Data Matrix symbol the corners are those of the
-   symbol as it is printed, 0: upper left, 1: upper right, 2: lower right,
-   3: lower left (the corner of the L), the angle is the direction from
-   corner 3 to corner 2, and num_scan_lines is 0. Positions are in the
-   space that selected_from_pixel maps pixel space to. */
+   length is greater, which only the text of a two-dimensional symbol can
+   be) followed by NUL up to its end, so it is a C string whenever the text
+   itself holds no NUL (Code 128, Data Matrix and QR Code can encode one).
+   For a linear barcode the corners are those of the area the reading scan
+   lines cover: they bound the scan lines that read the symbol, not the
+   full height of its bars, and the centre is the middle of that area
+   (across the scan lines it can be about half a line spacing away from the
+   middle of the symbol). For a Data Matrix symbol the corners are those of
+   the symbol as it is printed, 0: upper left, 1: upper right, 2: lower
+   right, 3: lower left (the corner of the L), the angle is the direction
+   from corner 3 to corner 2, and num_scan_lines is 0. For a QR Code symbol
+   the corners are those of the symbol as it is printed too (0, 1 and 3
+   have the finder patterns), the angle is the direction from corner 0 to
+   corner 1, and num_scan_lines is 0. Positions are in the space that
+   selected_from_pixel maps pixel space to. */
 typedef struct {
     int32_t symbology;      /* one KS_CODE_READER_SYMBOLOGY_* */
     int32_t length;         /* of the whole text: 1 ..
                                KS_CODE_READER_MAX_TEXT_LENGTH, for Data
-                               Matrix 1 .. 3125 */
+                               Matrix 1 .. 3125, for QR Code 1 .. 7089 */
     char    text[KS_CODE_READER_MAX_TEXT_LENGTH + 1];
     double  center_x, center_y;
     double  angle;          /* the direction from the start of the symbol
@@ -256,8 +322,8 @@ void ks_code_reader_run_params_default(ks_code_reader_run_params *params,
    the image) whose width plus height exceeds
    KS_CODE_READER_MAX_LINE_SAMPLES; KS_FAILURE_OUT_OF_MEMORY;
    KS_FAILURE_OTHER when more than KS_CODE_READER_MAX_CANDIDATES
-   candidates (those of the linear barcodes and the Data Matrix symbols
-   together) arise. *results is NULL on failure. */
+   candidates (those of the linear barcodes and the two-dimensional
+   symbols together) arise. *results is NULL on failure. */
 void ks_code_reader_execute(const ks_image_8_grey *image,
                             const ks_pixel_region *region,
                             const ks_code_reader_run_params *params,

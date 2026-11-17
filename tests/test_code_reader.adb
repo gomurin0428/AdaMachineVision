@@ -392,7 +392,8 @@ procedure Test_Code_Reader is
       Check (Code (EAN_13) = 1 and then Code (EAN_8) = 2
              and then Code (UPC_A) = 4 and then Code (UPC_E) = 8
              and then Code (Code_128) = 16 and then Code (Code_39) = 32
-             and then Code (ITF) = 64 and then Code (Data_Matrix) = 128,
+             and then Code (ITF) = 64 and then Code (Data_Matrix) = 128
+             and then Code (QR_Code) = 256,
              "the symbology codes are one bit each");
       declare
          Sum : Int32 := 0;
@@ -400,9 +401,10 @@ procedure Test_Code_Reader is
          for Value in Kind loop
             Sum := Sum + Code (Value);
          end loop;
-         Check (Sum = All_Symbologies and then Sum = 255,
+         Check (Sum = All_Symbologies and then Sum = 511,
                 "AllSymbologies is the sum of the codes");
-         Check (Sum - Code (Data_Matrix) = All_Linear_Symbologies
+         Check (Sum - Code (Data_Matrix) - Code (QR_Code)
+                  = All_Linear_Symbologies
                 and then All_Linear_Symbologies = Defaults.Symbologies,
                 "AllLinearSymbologies is the sum of those of the linear"
                 & " barcodes, the default");
@@ -1984,7 +1986,7 @@ procedure Test_Code_Reader is
 
       Symbologies : constant String :=
         "RunParams.Symbologies must be a sum of"
-        & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255";
+        & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 511";
       Directions  : constant String :=
         "RunParams.NumDirections must be in 1 .. 180";
       First       : constant String :=
@@ -2010,8 +2012,8 @@ procedure Test_Code_Reader is
 
       Check_Bad ((Defaults with delta Symbologies => 0), Symbologies,
                  "Symbologies 0");
-      Check_Bad ((Defaults with delta Symbologies => 256), Symbologies,
-                 "Symbologies 256");
+      Check_Bad ((Defaults with delta Symbologies => 512), Symbologies,
+                 "Symbologies 512");
       Check_Bad ((Defaults with delta Symbologies => -1), Symbologies,
                  "Symbologies -1");
       Check_Good ((Defaults with delta Symbologies => Code (EAN_8)),
@@ -2020,6 +2022,10 @@ procedure Test_Code_Reader is
         (Run_On (Image,
                  (Defaults with delta Symbologies => Code (Data_Matrix))),
          "Symbologies: Data Matrix alone does not read a linear barcode");
+      Check_None
+        (Run_On (Image,
+                 (Defaults with delta Symbologies => Code (QR_Code))),
+         "Symbologies: QR Code alone does not read a linear barcode");
       Check_Good ((Defaults with delta Symbologies => All_Symbologies),
                   "Symbologies: all of them");
 

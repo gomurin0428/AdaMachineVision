@@ -961,7 +961,7 @@ procedure Test_Code_Reader_Data_Matrix is
 
       Check (Code (Data_Matrix) = 128
              and then Defaults.Symbologies + Code (Data_Matrix)
-                        = Everything.Symbologies,
+                        + Code (QR_Code) = Everything.Symbologies,
              "the codes: Data Matrix is 128 and not among the defaults");
       Check_None (Run_On (Image, Defaults),
                   "the default symbologies do not read a Data Matrix "
