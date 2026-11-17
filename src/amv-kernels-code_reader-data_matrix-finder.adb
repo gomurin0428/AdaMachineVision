@@ -16,19 +16,42 @@ is
 
    use type DA.Mark;
 
-   Span : constant := 2.0 * Limit;
-   --  The difference of two coordinates, at most.
+   --  The points, the pixels and the mapping of Views, by the names
+   --  that this body uses.
 
-   Far : constant := 2.0 * Span;
-   --  The distance of two points, at most (as N.Hypot bounds it).
+   Span : constant := VW.Span;
+   Far  : constant := VW.Far;
+   Wide : constant := VW.Wide;
+   --  The difference of two coordinates, the distance of two points
+   --  and Off_Line, at most.
 
-   Wide : constant := 2.0 * Span * Span;
-   --  Off_Line, at most.
-
-   subtype Length_Value is Long_Float range 0.0 .. Far;
-   subtype Cross is Long_Float range -Wide .. Wide;
-   subtype Offset is Long_Float range -Span .. Span;
+   subtype Length_Value is VW.Length_Value;
+   subtype Cross is VW.Cross;
+   subtype Offset is VW.Offset;
    subtype Share_Value is Long_Float range 0.0 .. 1.0;
+
+   function Distance (A, B : Corner) return Length_Value
+     renames VW.Distance;
+
+   function Off_Line (A, B, P : Corner) return Cross
+     renames VW.Off_Line;
+   --  The distance of P from the line from A to B, times the length of
+   --  the line; positive on the right of the line as the image is seen.
+
+   function Quotient
+     (X, Y  : Long_Float;
+      Bound : Long_Float) return Long_Float
+     renames VW.Quotient;
+   --  X / Y where that is within Bound of 0, else Bound with the sign
+   --  of X / Y.
+
+   function Floor_Index (X : Long_Float; High : Natural) return Natural
+     renames VW.Floor_Index;
+   --  The whole part of X, and High where that is more.
+
+   function Dark_At (Map : DA.Mark_Map; X, Y : Long_Float) return Boolean
+     renames VW.Dark_At;
+   --  The pixel that holds the point is dark (outside the map: light).
 
    Most_Steps : constant := 2 ** 29;
    --  The points that Scan_Side looks at along a side, less one, at
@@ -109,78 +132,11 @@ is
    function To_Corner (P : DA.Point) return Corner is
      (X => Long_Float (P.X), Y => Long_Float (P.Y));
 
-   function Distance (A, B : Corner) return Length_Value
-   with Post => Distance'Result <= Far;
-   --  The postcondition says no more than the subtype: with a contract,
-   --  the function is proved once, and not again inside every caller.
-
-   function Distance (A, B : Corner) return Length_Value is
-   begin
-      return N.Hypot (B.X - A.X, B.Y - A.Y);
-   end Distance;
-
    function Fourth (A, B, C : Corner) return Corner is
      (if abs (A.X + B.X - C.X) < Limit and then abs (A.Y + B.Y - C.Y) < Limit
       then (A.X + B.X - C.X, A.Y + B.Y - C.Y) else C);
    --  The corner opposite C of the parallelogram with the sides from C
    --  to A and from C to B.
-
-   function Off_Line (A, B, P : Corner) return Cross
-   with Post => abs Off_Line'Result <= Wide;
-   --  The distance of P from the line from A to B, times the length of
-   --  the line; positive on the right of the line as the image is seen.
-
-   function Off_Line (A, B, P : Corner) return Cross is
-   begin
-      return N.Mul_Within (B.X - A.X, P.Y - A.Y, Span, Span)
-        - N.Mul_Within (B.Y - A.Y, P.X - A.X, Span, Span);
-   end Off_Line;
-
-   function Quotient
-     (X, Y  : Long_Float;
-      Bound : Long_Float) return Long_Float
-   with Pre  => abs X <= N.Mul_Limit and then Y /= 0.0
-                and then abs Y <= N.Mul_Limit
-                and then Bound in 1.0 .. N.Mul_Limit,
-        Post => abs Quotient'Result <= Bound
-                and then (if X >= 0.0 and then Y > 0.0
-                          then Quotient'Result >= 0.0);
-   --  X / Y where that is within Bound of 0, else Bound with the sign
-   --  of X / Y.
-
-   function Quotient
-     (X, Y  : Long_Float;
-      Bound : Long_Float) return Long_Float
-   is
-      Q    : Long_Float;
-      Fits : Boolean;
-   begin
-      N.Quotient_Within (abs X, abs Y, Bound, Q, Fits);
-      if not Fits then
-         Q := Bound;
-      end if;
-      return (if (X < 0.0) = (Y < 0.0) then Q else -Q);
-   end Quotient;
-
-   function Floor_Index (X : Long_Float; High : Natural) return Natural
-   with Pre  => X >= 0.0 and then X <= Far,
-        Post => Floor_Index'Result <= High;
-   --  The whole part of X, and High where that is more.
-
-   function Floor_Index (X : Long_Float; High : Natural) return Natural is
-   begin
-      return Natural'Min (Natural (Long_Float'Floor (X)), High);
-   end Floor_Index;
-
-   function Dark_At (Map : DA.Mark_Map; X, Y : Long_Float) return Boolean
-   is
-     (X >= 0.0 and then Y >= 0.0
-      and then X < Long_Float (Map'Length (2))
-      and then Y < Long_Float (Map'Length (1))
-      and then Map (Floor_Index (Y, Map'Last (1)),
-                    Floor_Index (X, Map'Last (2))) /= DA.Light)
-   with Pre => DA.Valid_Map (Map);
-   --  The pixel that holds the point is dark (outside the map: light).
 
    ---------------------------------------------------------------------
    --  A side
@@ -1256,31 +1212,23 @@ is
 
    subtype Step_Sum is Integer range -2 * Max_Steps .. 2 * Max_Steps;
 
-   Tilt_Limit : constant := 2.0 ** 100;
+   Tilt_Limit : constant := VW.Tilt_Limit;
    --  The two factors of a mapping that make the view a perspective
    --  one, at most: a sum of two products of differences of coordinates
    --  by a determinant of 1.0E-9 or more.
 
-   Factor_Limit : constant := 2.0 ** 130;
-   --  The other factors of a mapping, at most.
-
    subtype Skew is Long_Float range -Far .. Far;
-   subtype Tilt is Long_Float range -Tilt_Limit .. Tilt_Limit;
-   subtype Factor is Long_Float range -Factor_Limit .. Factor_Limit;
+   subtype Tilt is VW.Tilt;
 
-   type Mapping is record
-      G, H       : Tilt := 0.0;
-      A, B, D, E : Factor := 0.0;
-      X0, Y0     : Coordinate := 0.0;
-   end record;
-   --  The perspective mapping that takes the unit square to the four
-   --  corners of a symbol: (0, 0) to the upper left, (1, 0) to the upper
-   --  right and (1, 1) to the lower right one.
+   subtype Mapping is VW.Mapping;
+   --  Here the perspective mapping that takes the unit square to the
+   --  four corners of a symbol: (0, 0) to the upper left, (1, 0) to the
+   --  upper right and (1, 1) to the lower right one.
 
    subtype Spacing is Long_Float range 0.25 .. 4.0;
    --  The factor K of Spaced.
 
-   subtype Spread is Long_Float range -4.0 .. 4.0;
+   subtype Spread is VW.Spread;
    --  A share of the way along the upper side as Spaced gives it.
 
    function Share_Of
@@ -1324,70 +1272,6 @@ is
         (U, Long_Float'Max (0.25, K + N.Times_Unit (1.0 - K, U)), 4.0);
    end Spaced;
 
-   subtype Wide_Factor is Long_Float
-     range -4.0 * Factor_Limit .. 4.0 * Factor_Limit;
-
-   function Across (F : Factor; U : Spread) return Wide_Factor is
-     (N.Times_Small (F, U));
-
-   function Down (F : Factor; V : Share_Value) return Factor is
-     (N.Times_Unit (F, V));
-   --  The parts of the sums of Project: a factor of a mapping times a
-   --  share of the way across and down the symbol.
-
-   procedure Project
-     (M     : Mapping;
-      U     : Spread;
-      V     : Share_Value;
-      X, Y  : out Long_Float;
-      Ahead : out Boolean)
-   with Global => null, Post => abs X <= Far and then abs Y <= Far;
-   --  The point (X, Y) of the image at the shares U and V of the way
-   --  across and down the symbol. Not Ahead: the mapping gives none. A
-   --  point farther than Far from an axis is given at Far from it: no
-   --  pixel is there, and no corner.
-
-   procedure Project
-     (M     : Mapping;
-      U     : Spread;
-      V     : Share_Value;
-      X, Y  : out Long_Float;
-      Ahead : out Boolean)
-   is
-      W : constant Long_Float := Across (M.G, U) + Down (M.H, V) + 1.0;
-   begin
-      Ahead := W > 1.0E-6;
-      if Ahead then
-         X := Quotient (Across (M.A, U) + Down (M.B, V) + M.X0, W, Far);
-         Y := Quotient (Across (M.D, U) + Down (M.E, V) + M.Y0, W, Far);
-      else
-         X := 0.0;
-         Y := 0.0;
-      end if;
-   end Project;
-
-   function Dark_In
-     (Map : DA.Mark_Map;
-      M   : Mapping;
-      U   : Spread;
-      V   : Share_Value) return Boolean
-   with Pre => DA.Valid_Map (Map);
-   --  The pixel at the shares U and V of the way across and down the
-   --  symbol is dark.
-
-   function Dark_In
-     (Map : DA.Mark_Map;
-      M   : Mapping;
-      U   : Spread;
-      V   : Share_Value) return Boolean
-   is
-      X, Y  : Long_Float;
-      Ahead : Boolean;
-   begin
-      Project (M, U, V, X, Y, Ahead);
-      return Ahead and then Dark_At (Map, X, Y);
-   end Dark_In;
-
    function Score
      (Map           : DA.Mark_Map;
       M             : Mapping;
@@ -1413,7 +1297,7 @@ is
          pragma Loop_Invariant (Result <= 2 * C);
          for Half in Boolean loop
             U := Share_Of (C, (if Half then 0.75 else 0.25), Columns);
-            if Dark_In (Map, M, Spaced (U, K), V0) = (C mod 2 = 0) then
+            if VW.Dark_In (Map, M, Spaced (U, K), V0) = (C mod 2 = 0) then
                Result := Result + 1;
             end if;
          end loop;
@@ -1439,21 +1323,13 @@ is
       X, Y  : Long_Float;
       Ahead : Boolean;
    begin
-      Project (M, Spaced (0.5, K), 0.5, X, Y, Ahead);
+      VW.Project (M, Spaced (0.5, K), 0.5, X, Y, Ahead);
       if Ahead and then abs X <= Limit and then abs Y <= Limit then
          return (X, Y);
       else
          return Mean;
       end if;
    end Middle;
-
-   function Factor_Of
-     (From, To : Coordinate;
-      T        : Tilt) return Factor
-   is (To - From + N.Mul_Within (T, To, Tilt_Limit, Limit));
-   --  A factor of a mapping: for the coordinate From of the upper left
-   --  corner and To of the corner next to it, with the factor T of the
-   --  perspective view along that side.
 
    procedure Sample
      (Map           : DA.Mark_Map;
@@ -1510,10 +1386,10 @@ is
          Den, Tilt_Limit);
       M := (G  => G,
             H  => H,
-            A  => Factor_Of (X0, X1, G),
-            B  => Factor_Of (X0, X3, H),
-            D  => Factor_Of (Y0, Y1, G),
-            E  => Factor_Of (Y0, Y3, H),
+            A  => VW.Factor_Of (X0, X1, G),
+            B  => VW.Factor_Of (X0, X3, H),
+            D  => VW.Factor_Of (Y0, Y1, G),
+            E  => VW.Factor_Of (Y0, Y3, H),
             X0 => X0,
             Y0 => Y0);
 
@@ -1548,7 +1424,7 @@ is
          for C in 0 .. Columns - 1 loop
             U := Spaced (Share_Of (C, 0.5, Columns), K);
             Grid (Module_Index (R), Module_Index (C)) :=
-              Dark_In (Map, M, U, V);
+              VW.Dark_In (Map, M, U, V);
          end loop;
       end loop;
 

@@ -30,6 +30,7 @@ with Test_Caliper;
 with Test_Code_Reader;
 with Test_Code_Reader_2D;
 with Test_Code_Reader_Data_Matrix;
+with Test_Code_Reader_QR_Finder;
 with Test_Code_Reader_QR_Symbol;
 with Test_Find_Line;
 with Test_Find_Circle;
@@ -85,6 +86,8 @@ begin
              Test_Code_Reader_Data_Matrix'Access);
    Run_Area ("Test_Code_Reader_QR_Symbol",
              Test_Code_Reader_QR_Symbol'Access);
+   Run_Area ("Test_Code_Reader_QR_Finder",
+             Test_Code_Reader_QR_Finder'Access);
    Run_Area ("Test_Robustness", Test_Robustness'Access);
 
    Ada.Text_IO.Put_Line ("=== Total");
