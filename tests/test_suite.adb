@@ -11,8 +11,9 @@
 --
 --  With arguments, only the areas that they name are run, each named
 --  once as it is printed (Test_Kernels, say; the case of the letters
---  does not matter): tools/mutant_tests.sh runs the areas of one unit
---  for a mutant of it. A name that is not that of an area is an error.
+--  does not matter): adamutant.toml makes each area a test of its own,
+--  so that a mutant runs with the areas that execute its place. A name
+--  that is not that of an area is an error.
 
 with Ada.Characters.Handling;
 with Ada.Command_Line;

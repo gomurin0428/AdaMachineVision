@@ -2128,12 +2128,9 @@ Lessons from the QR Code pass of `AMV.Kernels.Code_Reader` (`Views`,
   patterns, where the alignment pattern is looked for and which of the
   two mappings is used). Three test units of maps made pixel by pixel
   check them now (`tests/test_code_reader_qr_patterns.adb`,
-  `test_code_reader_qr_placing.adb`, `test_code_reader_qr_sampling.adb`):
-  277 of the 390 fail a test now, 92 are marked with their reason (24 of
-  them not pinned), 20 that fail a test now are taken out with them by
-  the marks of their lines, and one is left with its reason in a
-  comment. AdaMutant gives the finder 99.89 % (906 of 907 mutants found,
-  146 marked out) where it gave 62.89 %. The mutants agreed with every
+  `test_code_reader_qr_placing.adb`, `test_code_reader_qr_sampling.adb`),
+  and `docs/MUTATION.md` lists those that survive them and the proof,
+  with the reason. The mutants agreed with every
   limit above that never acts, and showed two comments of the finder
   to be imprecise (which patterns `Purge` takes away, and when
   `Rows_Of` gives up); they are corrected.
@@ -2142,8 +2139,8 @@ Lessons from the QR Code pass of `AMV.Kernels.Code_Reader` (`Views`,
   with the mutant, and the two were run on millions of random maps, or
   on symbols painted with modules changed and placed with values
   changed; a map on which they differ, made smaller where it could be,
-  is a test case. Where millions gave none, the mark says "not pinned"
-  and its comment says what map would.
+  is a test case. Where millions gave none, `docs/MUTATION.md` says
+  "not pinned" and what map would.
 * The file cache of the proofs (`PROVE_CACHE`) keys a check by its
   place in the source as well. With 65 comment lines added to the body
   of `QR_Code`, which moved the lines after them, the proof of that
@@ -2151,10 +2148,7 @@ Lessons from the QR Code pass of `AMV.Kernels.Code_Reader` (`Views`,
   were proved again. After a change of comments that moved no line it
   took a second and a half and wrote none. A comment that is added
   costs a proof of the unit; a comment that is changed in place does
-  not. The marks of the mutation tests are comment lines as well: 164
-  lines added to the body of the finder and 13 to that of `Views` cost
-  a proof of 91 seconds that wrote 2232 new entries, and those of the
-  body of the kernel one of 5 minutes 24 seconds that wrote 2096.
+  not.
 
 ## Assumptions and limits
 

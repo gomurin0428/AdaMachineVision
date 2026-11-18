@@ -648,10 +648,9 @@ them, which made it 81:
   pixels, and two finder patterns were lost.
 
 With the reader frozen at that, the even-numbered images were run once:
-80 of 89. Nothing that the reader does has been changed since. Only
-comments of its sources have been added or corrected (the marks of the
-mutation tests with their reasons, `docs/DESIGN.md` 8), and the test,
-run again after that, gives the same figures.
+80 of 89. Nothing that the reader does has been changed since: three
+comments of its sources have been corrected in place, and the test, run
+again after that, gives the same figures.
 
 **What is checked.** Of every image: every text the reader reports is
 that of a symbol in the picture, so a wrong reading fails; and the

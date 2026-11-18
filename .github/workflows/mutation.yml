@@ -1,0 +1,211 @@
+# Mutation testing with AdaMutant (https://github.com/gomurin0428/AdaMutant)
+# on the bodies that a pull request changes (docs/DESIGN.md 8): every
+# small change of a changed line (a mutant) is run with the areas of
+# test_suite that execute it and, if they pass, with the proof of its
+# unit (adamutant.toml, tools/mutant_prove.sh). One job for each changed
+# body, in parallel. Each keeps the prover cache of its unit and its last
+# report from run to run: a later push proves only the goals that changed
+# and runs again only the mutants that were not detected or whose lines
+# changed. The report (HTML and JSON) is an artifact of the job, and the
+# end of the console output is its summary. The score does not fail the
+# run; a survivor is looked at by hand (docs/MUTATION.md).
+
+name: Mutation
+
+on:
+  pull_request:
+    paths:
+      - 'src/**.adb'
+      - 'tests/**.adb'
+      - 'tests/**.ads'
+      - 'adamutant.toml'
+      - 'tools/mutant_prove.sh'
+  workflow_dispatch:
+    inputs:
+      files:
+        description: >-
+          Bodies to mutate whole, separated by spaces (src/....adb); empty
+          for the lines that the branch changes against main
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GNAT_RELEASE: gnat-16.1.0-1
+  GNAT_ASSET: gnat-x86_64-linux-16.1.0-1.tar.gz
+  GPRBUILD_RELEASE: gprbuild-26.0.0-1
+  GPRBUILD_ASSET: gprbuild-x86_64-linux-26.0.0-1.tar.gz
+  GNATPROVE_RELEASE: gnatprove-16.1.0-1
+  GNATPROVE_ASSET: gnatprove-x86_64-linux-16.1.0-1.tar.gz
+  # AdaMutant is built from its main branch; the job prints the commit.
+  ADAMUTANT_REPO: https://github.com/gomurin0428/AdaMutant.git
+  ADAMUTANT_REF: main
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      files: ${{ steps.files.outputs.files }}
+      whole: ${{ steps.files.outputs.whole }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The bodies to mutate
+        id: files
+        env:
+          FILES: ${{ inputs.files }}
+          BASE: origin/${{ github.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          if [ -n "${FILES:-}" ]; then
+            list=$FILES
+            whole=true
+          else
+            list=$(git diff --name-only --diff-filter=AM \
+                     "$(git merge-base "$BASE" HEAD)" HEAD -- 'src/*.adb')
+            whole=false
+          fi
+          json=$(printf '%s\n' $list | jq -R . | jq -cs 'map(select(length > 0))')
+          echo "files=$json" >> "$GITHUB_OUTPUT"
+          echo "whole=$whole" >> "$GITHUB_OUTPUT"
+          echo "bodies: $json (whole files: $whole)"
+
+  mutate:
+    needs: plan
+    if: needs.plan.outputs.files != '[]'
+    name: mutate (${{ matrix.file }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        file: ${{ fromJSON(needs.plan.outputs.files) }}
+    env:
+      FILE: ${{ matrix.file }}
+      BASE: origin/${{ github.base_ref || 'main' }}
+      WHOLE: ${{ needs.plan.outputs.whole }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/toolchain
+
+      - name: Build AdaMutant
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "$ADAMUTANT_REF" "$ADAMUTANT_REPO" \
+            "$RUNNER_TEMP/adamutant"
+          git -C "$RUNNER_TEMP/adamutant" log --oneline -1
+          make -C "$RUNNER_TEMP/adamutant" build
+          echo "$RUNNER_TEMP/adamutant/bin" >> "$GITHUB_PATH"
+
+      - name: Choose the directories
+        run: |
+          unit=$(basename "$FILE" .adb)
+          echo "UNIT=$unit" >> "$GITHUB_ENV"
+          echo "MUTATION_CACHE=$RUNNER_TEMP/mutation-cache" >> "$GITHUB_ENV"
+          echo "MUTATION_CACHE_TAR=$RUNNER_TEMP/mutation-cache.tar" >> "$GITHUB_ENV"
+          echo "LAST_REPORT_DIR=$RUNNER_TEMP/last-report" >> "$GITHUB_ENV"
+
+      # The prover results of the proofs of the mutants of this unit (their
+      # switches are not those of make prove), kept as one tar file as in
+      # the proof jobs of ci.yml.
+      - name: Restore the prover cache of the mutants
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.MUTATION_CACHE_TAR }}
+          key: mutation-prove-${{ env.UNIT }}-${{ env.GNATPROVE_RELEASE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            mutation-prove-${{ env.UNIT }}-${{ env.GNATPROVE_RELEASE }}-
+
+      # The report of the last run on this file and branch, whose results
+      # AdaMutant takes again for the lines that have not changed since.
+      - name: Restore the last report
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.LAST_REPORT_DIR }}
+          key: mutation-report-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            mutation-report-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-
+
+      # The unit proved once with the switches of the mutants, so that the
+      # proofs of the unchanged project and of every mutant take the goals
+      # they share from the cache.
+      - name: Prove the unit into the cache
+        run: |
+          set -euo pipefail
+          mkdir -p "$MUTATION_CACHE" "$LAST_REPORT_DIR"
+          if [ -f "$MUTATION_CACHE_TAR" ]; then
+            tar -xf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE"
+          fi
+          echo "prover cache: $(find "$MUTATION_CACHE" -type f | wc -l) files"
+          AMV_PROVE_CACHE="$MUTATION_CACHE" AMV_PROVE_JOBS=4 \
+            AMV_PROVE_UNITS="$UNIT.adb" sh tools/mutant_prove.sh
+
+      - name: Run AdaMutant
+        run: |
+          set -euo pipefail
+          if [ "$WHOLE" = true ]; then
+            target=mutation
+          else
+            target=mutation-diff
+          fi
+          make "$target" MUTATE="$FILE" MUTATION_BASE="$BASE" \
+            MUTATION_JOBS=4 MUTATION_CACHE="$MUTATION_CACHE" \
+            MUTATION_BASELINE="$LAST_REPORT_DIR/mutation-report.json" \
+            2>&1 | tee "$RUNNER_TEMP/adamutant.log"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### AdaMutant: $FILE"
+            echo '```'
+            grep -v '^\[[0-9]*/[0-9]*\]' "$RUNNER_TEMP/adamutant.log" | tail -n 200 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report and pack the prover cache
+        if: always()
+        run: |
+          if [ -f .adamutant/reports/mutation-report.json ]; then
+            cp .adamutant/reports/mutation-report.json "$LAST_REPORT_DIR/"
+          fi
+          if [ -d "$MUTATION_CACHE" ]; then
+            tar -cf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE" .
+          fi
+
+      - name: Save the last report
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.LAST_REPORT_DIR }}
+          key: mutation-report-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Save the prover cache of the mutants
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.MUTATION_CACHE_TAR }}
+          key: mutation-prove-${{ env.UNIT }}-${{ env.GNATPROVE_RELEASE }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-${{ env.UNIT }}
+          path: |
+            .adamutant/reports
+            ${{ runner.temp }}/adamutant.log
+          if-no-files-found: warn

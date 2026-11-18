@@ -232,31 +232,34 @@ packages; their entry points form the C API (section 9).
   the same values. Every exception must be an AMV one, or the
   Constraint_Error a spec documents for an index. A new tool or
   subprogram that takes numbers gets its place in that sweep.
-* Mutation testing checks the tests themselves. AdaMutant
+* Mutation testing checks the tests and the contracts. AdaMutant
   (https://github.com/gomurin0428/AdaMutant, set up in `adamutant.toml`)
-  makes small changes to a body, one at a time (a mutant: `<` for `<=`,
-  a literal one higher, a statement taken out), builds each and runs the
-  areas of `test_suite` that test the unit (`tools/mutant_tests.sh`;
-  `test_suite <area> ...` runs only the areas named). A mutant that the
-  tests pass shows something that no test checks. A pull request that
-  adds or changes a body under `src/` runs `make mutation-diff` (the
-  changed lines) or `make mutation MUTATE=src/<file>.adb` (a whole file)
-  first. Every mutant that survives gets the test that fails for it;
-  where no test can tell it from the source (the same result for every
-  input, a guard that cannot act, a value that the contract leaves
-  open), its line is marked with
-  `--  adamutant:disable-next-line <mutators>: <reason>`. Where only an
-  input that no search has found, or one too large to make in a test,
-  would tell it (a map of thousands of pixels a side), the reason is
-  "not pinned" and the comment above the mark says what input would.
-  Such a mark takes every mutant of the named mutators on the line out
-  of the run, so it names the mutators wherever the line has other
-  mutants that the tests catch; where it would take many of those with
-  it, the line stays unmarked, with a comment that says why its mutant
-  survives. Contracts and loop invariants are not mutated (they are
-  for the proof), and the kernels run their preconditions only
-  (`Assertion_Policy`), so a mutant that only a postcondition or a loop
-  invariant would notice passes the tests.
+  makes small changes to a body (mutants: `<` for `<=`, a literal one
+  higher, a statement taken out), builds them, and runs each with the
+  areas of `test_suite` that execute its place (each area is a test of
+  its own; `test_suite <area> ...` runs only the areas named). A mutant
+  that the tests pass goes to the proof of its unit
+  (`tools/mutant_prove.sh`), and one that passes that too is compiled
+  again with optimisation: where its object code is that of the
+  unchanged body, it is an equivalent mutant (Ignored). A pull request
+  that adds or changes a body under `src/` runs `make mutation-diff`
+  (the changed lines) or `make mutation MUTATE=src/<file>.adb` (a whole
+  file) first; `MUTATION_BASELINE` takes the results of an earlier
+  report again for the lines that have not changed. A mutant that only
+  the proof detects is a candidate for a missing test, and gets one
+  where the tests can see the change (AdaMutant lists these with the
+  counterexample of GNATprove). A mutant that survives both gets a
+  test, or a stronger contract; one that no test can tell from the
+  source and that the compiler does not reduce to the same code (a
+  guard that cannot act, a bound that is never reached) stays
+  Survived, and `docs/MUTATION.md` lists it with the reason, outside
+  the code. Where only an input that no search has found, or one too
+  large to make in a test (a map of thousands of pixels a side), would
+  tell it, the list says "not pinned" and what input would. Contracts
+  and ghost code are not mutated, and the kernels run their
+  preconditions only (`Assertion_Policy`), so a mutant that only a
+  postcondition or a loop invariant would notice is left to the
+  proof.
 
 ## 9. SPARK kernels and the C API
 

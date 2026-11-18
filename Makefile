@@ -11,13 +11,27 @@ PROVE_CACHE_SWITCH = $(if $(PROVE_CACHE),--memcached-server=file:$(abspath $(PRO
 # group of the CI: make prove PROVE_UNITS="$$(tools/prove_groups.sh core)".
 PROVE_UNITS ?=
 # Mutation testing (adamutant.toml) with AdaMutant
-# (https://github.com/gomurin0428/AdaMutant): the file or pattern to
+# (https://github.com/gomurin0428/AdaMutant): the files or patterns to
 # mutate for make mutation (empty = every body), the revision whose
-# changed lines make mutation-diff takes, and the number of sandboxes.
+# changed lines make mutation-diff takes, the number of sandboxes, the
+# JSON report of an earlier run whose results are taken again for the
+# lines not changed since (empty = none), the file cache of the proofs
+# of the mutants (that of make prove where it is given) and the prover
+# processes of each.
 ADAMUTANT ?= adamutant
 MUTATE ?=
 MUTATION_BASE ?= origin/main
 MUTATION_JOBS ?= 2
+MUTATION_BASELINE ?=
+MUTATION_CACHE ?= $(or $(PROVE_CACHE),build/prove-cache)
+MUTATION_PROVE_JOBS ?= 2
+MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
+  AMV_PROVE_CACHE=$(abspath $(MUTATION_CACHE)) \
+  AMV_PROVE_JOBS=$(MUTATION_PROVE_JOBS) \
+  AMV_PROVE_UNITS='$(notdir $(wildcard $(MUTATE)))' $(ADAMUTANT) run \
+  --concurrency $(MUTATION_JOBS) \
+  $(if $(MUTATION_BASELINE),--baseline $(MUTATION_BASELINE)) \
+  $(foreach m,$(MUTATE),--mutate '$(m)')
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
@@ -116,18 +130,17 @@ prove:
 	  --warnings=error --report=fail $(PROVE_CACHE_SWITCH) \
 	  $(foreach u,$(PROVE_UNITS),-u $(u))
 
-# Mutation testing: every small change of a source (a mutant) is built
-# and the tests of its unit are run (tools/mutant_tests.sh); a mutant
-# that no test notices shows a gap in the tests. Run make mutation-diff
-# before a pull request that changes a kernel, and
-# make mutation MUTATE=src/<file>.adb for a whole file.
+# Mutation testing: every small change of a body (a mutant) is run with
+# the areas of test_suite that execute its place and, if they pass, the
+# proof of its unit (tools/mutant_prove.sh); a mutant that neither
+# notices shows a gap in the tests or in the contracts (docs/DESIGN.md
+# 8). Run make mutation-diff before a pull request that changes a body,
+# and make mutation MUTATE=src/<file>.adb for a whole file.
 mutation:
-	$(ADAMUTANT) run --concurrency $(MUTATION_JOBS) \
-	  $(if $(MUTATE),--mutate '$(MUTATE)')
+	$(MUTATION_RUN)
 
 mutation-diff:
-	$(ADAMUTANT) run --concurrency $(MUTATION_JOBS) \
-	  --since $(MUTATION_BASE) $(if $(MUTATE),--mutate '$(MUTATE)')
+	$(MUTATION_RUN) --since $(MUTATION_BASE)
 
 clean:
 	rm -rf build

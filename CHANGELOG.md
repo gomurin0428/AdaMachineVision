@@ -226,26 +226,23 @@ section 9.1.
 * Mutation testing: `make mutation` and `make mutation-diff` run
   AdaMutant (https://github.com/gomurin0428/AdaMutant, `adamutant.toml`)
   on the bodies of the library: every small change of a body (a mutant)
-  is built, and the areas of `test_suite` that test its unit are run
-  (`tools/mutant_tests.sh`; `test_suite <area> ...` runs only the areas
-  named). On the code reader it found what the tests did not check: 390
-  of the 1076 mutants of the QR Code finder survived the tests, which
-  paint whole and even symbols. Three new test units check the finder
-  on maps made pixel by pixel, at the limits of its search for finder
-  patterns, of the placing of a symbol on three of them and of the
-  sampling of its modules (`tests/test_code_reader_qr_patterns.adb`,
+  is run with the areas of `test_suite` that execute it (`test_suite
+  <area> ...` runs only the areas named) and, where they pass, with the
+  proof of its unit (`tools/mutant_prove.sh`). The workflow Mutation does
+  this for the bodies that a pull request changes, one job for each, and
+  keeps the report. On the code reader it found what the tests did not
+  check: 390 of the 1076 mutants of the QR Code finder survived the
+  tests, which paint whole and even symbols. Three new test units check
+  the finder on maps made pixel by pixel, at the limits of its search
+  for finder patterns, of the placing of a symbol on three of them and
+  of the sampling of its modules (`tests/test_code_reader_qr_patterns.adb`,
   `test_code_reader_qr_placing.adb`, `test_code_reader_qr_sampling.adb`).
   The tests of the kernel got symbols whose dark modules are a pixel
   thinner on each side (their finder patterns give a version one or two
   above theirs), the 16 pairs that a corner is tried with, and the
   exact number of symbols that the 256 finder patterns of a run give.
-  A mutant that no test can tell from the source is marked in the
-  source with the reason (`docs/DESIGN.md` 8). AdaMutant now finds
-  99.89 % of the mutants of the finder that it runs (906 of 907; it
-  was 62.89 %, and the one left is explained in the source), 100 % of
-  those of `QR_Code` (89.63 %) and of `Views` (78.43 %), and 100 % of
-  those of the lines of the kernel (74.71 %) and of the Data Matrix
-  finder that this release changes.
+  `docs/MUTATION.md` lists the mutants that survive the tests and the
+  proof with the reason (`docs/DESIGN.md` 8).
 * Examples: every example writes a picture of its results, the input
   image with what the tools found drawn on it (`examples/example_draw`,
   for the examples only), and four new examples run on photographs
