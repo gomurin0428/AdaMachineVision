@@ -47,6 +47,10 @@ env:
   # AdaMutant is built from its main branch; the job prints the commit.
   ADAMUTANT_REPO: https://github.com/gomurin0428/AdaMutant.git
   ADAMUTANT_REF: main
+  # Part of the key of the last reports: a new value runs every mutant
+  # again (after a change of the tests or of the proof of the mutants
+  # that the reports do not see).
+  REPORT_TAG: r2
 
 jobs:
   plan:
@@ -135,9 +139,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.LAST_REPORT_DIR }}
-          key: mutation-report-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: mutation-report-${{ env.REPORT_TAG }}-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            mutation-report-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-
+            mutation-report-${{ env.REPORT_TAG }}-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-
 
       # The unit proved once with the switches of the mutants, so that the
       # proofs of the unchanged project and of every mutant take the goals
@@ -191,7 +195,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.LAST_REPORT_DIR }}
-          key: mutation-report-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: mutation-report-${{ env.REPORT_TAG }}-${{ env.UNIT }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Save the prover cache of the mutants
         if: always()

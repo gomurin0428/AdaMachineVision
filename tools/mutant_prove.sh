@@ -20,7 +20,10 @@
 # AMV_PROVE_STEPS: the steps limit of the provers, 200000 by default
 # (the checks of the code reader need 88627 at most): a goal that a
 # mutant makes fail stops there, and with the cache a time limit alone
-# would keep a prover four times as long.
+# would keep a prover four times as long. The time limit of amv.gpr is
+# taken off (--timeout=0): on a loaded machine the provers reached it
+# before their steps, and the proofs of mutants that change nothing
+# failed; with steps alone the result is the same under any load.
 set -eu
 file="${ADAMUTANT_MUTANT_FILE:-}"
 if [ -n "$file" ]; then
@@ -37,6 +40,6 @@ for u in $units; do
   args="$args -u $u"
 done
 exec gnatprove -P amv.gpr -j"${AMV_PROVE_JOBS:-1}" \
-  --steps="${AMV_PROVE_STEPS:-200000}" --checks-as-errors=on \
+  --steps="${AMV_PROVE_STEPS:-200000}" --timeout=0 --checks-as-errors=on \
   --report=fail --counterexamples=on \
   ${cache:+--memcached-server=file:$cache} $args

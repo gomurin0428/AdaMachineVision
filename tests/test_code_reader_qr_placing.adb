@@ -305,6 +305,20 @@ procedure Test_Code_Reader_QR_Placing is
         ("a second arm of six given widths",
          [(5.5, 5.5), (19.5, 5.5), (5.5, 17.5)], Want => 0,
          Given => 2.0);
+      --  The width that the arms are measured by is the narrowest of
+      --  the three: arms of 12 pixels are 7 widths of the pattern given
+      --  1.0 and more, though fewer of the two given 2.0.
+      declare
+         Map : DA.Mark_Map := Blank (23, 23);
+      begin
+         Rings (Map, (5.5, 5.5), 1);
+         Rings (Map, (17.5, 5.5), 1);
+         Rings (Map, (5.5, 17.5), 1);
+         Check_Placing
+           ("arms of seven widths of the narrowest pattern only", Map,
+            [(5.5, 5.5), (17.5, 5.5), (5.5, 17.5)], [2.0, 1.0, 2.0],
+            Want => 1);
+      end;
    end Test_Given_Widths;
 
    procedure Test_Ends is
