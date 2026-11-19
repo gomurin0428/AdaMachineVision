@@ -39,6 +39,14 @@ whatever the mutant is. Before the check was skipped, four mutants of
 the QR Code bodies were counted as detected because `Test_Shape_Match`
 failed on its timing; they are listed below with the others.
 
+Until the tests checked the contracts (phase 3 of `docs/PLATINUM.md`),
+they checked preconditions only, and a mutant of a postcondition, a
+predicate or ghost code was the proof's alone. The rows that say "a
+postcondition is not run" come from runs made before then. The build of
+the tests now checks postconditions, predicates and ghost code too
+(`tests/contracts.adc`), but not loop invariants and assertions, which
+are steps of the proofs.
+
 The lists below are those of the last run on each body: the whole body
 where it is new, the changed lines where it is not. Mutants that do not
 compile, and those whose object code is that of the source (Ignored),
@@ -118,8 +126,8 @@ sampling came from hits of the same search.
 | `Weighted` | `Twice <= 2 ** 28` (precondition) | `<=` to `<` | Changes nothing: the callers meet the stronger one too (the proof passes). |
 | `Weighted` | `Weighted'Result in 0 .. 2 ** 40` (postcondition) | `40` to `41` | A postcondition is not run. Proof not finished; with `40` to `41`, the proof of `Rows_Of` alone fails. |
 | `Rows_Of` | `Area in 0 .. 2 ** 24 and then Sum_X in 0 .. 2 ** 52 and then Sum_Y in 0 .. 2 ** 52` (postcondition) | `2` to `3`; `24` to `25`; `52` to `53` | Changes nothing: a postcondition is not run, and the callers need no lower bounds (the proof passes). |
-| `Rows_Of` | the same | each `0` to `1`; each `in` to `not in`; each `**` to `*` | A postcondition is not run. Proof not finished; with `0` to `1` for `Area` or for `Sum_X`, the proof of `Rows_Of` alone fails. |
-| `Rows_Of` | the loop invariant | taken out; a conjunct taken out | `not OK` taken out: changes nothing, the proof passes without it. The others: proof not finished; the proof of `Rows_Of` alone fails without the invariant, and without its conjunct on `Sum_X` or on `Sum_Y`. |
+| `Rows_Of` | the same | each `0` to `1`; each `in` to `not in`; each `**` to `*` | A postcondition is not run. Proof not finished; with `0` to `1` for any of the three, the proof of `Rows_Of` alone fails at that postcondition. |
+| `Rows_Of` | the loop invariant | taken out; a conjunct taken out | `not OK` taken out: changes nothing, the proof passes without it. The others: proof not finished; the proof of `Rows_Of` alone fails without the invariant, and without any one of its conjuncts on `Area`, `Sum_X` and `Sum_Y`. |
 | `Settle` | `if P.Module > 1000.0` | to `False`; `>` to `>=` | Not pinned: modules 1000 pixels wide or wider, a pattern on a map of more than 7000 pixels a side, too large for a test. |
 | `Settle` | `Reach := 2 + VW.Floor_Index (4.0 * P.Module, 4000);` | `4000` to `4001` | Not reached: `P.Module` is at most 1000 there. |
 | `Settle` | `if OK_1 and then OK_2 and then A1 + A2 > 0 then` | `0` to `1` | Not pinned: it acts only for a middle of one pixel, where the rows and the columns put the centre already; a search over 20 000 symbols found none on which it acts. |
@@ -167,7 +175,7 @@ symbols and their places in the results.
 | `Same_Text` | `Pool'First = 1 and then Text'First = 1 and then Length <= Text'Last` (precondition) | a relation to `False`; `=` to `/=`; `1` to `0`; `'First` to `'Last` and back; `<=` to `<` or `=` | Not pinned: `Same_Text` is called only for a symbol read a second time (`Add_Symbol`, below). Proof not finished. |
 | `Same_Text` | the same | `Pool'First = 1`, `Text'First = 1` to `<=` | Changes nothing: `Text_Pool` is indexed from `Positive`. |
 | `Add_Symbol` | `Text'First = 1 and then Length <= Text'Last and then Length <= Max_Matrix_Text_Length` (precondition) | a conjunct taken out; `and then` to `or else`; a relation to `True`; `Text'First = 1` to `<=` or `>=` | Changes nothing: every caller meets the stronger one. Proof not finished. |
-| `Add_Symbol` | `... and then Symbols_OK (Symbols, Count, Used) and then Pool_OK (Pool, Used)` (precondition) | the last `and then` to `or else` | Changes nothing at run time: every caller meets the whole. Not proved in the workflow: the run counted it as detected by the timing of `Test_Shape_Match` (above). |
+| `Add_Symbol` | `... and then Symbols_OK (Symbols, Count, Used) and then Pool_OK (Pool, Used)` (precondition) | the last `and then` to `or else` | Changes nothing at run time: every caller meets the whole. Not proved in the workflow, whose run counted it as detected by the timing of `Test_Shape_Match` (above); the proof of `Add_Symbol` alone fails (`Count <= Room` in the postcondition, the indices of the text and the pool). |
 | `Add_Symbol` | `if Symbols (I).Kind = Kind and then Symbols (I).Length = Length` | the whole or a relation to `False`; `=` to `/=`, `<=` or `>=`; `and then` to `or else` | Not pinned: a symbol read a second time, from other finder patterns or from another dark area; no test image gives one (`Find_QR_Symbols` does not try the patterns of a symbol again). Some: proof not finished. |
 | (package) | `Max_Partners : constant := 32;` | `32` to `33` | Not pinned: more than 30 patterns as wide nearer to a corner than its two others, none of which make a symbol with it. |
 | `Read_Triple` | `Tried and then Length in 1 .. QR.Max_Text_Length` (postcondition, where `Success`) | `Length in 1 .. QR.Max_Text_Length` taken out | Changes nothing: a postcondition is not run, and the proof of `Find_QR_Symbols` passes without it. |
@@ -199,3 +207,26 @@ symbols and their places in the results.
 ## `AMV.Kernels.Code_Reader.Data_Matrix.Finder`
 
 No changed line has a survivor.
+
+## `AMV.Kernels.Shape_Match`
+
+The changed lines: the postcondition of `Clear_Model`, whose conjuncts
+change places so that `'Old` is evaluated whenever the postcondition is.
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| `Clear_Model` | `Pattern.Params = Pattern.Params'Old and then not Pattern.Trained` (postcondition) | the first conjunct taken out | Changes nothing: the body meets the weaker postcondition too, and the callers need only `not Pattern.Trained` (the proof passes without the first). |
+
+## `AMV.Kernels.Shape_Match.Training`
+
+The changed lines: the invariants of the loops of `Extract_Ignored`,
+without the conjunct that the type of `Ignored_Count` makes true.
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| `Extract_Ignored` | `pragma Loop_Invariant (Model.Count = Model.Count'Loop_Entry and then Model.Spacing = ... and then Model.Features = ...)` (the loop over the rows of cells) | taken out; the conjunct on `Count` or on `Features` taken out | Changes nothing: an invariant is not run, and the proof passes without them; the loop assigns none of these components. With the conjunct on `Spacing` taken out, the proof fails. |
+
+## `AMV.Kernels.Blob.Extrema`
+
+The changed lines are four `pragma Warnings (Off, ...)` in place of a
+`pragma Unreferenced`: no mutant.

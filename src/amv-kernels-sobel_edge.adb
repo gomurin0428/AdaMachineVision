@@ -775,6 +775,17 @@ package body AMV.Kernels.Sobel_Edge with SPARK_Mode is
                   KI.Grey_8 (Params.Hysteresis_Survivor_Pel_Value),
                   KI.Grey_8 (Params.Hysteresis_Non_Survivor_Pel_Value),
                   Final_Magnitude_Image, Done);
+               --  The postcondition of Execute in the terms of Params, a
+               --  step that the proof of the whole unit does not take
+               --  within its steps by itself.
+               pragma Assert
+                 (for all Y in Final_Magnitude_Image.Pixels'Range (1)
+                  => (for all X in Final_Magnitude_Image.Pixels'Range (2)
+                      => (if KR.Contains (Region, Int32 (X), Int32 (Y))
+                          then Int32 (Final_Magnitude_Image.Pixels (Y, X))
+                                 in Params.Hysteresis_Survivor_Pel_Value
+                                  | Params
+                                      .Hysteresis_Non_Survivor_Pel_Value)));
             end if;
          end if;
       end if;
