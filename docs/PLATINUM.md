@@ -46,7 +46,9 @@ Two things found while writing this plan:
   function results, the status, the contents of a handle) from the
   inputs, in terms of specification functions. Where the code
   deliberately leaves something open, the contract says so, and that is
-  the exception.
+  the exception. Two things stay open in every kernel: the text of the
+  message of a failure, a diagnostic that the tests check, and
+  Out_Of_Memory, which the allocation decides and not the inputs.
 * **Specifications from definitions, not from the code.** Specification
   functions transcribe a definition and cite it: a standard (ISO/IEC
   18004 for QR Code, ISO/IEC 16022 for Data Matrix, the standards of the
