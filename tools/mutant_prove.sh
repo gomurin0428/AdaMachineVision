@@ -39,6 +39,17 @@ args=""
 for u in $units; do
   args="$args -u $u"
 done
+# The why3 sessions of earlier proofs in this copy (build/obj/gnatprove,
+# the files why3session.xml and why3shapes). gnatwhy3 can answer a goal
+# with the attempt that a session holds for a goal it pairs it with, a
+# failed one included: after a proof whose provers failed, the proof of
+# the unchanged Visit of Sobel_Edge reported ten checks unproved, and
+# with the session files deleted all 27 proved in 5 s. Each proof starts
+# without them; the cache answers the goals proved before.
+if [ -d build/obj/gnatprove ]; then
+  find build/obj/gnatprove \( -name 'why3session.xml*' -o -name 'why3shapes*' \) \
+    -type f -delete
+fi
 exec gnatprove -P amv.gpr -j"${AMV_PROVE_JOBS:-1}" \
   --steps="${AMV_PROVE_STEPS:-200000}" --timeout=0 --checks-as-errors=on \
   --report=fail --counterexamples=on \
