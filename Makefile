@@ -16,8 +16,9 @@ PROVE_UNITS ?=
 # changed lines make mutation-diff takes, the number of sandboxes, the
 # JSON report of an earlier run whose results are taken again for the
 # lines not changed since (empty = none), the file cache of the proofs
-# of the mutants (that of make prove where it is given) and the prover
-# processes of each.
+# of the mutants (that of make prove where it is given), the prover
+# processes of each, and the configuration (tools/mutant_shard.sh
+# writes ones with a part of the mutators).
 ADAMUTANT ?= adamutant
 MUTATE ?=
 MUTATION_BASE ?= origin/main
@@ -25,11 +26,12 @@ MUTATION_JOBS ?= 2
 MUTATION_BASELINE ?=
 MUTATION_CACHE ?= $(or $(PROVE_CACHE),build/prove-cache)
 MUTATION_PROVE_JOBS ?= 2
+MUTATION_CONFIG ?= adamutant.toml
 MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
   AMV_PROVE_CACHE=$(abspath $(MUTATION_CACHE)) \
   AMV_PROVE_JOBS=$(MUTATION_PROVE_JOBS) \
   AMV_PROVE_UNITS='$(notdir $(wildcard $(MUTATE)))' $(ADAMUTANT) run \
-  --concurrency $(MUTATION_JOBS) \
+  --config $(MUTATION_CONFIG) --concurrency $(MUTATION_JOBS) \
   $(if $(MUTATION_BASELINE),--baseline $(MUTATION_BASELINE)) \
   $(foreach m,$(MUTATE),--mutate '$(m)')
 
