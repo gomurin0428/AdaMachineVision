@@ -19,9 +19,9 @@ The reasons are of four kinds:
   the pass reaches (a map of the pass is at most 2 ** 26 pixels a side,
   for example).
 * **Not pinned**: an input would tell the mutant from the source, but none
-  is in the tests: a search over millions of maps found none, the input
-  is too large to make in a test, or the result for it is not specified.
-  The entry says what input would.
+  is in the tests: a search found none (the entry says over how many
+  inputs), the input is too large to make in a test, or the result for it
+  is not specified. The entry says what input would.
 * **Proof not finished**: the tests pass, and the proof of the unit did
   not finish within its time (`prove_timeout_ms`). The entry says what a
   narrower proof showed, where one was made.
@@ -69,6 +69,85 @@ are not listed.
 | `Numeric`, `Alphanumeric` | `elsif Good then` (three) | `Good` to `True` | Changes nothing: where `Good` does not hold, the text is not the result. |
 | `To_Text` | `for Step in 1 .. 2 * N loop` | `1` to `0`; `2` to `3` | Changes nothing: every segment takes four bits at least, so the loop leaves before its last step either way. |
 
+## `AMV.Kernels.Code_Reader.QR_Code.Finder`
+
+Many of the mutants that only a picture of a certain kind would tell
+apart were looked for with a search: random symbols drawn in perspective
+(their corners rounded to half a pixel, some of them with modules changed
+around the alignment pattern), each read by the finder and by the finder
+with the mutant, linked side by side. The entries give how many symbols
+such a search drew. The new tests of the finder patterns and of the
+sampling came from hits of the same search.
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| (package) | `subtype Run_Length is Natural range 0 .. 2 ** 28;` | `28` to `29` | Not reached: a run is at most `DA.Max_Side` (2 ** 26) pixels. |
+| `Alike` | `T in 0 .. 2 ** 32 and then Other in 0 .. 2 ** 32` (precondition) | the first `0` to `1`; a `2` to `3`; a `32` to `33` | Changes nothing: `T`, the five runs together, is never 0 (the middle run has its pixel), and the body is as safe with the wider bounds. |
+| `Walk` | `DA.Valid_Map (Map) and then X <= Map'Last (2) and then Y <= Map'Last (1)` (precondition) | `DA.Valid_Map (Map)` taken out; `and then` to `or else` | Changes nothing at run time: the callers meet the whole. Proof not finished; with `DA.Valid_Map (Map)` taken out, the proof of `Walk` alone fails. |
+| `Walk` | `A <= DA.Max_Side + 1 and then B <= DA.Max_Side + 1 and then C <= DA.Max_Side + 1` (postcondition) | each `1` to `0`; each `+` to `-`; `and then` to `or else` | A postcondition is not run. Proof not finished; with a `1` to `0`, the proof of `Walk` alone fails. |
+| `Cross_Check` | `DA.Valid_Map (Map) and then ...` (precondition) | `and then` to `or else` | Changes nothing at run time: the callers meet the whole. Proof not finished. |
+| `Cross_Check` | `Twice <= 2 ** 28 and then Sum in 0 .. 2 ** 29 and then (if OK then ...)` (postcondition) | `0` to `1`; `29` to `30`; `Twice <= 2 ** 28` to `True` or `<`; `if OK` to `if True` | Changes nothing: a postcondition is not run, and the proof passes with each (`Sum` is never 0, the middle run has its pixel; where `OK` does not hold, `Place` and `Twice` are 0 and meet the bounds too). |
+| `Cross_Check` | the same | `in` to `not in`; `and then` to `or else` | A postcondition is not run. Proof not finished. |
+| `Cross_Check` | `Place := 0;`, `Twice := 0;` | `0` to `1` | Changes nothing: `Place` and `Twice` are read only where `OK` holds. |
+| `Cross_Check` | `and then First >= 0` | `0` to `1`; `>=` to `>` | Changes nothing: two runs come before the middle one, so `First` is 2 or more. |
+| `Cross_Check` | `and then First + (A1 + A2) / 2 <= Last` | `<=` to `<` | Changes nothing: two runs come after the middle one, so its middle is before `Last`. |
+| `Slanted` | `DA.Valid_Map (Map) and then X <= ... and then Width in 0 .. 2 ** 32` (precondition) | the second line taken out; `and then` to `or else` | Changes nothing at run time: the callers meet the whole. Proof not finished; with the second line taken out, the proof of `Slanted` alone fails. |
+| `Slanted` | `Width in 0 .. 2 ** 32` | `2` to `3` | Changes nothing: the body is as safe with the wider bound. |
+| `Mean` | `Seen <= Max_Seen` (precondition) | `<=` to `<` | Changes nothing: the callers meet the stronger one too (the proof passes). |
+| `Mean` | `N.Mul_Within (Old, Count, VW.Limit, 2.0 ** 20)` | `20` to `21` | Not reached: `Count` is at most `Max_Seen` (2 ** 20). |
+| `Add` | `and then (Apart <= 1.0 or else Apart <= P.Module)` | `1.0` to `0.0`; either relation to `True`; the first `<=` to `<` or `=`; the second `<=` to `<` | Not pinned: modules about a pixel wide, or narrower, found again at a middle about a pixel or a module apart; a search over 20 000 symbols found none on which it acts. |
+| `Add` | `if Count < Patterns'Length then` | `<` to `/=` | Changes nothing: `Count` is never above `Patterns'Length`. |
+| (package) | `Max_Reach : constant := 2 ** 12;` | `2` to `3`; `12` to `13` | Not reached at run time (`Reach` is at most 4002). Proof not finished; the proof of `Rows_Of` alone fails with either. |
+| `Dark_Beside` | `DA.Valid_Map (Map)` (precondition) | taken out | Changes nothing: the callers meet it, and the proof of the body passes without it. |
+| `Dark_Beside` | `DX /= 0` (precondition) | to `True` | Changes nothing: the callers give -1 and 1, and the proof of the body passes without it. |
+| `Dark_Beside` | `Dark_Beside'Result <= Reach and then (if DX = 1 then ... <= Map'Last (2) - X else ... <= X)` (postcondition) | the first to `True` | Changes nothing: a postcondition is not run, and the proof of the callers passes without it. |
+| `Dark_Beside` | the same | the second taken out; `1` to `0`; `=` to `/=`; `-` to `+`; `and then` to `or else` | A postcondition is not run. Proof not finished; with the second taken out, the proof of `Settle` alone fails, and with `1` to `0`, that of `Dark_Beside` alone. |
+| `Weighted` | `Twice <= 2 ** 28` (precondition) | `<=` to `<` | Changes nothing: the callers meet the stronger one too (the proof passes). |
+| `Weighted` | `Weighted'Result in 0 .. 2 ** 40` (postcondition) | `40` to `41`; `in` to `not in` | A postcondition is not run. Proof not finished; with `40` to `41`, the proof of `Rows_Of` alone fails. |
+| `Rows_Of` | `DA.Valid_Map (Map) and then ...` (precondition) | `and then` to `or else` | Changes nothing at run time: the callers meet the whole. Proof not finished. |
+| `Rows_Of` | `Area in 0 .. 2 ** 24 and then Sum_X in 0 .. 2 ** 52 and then Sum_Y in 0 .. 2 ** 52` (postcondition) | `2` to `3`; `24` to `25`; `52` to `53` | Changes nothing: a postcondition is not run, and the callers need no lower bounds (the proof passes). |
+| `Rows_Of` | the same | each `0` to `1`; each `in` to `not in`; each `**` to `*` | A postcondition is not run. Proof not finished. |
+| `Rows_Of` | the loop invariant | taken out; a conjunct taken out | `not OK` taken out: changes nothing, the proof passes without it. The others: proof not finished. |
+| `Settle` | `if P.Module > 1000.0` | to `False`; `>` to `>=` | Not pinned: modules 1000 pixels wide or wider, a pattern on a map of more than 7000 pixels a side, too large for a test. |
+| `Settle` | `Reach := 2 + VW.Floor_Index (4.0 * P.Module, 4000);` | `4000` to `4001` | Not reached: `P.Module` is at most 1000 there. |
+| `Settle` | `if OK_1 and then OK_2 and then A1 + A2 > 0 then` | `0` to `1` | Not pinned: it acts only for a middle of one pixel, where the rows and the columns put the centre already; a search over 20 000 symbols found none on which it acts. |
+| `Find_Patterns` | `DA.Valid_Map (Map) and then Patterns'First = 1 and then ...` (precondition) | `and then` to `or else` | Changes nothing at run time: the callers meet the whole. Proof not finished. |
+| `Find_Patterns` | `for Y in 0 .. Map'Last (1) loop` | `0` to `1` | Changes nothing: row 0 is the middle row of no pattern, for the check down the column needs two runs above the middle one. |
+| `Find_Patterns` | `if not OK and then Row < Map'Last (1) and then Map (Row + 1, X) /= DA.Light`, and the same with `Row > 0` and `Row - 1` | `<` to `/=`; `0` to `1`; either `1` of `Row + 1` and `Row - 1` to `0`; a pixel's relation to `True` | Changes nothing: `Row` is never beyond `Map'Last (1)`, and two runs lie above the middle one, so `Row` is 2 or more; where the pixel beside is light, the middle run of the column has one pixel or two, the row scanned is the middle row or the one after it, and the check along it always holds (`OK`), so neither branch is taken; `Map (Row, X)` is dark. |
+| `Find_Patterns` | `Dark := False;` (at the start of a row) | `False` to `True` | Changes nothing: a row that begins light has one more `Check` at its start, with no runs, which `In_Proportion` turns away. |
+| `Find_Patterns` | the loop invariant of the columns | taken out; `Total (Runs) <= Int64 (X)` taken out | Proof not finished; with it or `Total (Runs) <= Int64 (X)` taken out, the proof of `Find_Patterns` alone fails. |
+| `Find_Patterns` | `Purge (Patterns, Count, 2.0 ** 40);` | `40` to `41` | Not reached: both are beyond every row. |
+| `Find_Patterns` | `pragma Loop_Invariant (Count <= Patterns'Length);` (the loop of `Settle`) | taken out | Changes nothing: `Count` does not change in that loop. |
+| `Half_Way` | `DA.Valid_Map (Map) and then Steps <= Most_Steps` (precondition) | `and then` to `or else` | Changes nothing at run time: the callers meet the whole. Proof not finished. |
+| `Half_Way` | `Length in 0.0 .. 2.0 ** 19` (postcondition) | `in` to `not in` | A postcondition is not run. Proof not finished. |
+| `Half_Way` | `Length := 0.0;` | `0.0` to `1.0` | Changes nothing: `Length` is read only where `OK` holds. |
+| `Module_Along` | `Width in 0.0 .. 2.0 ** 18` (postcondition) | `18` to `19` | Changes nothing: a postcondition is not run, and the callers need no lower bound (the proof passes). |
+| `Module_Along` | the same | `in` to `not in` | A postcondition is not run. Proof not finished. |
+| `Module_Along` | `Width := (if OK then (Ahead + Back) / 7.0 else 0.0);` | `0.0` to `1.0`; `OK` to `True` | Changes nothing: `Width` is read only where `OK` holds. |
+| `Arm` | `Modules in 0.0 .. 2.0 ** 32` (postcondition) | `32` to `33` | Changes nothing: a postcondition is not run, and the callers need no lower bound (the proof passes). |
+| `Arm` | the same | `in` to `not in` | A postcondition is not run. Proof not finished. |
+| `Arm` | `Modules := 0.0;` | `0.0` to `1.0` | Changes nothing: `Modules` is read only where `OK` holds. |
+| `Arm` | `elsif OK_2 then` | to `True` | Changes nothing: where neither width is found, `W2` is 0.0 (`Module_Along`), below `Min_Module`, and `OK` stays False. |
+| `Place` | `if D1 < Min_Arm or else D2 < Min_Arm` | `or else` to `and then` | Not pinned: one arm shorter than `Min_Arm` and the other not, on a symbol that is read all the same; a search over 20 000 symbols found none. |
+| `Place` | `or else abs Dot > 0.5 * N.Mul_Within (D1, D2, VW.Far, VW.Far)` | `>` to `>=` | Not pinned: arms exactly 60 degrees apart; the same search found none. |
+| `Place` | `or else Turn = 0.0`, `if Turn > 0.0 then` | `0.0` to `1.0`; `>` to `>=` | Changes nothing: `Turn` is 86.6 or more, or -86.6 or less, there (arms of 10 pixels or more, 60 degrees apart or more). |
+| `Share` | `Steps in -2 ** 12 .. 2 ** 12` (precondition) | a `2` to `3`; a `12` to `13` | Changes nothing: the body is as safe with the wider bounds. |
+| `Awry` | `Share (Home + P + Fine * I, Size)`, `Share (Home + Q + Fine * J, Size)` | the `+` before `Fine` to `-` | Changes nothing: `I` and `J` run over -2 .. 2 and the alignment pattern is the same mirrored, so the same 25 modules are counted, in another order; the count stops at `Allow + 1` in either. |
+| `Patterns_Fit` | `P : constant Natural := (if Which = 1 then Arm else 0);` | `1` to `0` | Changes nothing: the three finder patterns are looked at in another order, and `Amiss` counts them all. |
+| `Patterns_Fit` | `Share (P + Fine * K, Size)`, `Share (Q + Fine * K, Size)` | `+` to `-` | Changes nothing: `K` runs over -3 .. 3 and a finder pattern is the same mirrored, so the same modules are counted. |
+| `Patterns_Fit` | the inner loop invariant | taken out | Changes nothing: an invariant is not run, and the proof passes without it. |
+| `Timed` | `for K in 0 .. 2 * Due + 1 loop` | `0` to `1` | Not pinned: a timing pattern whose first module reads light, where the source counts one change more; the count is accepted within a slack of 2 or more, and no test has a symbol on which that one change decides. |
+| `Find_Alignment` | `Best_P : ... := 0;`, `Best_Q : ... := 0;` | `0` to `1` | Changes nothing: they are read only where a place was found, which sets them. |
+| `Find_Alignment` | `Least : Natural := Natural'Last;` | `'Last` to `'First` | Not pinned: the first places looked at are allowed fewer modules amiss; a search over 3 000 symbols with modules changed around the alignment pattern found none on which it acts. |
+| `Find_Alignment` | `U := 0.0;`, `V := 0.0;` | `0.0` to `1.0` | Changes nothing: `U` and `V` are read only where `Found` holds. |
+| `Find_Alignment` | `for Round in 1 .. 2 loop` | `1` to `0` | Changes nothing: the place taken is the one with the fewest modules amiss, of those the nearest to the expected one, and of those the first looked at; a round 0 looks at the expected place alone, which no other place is as near as. |
+| `Find_Alignment` | the loop invariants of the mean | the outer one taken out; the inner one taken out | The outer one: changes nothing, the proof passes without it. The inner one: proof not finished; without it, the proof of `Find_Alignment` alone fails. |
+| `Tilt` | `if abs Den < 1.0E-9 then` | `<` to `<=` | Not pinned: a determinant of exactly 1.0E-9; a search over 4 000 symbols found none. |
+| `Point` | `abs X <= VW.Limit and then abs Y <= VW.Limit` | either `<=` to `<` | Not pinned: a point mapped exactly 2 ** 28 pixels from an axis. |
+| `Sample` | `Grid := [others => [others => False]];` | `False` to `True` | Changes nothing: the modules beyond `Side (Version)` are not part of the result, and the others are all set below. |
+| `Sample` | `if not OK then return; end if;` | the condition to `False`; `return` taken out | Changes nothing: where neither mapping fits, the rest fills the grid and the corners, but `OK` stays False (`Point` only ever sets it to False), and the callers read nothing else of a sample that is not OK. |
+| `Sample` | `if Found then Point (...)` (two) | to `True` | Changes nothing: `Point` only ever sets its last parameter to False, so `Found` stays False, and `Q` is read only where it holds. |
+
 ## `AMV.Kernels.Code_Reader`
 
 The changed lines: the symbols of the passes, the reading of QR Code
@@ -77,21 +156,27 @@ symbols and their places in the results.
 | Subprogram | Code | Change | Why it survives |
 |---|---|---|---|
 | `Same_Text` | `Pool'First = 1 and then Text'First = 1 and then Length <= Text'Last` (precondition) | a relation to `False`; `=` to `/=`; `1` to `0`; `'First` to `'Last` and back; `<=` to `<` or `=` | Not pinned: `Same_Text` is called only for a symbol read a second time (`Add_Symbol`, below). Proof not finished. |
-| `Add_Symbol` | `Text'First = 1 and then Length <= Text'Last and then Length <= Max_Matrix_Text_Length` (precondition) | `and then` to `or else`; a relation to `True` | Changes nothing: every caller meets the stronger one. Proof not finished. |
+| `Add_Symbol` | `Text'First = 1 and then Length <= Text'Last and then Length <= Max_Matrix_Text_Length` (precondition) | a conjunct taken out; `and then` to `or else`; a relation to `True` | Changes nothing: every caller meets the stronger one. Proof not finished. |
 | `Add_Symbol` | `if Symbols (I).Kind = Kind and then Symbols (I).Length = Length` | the whole or a relation to `False`; `=` to `/=`; `and then` to `or else` | Not pinned: a symbol read a second time, from other finder patterns or from another dark area; no test image gives one (`Find_QR_Symbols` does not try the patterns of a symbol again). Some: proof not finished. |
 | (package) | `Max_Partners : constant := 32;` | `32` to `33` | Not pinned: more than 30 patterns as wide nearer to a corner than its two others, none of which make a symbol with it. |
+| `Read_Triple` | `Tried and then Length in 1 .. QR.Max_Text_Length` (postcondition, where `Success`) | `Length in 1 .. QR.Max_Text_Length` taken out | Changes nothing: a postcondition is not run, and the proof of `Find_QR_Symbols` passes without it. |
+| `Read_Triple` | the three `pragma Loop_Invariant (Tried and then not Success and then Length = 0);` | taken out; a conjunct taken out | Changes nothing: an invariant is not run, and the proof passes without it: the loops return as soon as a text is read, and set `Success` and `Length` back before the next step. |
 | `Read_Triple` | `Version := Symbol.Version + Step;` | `+` to `-` | Changes nothing: the same versions in another order (`Version_Steps` is symmetric), and a symbol is read with its own version only. |
 | `Read_Triple` | `if OK then` | `OK` to `True` | Changes nothing: where `Sample` is not OK the grid is all light; it has no format information, and `Decode` fails at once. |
 | `Read_Triple` | `Length := 0;` after a reading without a text | taken out | Changes nothing: `Length` is 0 there already (`Decode` gives 0 where it fails, and the text read was empty otherwise). |
+| `Find_QR_Symbols` | `Room <= Max_Candidates and then Count <= Room` (precondition) | `Count <= Room` to `True` | Changes nothing: the caller meets it. Proof not finished. |
 | `Find_QR_Symbols` | `Ways : Way_List := [others => 0.0];` | `0.0` to `1.0` | Changes nothing: only `Ways (1 .. Nearest)` is read, and it is set before. |
 | `Find_QR_Symbols` | `if not Taken (I) then` | to `True` | Not pinned: a corner already of a symbol, tried again with the patterns not of one; no test image gives a symbol from it. |
 | `Find_QR_Symbols` | `if J /= I and then not Taken (J) and then QF.Akin (...)` | `J /= I` to `True`; either `and then` to `or else`; the whole to `True` | Not pinned: the corner itself, patterns already of a symbol and patterns of other widths among the nearest; no test image gives another result with them. The whole to `True`: proof not finished. |
 | `Find_QR_Symbols` | `if Nearest < Max_Partners or else Way < Ways (Max_Partners)` | the whole to `True`; either `<` to `<=`; the second `<` to `/=` | Not pinned: more than 32 patterns as wide around a corner (see `Max_Partners`). |
 | `Find_QR_Symbols` | `while Slot > 1 and then Ways (Slot - 1) > Way loop` and `Ways (Slot) := Ways (Slot - 1);` | `>` to `>=`; the statement taken out; `1` to `0` | Not pinned: patterns as far from the corner, or the nearest in another order; no test image gives another result with them. |
+| `Find_QR_Symbols` | `pragma Loop_Invariant (Slot in 2 .. Nearest);`, `pragma Loop_Variant (Decreases => Slot);` | taken out | Changes nothing: neither is run, and the proof passes without them (the condition of the loop bounds `Slot`). |
+| `Find_QR_Symbols` | the invariants of the loops `Pairs` and `for A` (`Outcome = Done and then Count <= Room and then Tries < Max_Tries and then ...`) | a conjunct taken out | Changes nothing: an invariant is not run, and the proof passes without any one of these conjuncts. |
 | `Find_QR_Symbols` | `for A in 1 .. B - 1 loop` | `1` to `0` | Changes nothing: a pair of one pattern twice is no symbol to `Place` (an angle of 0). |
 | `Find_QR_Symbols` | `Taken (I) := True;`, `Taken (Near (A)) := True;`, `Taken (Near (B)) := True;` | taken out; `True` to `False` | Not pinned: the patterns of a symbol read, tried again with other corners; `Add_Symbol` does not add the symbol twice, and no test image gives another result with them. |
+| `Find_Symbols` | the invariants of the loops over the rows and the columns of the dark areas (`Map /= null and then ...`, the bounds of `Map`, `DA.Extents_Fit (...)`) | taken out; a conjunct taken out | Changes nothing: an invariant is not run, and the proof passes without it: the loops do not change these variables, and gnatprove keeps what a loop does not change. |
 | `Find_Symbols` | `for Y in 0 .. H - 1 loop`, `for X in 0 .. W - 1 loop` (the dark areas) | `0` to `1` | Not pinned: an area whose outline is not reached from another row or column; a symbol at the edge of the map is read either way. |
-| `Make_Matrix_Item` | `Valid_Item (Item) and then ...` (postcondition) | `and then` to `or else` | Changes nothing: a postcondition is not run. Proof not finished. |
+| `Make_Matrix_Item` | `Valid_Item (Item) and then ...` (postcondition) | `and then` to `or else`; `Is_Matrix (Item.Symbology)` taken out | Changes nothing: a postcondition is not run. Taken out, the proof of the callers passes without it; to `or else`, proof not finished. |
 
 ## `AMV.Kernels.Code_Reader.Views`
 

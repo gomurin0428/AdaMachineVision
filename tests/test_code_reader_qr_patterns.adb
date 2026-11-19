@@ -3,7 +3,7 @@
 --  maps of dark pixels that are made here pixel by pixel: exact
 --  patterns, patterns whose rings have uneven widths, patterns with
 --  single pixels changed, patterns at the edge of the map and a table
---  of patterns that is full.
+--  of patterns that is full; and a symbol drawn in perspective.
 --
 --  The symbols that the other tests of the finder paint are whole and
 --  even, so they do not show where the limits of the search are: how
@@ -20,8 +20,16 @@
 --  these checks do not say that every result is the right one; they
 --  say that none of them changes unseen.
 
+with Ada.Unchecked_Deallocation;
+
+with AMV.Images;             use AMV.Images;
+with AMV.Images.Kernel_Images;
 with AMV.Kernels.Code_Reader.Dark_Areas;
 with AMV.Kernels.Code_Reader.QR_Code.Finder;
+with AMV.Kernels.Images;
+with AMV_Test_Data_Matrix;
+with AMV_Test_Images;
+with AMV_Test_QR_Code;
 with AMV_Test_Support;       use AMV_Test_Support;
 
 procedure Test_Code_Reader_QR_Patterns is
@@ -556,6 +564,60 @@ procedure Test_Code_Reader_QR_Patterns is
          [(11.0, 11.0, 2.0, 6)]);
    end Test_Tail;
 
+   ---------------------------------------------------------------------
+   --  A symbol in perspective
+   ---------------------------------------------------------------------
+
+   procedure Test_Drawn is
+      package QR renames AMV.Kernels.Code_Reader.QR_Code;
+      package Enc renames AMV_Test_QR_Code;
+      package KI renames AMV.Kernels.Images;
+
+      type Map_Access is access DA.Mark_Map;
+      procedure Free is
+        new Ada.Unchecked_Deallocation (DA.Mark_Map, Map_Access);
+
+      Symbol : Enc.Module_Matrix :=
+        Enc.Symbol (Enc.Segment (Enc.Bytes, "search", 3), 3, QR.M, 5);
+      Image  : Ks_Image_8_Grey := AMV_Test_Images.Blank (170, 170, 255);
+      Map    : Map_Access;
+   begin
+      Section ("QR patterns: a symbol in perspective");
+      --  A symbol of version 3 with two modules changed, drawn in
+      --  perspective, its dark pixels as the tool finds them; found by
+      --  a search. Besides its three finder patterns, two figures of
+      --  its modules are found in two rows each. In the rows of the
+      --  one at (53.5, 56.75) the widths of a module differ by more
+      --  than a pixel and less than a module: the two are one pattern,
+      --  found in two rows, and it is kept.
+      Symbol (11, 25) := not Symbol (11, 25);
+      Symbol (15, 3) := not Symbol (15, 3);
+      AMV_Test_Data_Matrix.Draw
+        (Image, Symbol,
+         (Upper_Left  => (21.5, 34.5), Upper_Right => (108.0, 17.5),
+          Lower_Right => (100.0, 111.0), Lower_Left => (18.0, 111.0)));
+      declare
+         Handle : constant access constant KI.Ks_Image_8_Grey_Data :=
+           AMV.Images.Kernel_Images.Kernel_Handle (Image);
+         Lows   : KI.Grey_8_Matrix (0 .. 169 / DA.Block, 0 .. 169 / DA.Block)
+           := [others => [others => 0]];
+         Highs  : KI.Grey_8_Matrix (0 .. 169 / DA.Block, 0 .. 169 / DA.Block)
+           := [others => [others => 0]];
+      begin
+         Map := new DA.Mark_Map'(0 .. 169 => [0 .. 169 => DA.Light]);
+         DA.Binarise (Handle.Pixels.all, 0, 0, 12, Lows, Highs, Map.all);
+      end;
+      Check_Found
+        ("version 3, two modules changed",
+         Map.all,
+         [(95.0157894736842, 31.8578947368421, 29.0 / 9.0, 9),
+          (30.1129032258065, 43.0967741935484, 37.0 / 14.0, 8),
+          (53.5, 56.75, 29.0 / 7.0, 2),
+          (33.4148936170213, 73.8829787234042, 17.0 / 7.0, 2),
+          (27.5, 102.5, 2.5, 7)]);
+      Free (Map);
+   end Test_Drawn;
+
    procedure Run_All is
    begin
       Test_Exact;
@@ -568,6 +630,7 @@ procedure Test_Code_Reader_QR_Patterns is
       Test_Oblong;
       Test_Beside;
       Test_Tail;
+      Test_Drawn;
    end Run_All;
 
    procedure Main is new AMV_Test_Support.Standalone (Run_All);

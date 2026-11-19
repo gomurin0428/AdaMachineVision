@@ -514,6 +514,27 @@ procedure Test_Code_Reader_QR_Sampling is
    end Test_Alignment;
 
    ---------------------------------------------------------------------
+   --  The two mappings
+   ---------------------------------------------------------------------
+
+   procedure Test_Mappings is
+   begin
+      Section ("QR sampling: which mapping is tried first");
+      --  Version 1, painted upright: the placing says that the widths
+      --  change across the symbol by 0.06 and not down it. From a
+      --  change of 0.05 on, across or down, the symbol is taken as
+      --  leaning, and the mapping with the changes is tried first. Its
+      --  finder patterns and timing patterns are within their limits, so
+      --  it is taken, with corners that are not those of the upright
+      --  symbol and 31 modules read wrongly.
+      Check_Sample
+        ("widths changing by 0.06 across and 0 down",
+         1, (True, 31, (11.200507614, 11.840101523),
+         (74.26744186, 71.337209302), (44.111650485, 42.888349515)),
+         Across => 0.06);
+   end Test_Mappings;
+
+   ---------------------------------------------------------------------
    --  Maps found by the search
    ---------------------------------------------------------------------
 
@@ -646,6 +667,20 @@ procedure Test_Code_Reader_QR_Sampling is
          ((9.5, 9.5), (56.5, 19.5), (62.5, 60.5), (19.5, 51.5)), 69,
          Modules => [(6, 12), (9, 6), (6, 8), (10, 6)], Mask => 5,
          Again => True);
+      Check_Drawn
+        ("in perspective, version 5: 1 module changed around the alignment "
+         & "pattern",
+         5, (True, 0, (20.952989688, 21.719762052),
+         (160.878532878, 162.547814652), (92.057192822, 93.28258204)),
+         ((20.5, 21.5), (154.0, 25.5), (160.0, 162.0), (31.5, 157.5)), 241,
+         Modules => [1 => (31, 32)], Mask => 6);
+      Check_Drawn
+        ("in perspective, version 4: 4 modules changed around the alignment "
+         & "pattern",
+         4, (True, 6, (26.855136914, 30.680976934),
+         (128.224598086, 128.485115391), (77.10294712, 79.161492957)),
+         ((26.0, 30.0), (133.5, 21.5), (126.0, 128.0), (28.0, 127.5)), 202,
+         Modules => [(29, 27), (26, 23), (26, 27), (28, 28)], Mask => 6);
    end Test_Found;
 
    procedure Run_All is
@@ -653,6 +688,7 @@ procedure Test_Code_Reader_QR_Sampling is
       Test_Finder_Patterns;
       Test_Timing_Patterns;
       Test_Alignment;
+      Test_Mappings;
       Test_Found;
    end Run_All;
 

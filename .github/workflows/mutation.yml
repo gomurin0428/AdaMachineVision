@@ -51,10 +51,12 @@ env:
   GNATPROVE_RELEASE: gnatprove-16.1.0-1
   GNATPROVE_ASSET: gnatprove-x86_64-linux-16.1.0-1.tar.gz
   # The commit of AdaMutant that the job adamutant builds. Its mutators
-  # and their mutants change from version to version, so it is set here
-  # and moved on with a new REPORT_TAG.
+  # and their mutants change from version to version, so it is set here.
+  # A new version runs the mutants it adds and the survivors again; the
+  # reports of the last runs give the results of the mutants detected
+  # there. A new REPORT_TAG runs everything again.
   ADAMUTANT_REPO: https://github.com/gomurin0428/AdaMutant.git
-  ADAMUTANT_REF: d813faf4284c949dc8a9b37b6f32af4bfee01670
+  ADAMUTANT_REF: 2c874914d9f4428c24ca0ba94f9d705549186723
   # The Alire that builds it, with Libadalang and the compiler that
   # Libadalang takes (GNAT 15), as in the CI of AdaMutant.
   ALIRE_VERSION: 2.1.1

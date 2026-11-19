@@ -242,7 +242,14 @@ section 9.1.
   above theirs), the 16 pairs that a corner is tried with, and the
   exact number of symbols that the 256 finder patterns of a run give;
   those of the decoder, a designator of an extended channel
-  interpretation whose first codeword of three is above 192.
+  interpretation whose first codeword of three is above 192; those of
+  the finder patterns, a symbol in perspective on which two rows with
+  modules more than a pixel apart in width are one pattern; those of
+  the sampling, a placing whose widths change across the symbol and not
+  down it, and two symbols in perspective on which it matters which of
+  the best places of the alignment pattern is taken and which places
+  around it the mean of its middle takes. The symbols in perspective
+  were found by a search.
   `docs/MUTATION.md` lists the mutants that survive the tests and the
   proof with the reason (`docs/DESIGN.md` 8).
 * Examples: every example writes a picture of its results, the input
