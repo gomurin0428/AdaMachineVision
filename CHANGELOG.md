@@ -46,6 +46,14 @@ section 9.1.
 
 ### Fixed
 
+* The builds did not compute in floating point what the proofs proved, on
+  arm64: at `-O2`, GCC fused a multiplication and an addition into one
+  instruction that rounds once (more than 150 such instructions in the
+  objects of the kernels on a Mac), while gnatprove takes every operation
+  to be rounded on its own. Every project now compiles with
+  `-ffp-contract=off`
+  (`docs/PROOF.md`, Assumptions and limits). On x86_64, GCC fuses nothing
+  without a target that has the instruction, and nothing changes there.
 * `ks_misc_hypot` (`AMV.Misc.Hypot`) and the length used inside the
   kernels dropped the smaller component when the larger was between
   2**(-500) and 2**(-400) and the smaller at most 2**(-500): the length

@@ -11,7 +11,8 @@ project AMV_C_Tests is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatW8", "-gnatwa", "-gnatVa", "-O2", "-gnatn");
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-O2", "-gnatn");
       for Default_Switches ("C") use
         ("-std=c11", "-Wall", "-Wextra", "-Wpedantic", "-O2");
    end Compiler;
