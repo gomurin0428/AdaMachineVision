@@ -115,22 +115,14 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    --  The checks
    ---------------------------------------------------------------------
 
-   function Usable
-     (Image : access constant KI.Ks_Image_8_Grey_Data) return Boolean
-   is
-     (KI.Valid_Image (Image)
-      and then Int64 (Image.Width) * Int64 (Image.Height) <= KI.Max_Pixels);
-   --  A handle that the tools take: valid, and within the size limit of
-   --  the image kernel (every handle ks_image_8_grey_create returns).
-
    function Input_Failure
      (Image_A, Image_B : access constant KI.Ks_Image_8_Grey_Data)
       return Failure_Code
    is
-     (if Image_A = null then Failure_Image_No_Pixels
-      elsif not Usable (Image_A) then Failure_Bad_Parameter
-      elsif Image_B = null then Failure_Image_No_Pixels
-      elsif not Usable (Image_B) then Failure_Bad_Parameter
+     (if KI.Input_Image_Failure (Image_A) /= Failure_None
+      then KI.Input_Image_Failure (Image_A)
+      elsif KI.Input_Image_Failure (Image_B) /= Failure_None
+      then KI.Input_Image_Failure (Image_B)
       elsif Image_A.Width /= Image_B.Width
         or else Image_A.Height /= Image_B.Height
       then Failure_Bad_Parameter

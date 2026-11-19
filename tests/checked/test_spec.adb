@@ -13,7 +13,9 @@ pragma Assertion_Policy (Assert => Check, Ghost => Check);
 
 with Ada.Text_IO;
 
+with AMV.Spec.Image_Convert;
 with AMV.Spec.IP_Two_Image;
+with AMV.Spec.Pixel_Map;
 with AMV_Test_Support;
 
 procedure Test_Spec is
@@ -68,9 +70,54 @@ procedure Test_Spec is
       Expect ("MinMax, Max: max (7, 3) = 7");
    end Test_IP_Two_Image;
 
+   procedure Test_Image_Convert is
+      package S renames AMV.Spec.Image_Convert;
+      use type S.Level;
+   begin
+      Section ("AMV.Spec.Image_Convert: the high byte, the intensity, the "
+               & "planes");
+      pragma Assert (S.High_Byte (16#1234#) = 16#12#);
+      Expect ("the high byte of 16#1234# is 16#12#");
+      pragma Assert (S.High_Byte (255) = 0);
+      Expect ("the high byte of 255 is 0");
+      pragma Assert (S.Intensity (255, 255, 255) = 255);
+      Expect ("the intensity of white is 255: the weights add up to 1");
+      pragma Assert (S.Intensity (255, 0, 0) = 76);
+      Expect ("the intensity of red: 0.299 * 255 = 76.245 gives 76");
+      pragma Assert (S.Intensity (0, 0, 255) = 29);
+      Expect ("the intensity of blue: 0.114 * 255 = 29.07 gives 29");
+      pragma Assert (S.Intensity (0, 12, 4) = 8);
+      Expect ("a half is rounded up: 0.587 * 12 + 0.114 * 4 = 7.5 gives 8");
+      pragma Assert (S.Colour (6, 1, 2, 3) = 1
+                     and then S.Colour (7, 1, 2, 3) = 2
+                     and then S.Colour (8, 1, 2, 3) = 3);
+      Expect ("Plane0, Plane1 and Plane2 are the red, green and blue "
+              & "planes");
+      pragma Assert (S.Colour (1, 255, 0, 0) = 76);
+      Expect ("Intensity of a colour pixel is its intensity");
+   end Test_Image_Convert;
+
+   procedure Test_Pixel_Map is
+      package S renames AMV.Spec.Pixel_Map;
+      use type S.Level;
+      Invert : constant S.Table := [for V in S.Level => 255 - V]
+        with Ghost;
+   begin
+      Section ("AMV.Spec.Pixel_Map: map[value] in the region, the value "
+               & "elsewhere");
+      pragma Assert (S.Mapped (Invert, True, 10) = 245);
+      Expect ("a pixel of the region gets map[value]: 255 - 10 = 245");
+      pragma Assert (S.Mapped (Invert, False, 10) = 10);
+      Expect ("a pixel outside the region keeps its value");
+      pragma Assert (S.Mapped ([others => 7], True, 200) = 7);
+      Expect ("a constant map gives its constant in the region");
+   end Test_Pixel_Map;
+
    procedure Run_All is
    begin
       Test_IP_Two_Image;
+      Test_Image_Convert;
+      Test_Pixel_Map;
       Ada.Text_IO.Put_Line ("Test_Spec done");
    end Run_All;
 

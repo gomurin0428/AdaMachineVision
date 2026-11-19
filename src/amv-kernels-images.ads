@@ -144,6 +144,31 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       and then Image.Pixels'Last (1) = Integer (Image.Height) - 1
       and then Image.Pixels'Last (2) = Integer (Image.Width) - 1);
 
+   function Usable_Image
+     (Image : access constant Ks_Image_8_Grey_Data) return Boolean
+   is
+     (Valid_Image (Image)
+      and then Int64 (Image.Width) * Int64 (Image.Height) <= Max_Pixels);
+   --  A valid handle whose size is within the limit of Create (every
+   --  handle Create returns), so that a count of its pixels fits in an
+   --  Int32: an input image that the tools take.
+
+   function Usable_Image
+     (Image : access constant Ks_Image_16_Grey_Data) return Boolean
+   is
+     (Valid_Image (Image)
+      and then Int64 (Image.Width) * Int64 (Image.Height) <= Max_Pixels);
+
+   function Input_Image_Failure
+     (Image : access constant Ks_Image_8_Grey_Data) return Failure_Code
+   is
+     (if Image = null then Failure_Image_No_Pixels
+      elsif not Usable_Image (Image) then Failure_Bad_Parameter
+      else Failure_None);
+   --  The failure of the check a tool makes of an input image:
+   --  Image_No_Pixels for null ("... has no pixels"), Bad_Parameter for a
+   --  handle that is not usable ("... is not a valid image handle").
+
    No_Grey_8  : constant Grey_8_Matrix (1 .. 0, 1 .. 0) :=
      [others => [others => 0]];
    No_Grey_16 : constant Grey_16_Matrix (1 .. 0, 1 .. 0) :=

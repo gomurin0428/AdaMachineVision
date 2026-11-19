@@ -17,9 +17,7 @@ private package AMV.Kernels.Filter_Inputs with SPARK_Mode, Preelaborate is
 
    function Usable_Image
      (Image : access constant KI.Ks_Image_8_Grey_Data) return Boolean
-   is
-     (KI.Valid_Image (Image)
-      and then Int64 (Image.Width) * Int64 (Image.Height) <= KI.Max_Pixels);
+     renames KI.Usable_Image;
    --  A valid handle whose size is within the limit of the image kernel
    --  (every handle ks_image_8_grey_create returns), so that a count of
    --  its pixels fits in an Int32.
@@ -29,13 +27,22 @@ private package AMV.Kernels.Filter_Inputs with SPARK_Mode, Preelaborate is
       Status : out Ks_Status)
    with
      Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter
+             and then Status.Failure = KI.Input_Image_Failure (Image)
              and then (if Succeeded (Status) then Usable_Image (Image));
    --  Image_No_Pixels for null ("InputImage has no pixels"), Bad_Parameter
    --  for a record that is not a usable handle ("InputImage is not a valid
    --  image handle").
+
+   function Input_Failure
+     (Image  : access constant KI.Ks_Image_8_Grey_Data;
+      Region : access constant KR.Ks_Pixel_Region_Data) return Failure_Code
+   is
+     (if KI.Input_Image_Failure (Image) /= Failure_None
+      then KI.Input_Image_Failure (Image)
+      elsif Region /= null and then not KR.Valid_Region (Region)
+      then Failure_Bad_Parameter
+      else Failure_None);
+   --  The failure of Check_Input.
 
    procedure Check_Input
      (Image  : access constant KI.Ks_Image_8_Grey_Data;
@@ -43,9 +50,7 @@ private package AMV.Kernels.Filter_Inputs with SPARK_Mode, Preelaborate is
       Status : out Ks_Status)
    with
      Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter
+             and then Status.Failure = Input_Failure (Image, Region)
              and then (if Succeeded (Status)
                        then Usable_Image (Image)
                             and then (Region = null

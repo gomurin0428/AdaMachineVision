@@ -119,7 +119,7 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
              and then Status.Failure = Input_Failure (Image_A, Image_B)
              and then (if Succeeded (Status)
                        then Same_Size (Image_A, Image_B)
-                            and then SM.Usable_Image (Image_A));
+                            and then KI.Usable_Image (Image_A));
    --  Both images usable and of one size.
 
    procedure Check_Inputs
@@ -154,7 +154,7 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
       Status           : out Ks_Status)
    with
      Pre  => Same_Size (Image_A, Image_B)
-             and then SM.Usable_Image (Image_A)
+             and then KI.Usable_Image (Image_A)
              and then Valid_Mode (Op, Mode),
      Post => Valid (Status)
              and then Status.Failure
