@@ -13,7 +13,10 @@ with AMV.Kernels.Code_Reader.Data_Matrix;
 with AMV.Kernels.Code_Reader.Data_Matrix.Finder;
 with AMV.Kernels.Code_Reader.Linear;
 with AMV.Kernels.Code_Reader.Profiles;
+with AMV.Kernels.Code_Reader.QR_Code;
+with AMV.Kernels.Code_Reader.QR_Code.Finder;
 with AMV.Kernels.Code_Reader.Reed_Solomon;
+with AMV.Kernels.Code_Reader.Views;
 with AMV.Kernels.Filter_Inputs;
 with AMV.Kernels.Image_Sampling;
 with AMV.Kernels.Numerics;
@@ -28,8 +31,11 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    package L renames AMV.Kernels.Code_Reader.Linear;
    package N renames AMV.Kernels.Numerics;
    package P renames AMV.Kernels.Code_Reader.Profiles;
+   package QF renames AMV.Kernels.Code_Reader.QR_Code.Finder;
+   package QR renames AMV.Kernels.Code_Reader.QR_Code;
    package RS renames AMV.Kernels.Code_Reader.Reed_Solomon;
    package Sampling renames AMV.Kernels.Image_Sampling;
+   package VW renames AMV.Kernels.Code_Reader.Views;
 
    use type DA.Mark;
    use type KR.Flag_Matrix_Access;
@@ -199,16 +205,24 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    pragma Compile_Time_Error
      (DM.Max_Text_Length > Max_Matrix_Text_Length,
       "the text of a Data Matrix symbol must fit a result");
+   pragma Compile_Time_Error
+     (QR.Max_Text_Length > Max_Matrix_Text_Length,
+      "the text of a QR Code symbol must fit a result");
 
    subtype Matrix_Length is Positive range 1 .. Max_Matrix_Text_Length;
 
+   type Matrix_Kind is (Data_Matrix_Symbol, QR_Code_Symbol);
+
    type Matrix_Symbol is record
+      Kind           : Matrix_Kind := Data_Matrix_Symbol;
       UL, UR, LR, LL : Point;
-      --  The corners of the symbol, in pixel space: the upper left, the
-      --  upper right, the lower right and the lower left one (the corner
-      --  of the L).
+      --  The corners of the symbol as it is printed, in pixel space:
+      --  the upper left, the upper right, the lower right and the lower
+      --  left one (of a Data Matrix symbol the corner of the L; a QR
+      --  Code symbol has its finder patterns in the three others).
       Middle         : Point;
-      --  The middle of the symbol as it is printed (Finder.Sample).
+      --  The middle of the symbol as it is printed (Sample of the two
+      --  finders).
       Start          : Positive := 1;
       Length         : Matrix_Length := 1;
       --  Its text: Length characters of the pool, from Start on.
@@ -611,7 +625,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    begin
       if Params.Symbologies not in 1 .. Symbology_All then
          Bad (Status, "RunParams.Symbologies must be a sum of"
-                      & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255");
+                      & " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 511");
       elsif Params.Num_Directions not in 1 .. Max_Directions then
          Bad (Status, "RunParams.NumDirections must be in 1 .. 180");
       elsif not N.In_Range (Params.First_Direction, Max_Value) then
@@ -1686,15 +1700,19 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       end if;
    end Read_Area;
 
+   ---------------------------------------------------------------------
+   --  The symbols of a pass
+   ---------------------------------------------------------------------
+
    function To_Point
-     (C          : FN.Corner;
+     (C          : VW.Corner;
       X_Lo, Y_Lo : Natural) return Point;
    --  The point C of a map whose pixel (0, 0) is the pixel (X_Lo, Y_Lo)
    --  of the image, in pixel space (where the middle of a pixel, and not
    --  its upper left corner, has whole coordinates).
 
    function To_Point
-     (C          : FN.Corner;
+     (C          : VW.Corner;
       X_Lo, Y_Lo : Natural) return Point is
    begin
       return (X => C.X + Long_Float (X_Lo) - 0.5,
@@ -1717,8 +1735,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    function Near (A, B : Matrix_Symbol) return Boolean is
      (4.0 * Distance_2 (A.Middle, B.Middle)
         < Long_Float'Min (Distance_2 (A.LL, A.UL), Distance_2 (A.LL, A.LR)));
-   --  The middle of B is less than half the shorter side of the L of A
-   --  from the middle of A.
+   --  The middle of B is less than half the shorter of the left and the
+   --  lower side of A from the middle of A.
 
    Pool_Start : constant := 4096;
    Pool_Limit : constant := 2 * Max_Candidates * Max_Matrix_Text_Length;
@@ -1748,19 +1766,21 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    function Same_Text
      (Pool   : Text_Pool;
       Start  : Positive;
-      Text   : Matrix_Text;
+      Text   : Text_Pool;
       Length : Positive) return Boolean
    is
      (for all I in 1 .. Length => Pool (Start - 1 + I) = Text (I))
-   with Pre => Pool'First = 1 and then Length <= DM.Max_Text_Length
+   with Pre => Pool'First = 1 and then Text'First = 1
+               and then Length <= Text'Last
                and then Length <= Pool'Last
                and then Start - 1 <= Pool'Last - Length;
 
    procedure Add_Symbol
-     (Shape      : FN.Outline;
-      Centre     : FN.Corner;
+     (Kind       : Matrix_Kind;
+      Shape      : VW.Outline;
+      Centre     : VW.Corner;
       X_Lo, Y_Lo : Natural;
-      Text       : Matrix_Text;
+      Text       : Text_Pool;
       Length     : Positive;
       Room       : Natural;
       Symbols    : in out Symbol_Array;
@@ -1769,7 +1789,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Used       : in out Natural;
       Outcome    : out Pass_Outcome)
    with
-     Pre  => Length <= DM.Max_Text_Length
+     Pre  => Text'First = 1 and then Length <= Text'Last
+             and then Length <= Max_Matrix_Text_Length
              and then Room <= Max_Candidates and then Count <= Room
              and then Symbols_OK (Symbols, Count, Used)
              and then Pool_OK (Pool, Used),
@@ -1778,16 +1799,17 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    --  Adds the symbol with the corners Shape and the middle Centre (of
    --  the map whose first pixel is the pixel (X_Lo, Y_Lo) of the image)
    --  and the text Text (1 .. Length), unless it is there already: a
-   --  symbol with the same text whose middle is near the middle of this
-   --  one. Room: the most symbols. Outcome: Too_Many when there is no
-   --  room for it, and No_Memory when the pool cannot grow; nothing is
-   --  added then.
+   --  symbol of the same kind with the same text whose middle is near
+   --  the middle of this one. Room: the most symbols. Outcome: Too_Many
+   --  when there is no room for it, and No_Memory when the pool cannot
+   --  grow; nothing is added then.
 
    procedure Add_Symbol
-     (Shape      : FN.Outline;
-      Centre     : FN.Corner;
+     (Kind       : Matrix_Kind;
+      Shape      : VW.Outline;
+      Centre     : VW.Corner;
       X_Lo, Y_Lo : Natural;
-      Text       : Matrix_Text;
+      Text       : Text_Pool;
       Length     : Positive;
       Room       : Natural;
       Symbols    : in out Symbol_Array;
@@ -1797,7 +1819,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Outcome    : out Pass_Outcome)
    is
       Symbol : constant Matrix_Symbol :=
-        (UL     => To_Point (Shape.Upper_Left, X_Lo, Y_Lo),
+        (Kind   => Kind,
+         UL     => To_Point (Shape.Upper_Left, X_Lo, Y_Lo),
          UR     => To_Point (Shape.Upper_Right, X_Lo, Y_Lo),
          LR     => To_Point (Shape.Lower_Right, X_Lo, Y_Lo),
          LL     => To_Point (Shape.Lower_Left, X_Lo, Y_Lo),
@@ -1809,7 +1832,8 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
    begin
       Outcome := Done;
       for I in 0 .. Count - 1 loop
-         if Symbols (I).Length = Length
+         if Symbols (I).Kind = Kind
+           and then Symbols (I).Length = Length
            and then Near (Symbols (I), Symbol)
            and then Same_Text (Pool.all, Symbols (I).Start, Text, Length)
          then
@@ -1870,17 +1894,274 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       end loop;
    end Mask_Region;
 
+   ---------------------------------------------------------------------
+   --  QR Code symbols
+   ---------------------------------------------------------------------
+
+   Max_Patterns : constant := 256;
+   --  The finder patterns of a pass, at most: those of 85 symbols.
+
+   Max_Partners : constant := 32;
+   --  The finder patterns nearest to one that are tried as the two
+   --  others of its symbol, at most.
+
+   Max_Tries : constant := 16;
+   --  The pairs of them that can be the two others, as far as the three
+   --  patterns tell, and that are looked at without a text, at most,
+   --  with one pattern in the corner.
+
+   subtype Version_Step is Integer range -2 .. 2;
+
+   Version_Steps : constant array (1 .. 5) of Version_Step :=
+     [0, -1, 1, -2, 2];
+   --  The versions tried around the one that the finder patterns give,
+   --  the nearest first.
+
+   subtype QR_Text is QR.Text_Buffer (1 .. QR.Max_Text_Length);
+
+   procedure Read_Triple
+     (Map                  : DA.Mark_Map;
+      Field                : RS.Field;
+      First, Second, Third : QF.Pattern;
+      Shape                : out VW.Outline;
+      Centre               : out VW.Corner;
+      Text                 : in out QR_Text;
+      Length               : out Natural;
+      Tried                : out Boolean;
+      Success              : out Boolean)
+   with Pre  => DA.Valid_Map (Map),
+        Post => (if Success
+                 then Tried and then Length in 1 .. QR.Max_Text_Length);
+   --  Reads the symbol whose finder patterns are First (the one in the
+   --  corner between the two others), Second and Third, if the three
+   --  can be those of a symbol: with either mapping of QF.Sample, with
+   --  the version that the patterns give and the two before and after
+   --  it, as it is and as its mirror image, until one gives a text that
+   --  is not empty. Shape and Centre: its corners and its middle as it
+   --  is printed. Text (1 .. Length): its text (the rest of Text has no
+   --  meaning). Tried: the three can be those of a symbol (QF.Place),
+   --  so that the modules were looked at. Field: the tables of
+   --  RS.QR_Code_Polynomial.
+
+   procedure Read_Triple
+     (Map                  : DA.Mark_Map;
+      Field                : RS.Field;
+      First, Second, Third : QF.Pattern;
+      Shape                : out VW.Outline;
+      Centre               : out VW.Corner;
+      Text                 : in out QR_Text;
+      Length               : out Natural;
+      Tried                : out Boolean;
+      Success              : out Boolean)
+   is
+      Symbol           : QF.Placement;
+      Version          : Integer;
+      Grid             : QR.Module_Grid;
+      Other            : VW.Corner;
+      OK               : Boolean;
+      Unused_Corrected : Natural;
+   begin
+      Shape := (others => <>);
+      Centre := (others => <>);
+      Length := 0;
+      Success := False;
+      QF.Place (Map, First, Second, Third, Symbol, Tried);
+      if not Tried then
+         return;
+      end if;
+      for Again in Boolean loop
+         pragma Loop_Invariant (Tried and then not Success
+                                and then Length = 0);
+         for Step of Version_Steps loop
+            pragma Loop_Invariant (Tried and then not Success
+                                   and then Length = 0);
+            Version := Symbol.Version + Step;
+            if Version in QR.Version_Number then
+               QF.Sample (Map, Symbol, Version, Again, Grid, Shape, Centre,
+                          OK);
+               if OK then
+                  for Mirror in Boolean loop
+                     pragma Loop_Invariant (Tried and then not Success
+                                            and then Length = 0);
+                     QR.Decode (Grid, Version, Mirror, Field, Text, Length,
+                                Unused_Corrected, Success);
+                     if Success and then Length > 0 then
+                        if Mirror then
+                           --  Seen from behind, the upper right corner
+                           --  of the symbol as it is printed is where
+                           --  the lower left one would be.
+                           Other := Shape.Upper_Right;
+                           Shape.Upper_Right := Shape.Lower_Left;
+                           Shape.Lower_Left := Other;
+                        end if;
+                        return;
+                     end if;
+                     Length := 0;
+                     Success := False;
+                  end loop;
+               end if;
+            end if;
+         end loop;
+      end loop;
+   end Read_Triple;
+
+   procedure Find_QR_Symbols
+     (Map        : DA.Mark_Map;
+      X_Lo, Y_Lo : Natural;
+      Room       : Natural;
+      Symbols    : in out Symbol_Array;
+      Count      : in out Natural;
+      Pool       : in out Text_Pool_Access;
+      Used       : in out Natural;
+      Outcome    : out Pass_Outcome)
+   with
+     Pre  => DA.Valid_Map (Map)
+             and then Room <= Max_Candidates and then Count <= Room
+             and then Symbols_OK (Symbols, Count, Used)
+             and then Pool_OK (Pool, Used),
+     Post => Count <= Room and then Symbols_OK (Symbols, Count, Used)
+             and then Pool_OK (Pool, Used);
+   --  Adds the QR Code symbols of the map (whose first pixel is the
+   --  pixel (X_Lo, Y_Lo) of the image) to Symbols (0 .. Count - 1) and
+   --  their texts to the pool, in the order in which the rows of the
+   --  map meet the finder pattern in the corner of each. Every finder
+   --  pattern is tried as the one in the corner, with every two of the
+   --  Max_Partners patterns nearest to it whose modules are about as
+   --  wide (QF.Akin), the nearest first: the pairs with the nearest and
+   --  the second nearest, then those with the third, and so on, until
+   --  Max_Tries of them were looked at without a text. The patterns of
+   --  a symbol that was read are not tried again. Room and Outcome: as
+   --  for Add_Symbol.
+
+   procedure Find_QR_Symbols
+     (Map        : DA.Mark_Map;
+      X_Lo, Y_Lo : Natural;
+      Room       : Natural;
+      Symbols    : in out Symbol_Array;
+      Count      : in out Natural;
+      Pool       : in out Text_Pool_Access;
+      Used       : in out Natural;
+      Outcome    : out Pass_Outcome)
+   is
+      subtype Pattern_Index is Positive range 1 .. Max_Patterns;
+      type Flags is array (Pattern_Index) of Boolean;
+
+      subtype Partner_Index is Positive range 1 .. Max_Partners;
+      type Partner_List is array (Partner_Index) of Pattern_Index;
+      type Way_List is array (Partner_Index) of VW.Length_Value;
+
+      Field    : constant RS.Field := RS.Make_Field (RS.QR_Code_Polynomial);
+      Patterns : QF.Pattern_Array (1 .. Max_Patterns);
+      Taken    : Flags := [others => False];
+      Found    : Natural;
+      Near     : Partner_List := [others => 1];
+      Ways     : Way_List := [others => 0.0];
+      Nearest  : Natural range 0 .. Max_Partners;
+      Way      : VW.Length_Value;
+      Slot     : Partner_Index;
+      Tries    : Natural range 0 .. Max_Tries;
+      Shape    : VW.Outline;
+      Centre   : VW.Corner;
+      Text     : QR_Text := [others => ' '];
+      Length   : Natural;
+      Tried    : Boolean;
+      Success  : Boolean;
+   begin
+      Outcome := Done;
+      QF.Find_Patterns (Map, Patterns, Found);
+      Corners :
+      for I in 1 .. Found loop
+         pragma Loop_Invariant
+           (Outcome = Done and then Count <= Room
+            and then Symbols_OK (Symbols, Count, Used)
+            and then Pool_OK (Pool, Used));
+         if not Taken (I) then
+
+            --  Near (1 .. Nearest): the patterns that can be of one
+            --  symbol with this one, the nearest first, and their
+            --  distances in Ways.
+            Nearest := 0;
+            for J in 1 .. Found loop
+               if J /= I and then not Taken (J)
+                 and then QF.Akin (Patterns (I), Patterns (J))
+               then
+                  Way :=
+                    VW.Distance (Patterns (I).Centre, Patterns (J).Centre);
+                  if Nearest < Max_Partners
+                    or else Way < Ways (Max_Partners)
+                  then
+                     if Nearest < Max_Partners then
+                        Nearest := Nearest + 1;
+                     end if;
+                     Slot := Nearest;
+                     while Slot > 1 and then Ways (Slot - 1) > Way loop
+                        pragma Loop_Invariant (Slot in 2 .. Nearest);
+                        pragma Loop_Variant (Decreases => Slot);
+                        Ways (Slot) := Ways (Slot - 1);
+                        Near (Slot) := Near (Slot - 1);
+                        Slot := Slot - 1;
+                     end loop;
+                     Ways (Slot) := Way;
+                     Near (Slot) := J;
+                  end if;
+               end if;
+            end loop;
+
+            Tries := 0;
+            Pairs :
+            for B in 2 .. Nearest loop
+               pragma Loop_Invariant
+                 (Outcome = Done and then Count <= Room
+                  and then Tries < Max_Tries
+                  and then Symbols_OK (Symbols, Count, Used)
+                  and then Pool_OK (Pool, Used));
+               for A in 1 .. B - 1 loop
+                  pragma Loop_Invariant
+                    (Outcome = Done and then Count <= Room
+                     and then Tries < Max_Tries
+                     and then Symbols_OK (Symbols, Count, Used)
+                     and then Pool_OK (Pool, Used));
+                  Read_Triple
+                    (Map, Field, Patterns (I), Patterns (Near (A)),
+                     Patterns (Near (B)), Shape, Centre, Text, Length,
+                     Tried, Success);
+                  if Success then
+                     Add_Symbol (QR_Code_Symbol, Shape, Centre, X_Lo, Y_Lo,
+                                 Text_Pool (Text), Length, Room, Symbols,
+                                 Count, Pool, Used, Outcome);
+                     exit Corners when Outcome /= Done;
+                     Taken (I) := True;
+                     Taken (Near (A)) := True;
+                     Taken (Near (B)) := True;
+                     exit Pairs;
+                  end if;
+                  if Tried then
+                     Tries := Tries + 1;
+                     exit Pairs when Tries = Max_Tries;
+                  end if;
+               end loop;
+            end loop Pairs;
+         end if;
+      end loop Corners;
+   end Find_QR_Symbols;
+
+   ---------------------------------------------------------------------
+   --  The pass for the two-dimensional symbols
+   ---------------------------------------------------------------------
+
    procedure Find_Symbols
-     (Image    : access constant KI.Ks_Image_8_Grey_Data;
-      Region   : access constant KR.Ks_Pixel_Region_Data;
-      Box      : Scan_Box;
-      Contrast : Positive;
-      Room     : Natural;
-      Symbols  : in out Symbol_Array;
-      Count    : out Natural;
-      Pool     : in out Text_Pool_Access;
-      Used     : out Natural;
-      Outcome  : out Pass_Outcome)
+     (Image            : access constant KI.Ks_Image_8_Grey_Data;
+      Region           : access constant KR.Ks_Pixel_Region_Data;
+      Box              : Scan_Box;
+      Contrast         : Positive;
+      With_Data_Matrix : Boolean;
+      With_QR_Code     : Boolean;
+      Room             : Natural;
+      Symbols          : in out Symbol_Array;
+      Count            : out Natural;
+      Pool             : in out Text_Pool_Access;
+      Used             : out Natural;
+      Outcome          : out Pass_Outcome)
    with
      Pre  => KI.Valid_Image (Image)
              and then KR.Valid_Region (Region)
@@ -1893,24 +2174,28 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
              and then Pool_OK (Pool, 0),
      Post => Count <= Room and then Symbols_OK (Symbols, Count, Used)
              and then Pool_OK (Pool, Used);
-   --  The Data Matrix symbols of the pixels of the region in the box:
-   --  Symbols (0 .. Count - 1), in the order of their first row and, in
-   --  a row, of their first column, with their texts in the first Used
-   --  characters of the pool. Room: the most symbols. Outcome: Too_Many
-   --  when there are more, No_Memory when the memory of the pass cannot
-   --  be allocated.
+   --  The two-dimensional symbols of the pixels of the region in the
+   --  box: Symbols (0 .. Count - 1), with their texts in the first Used
+   --  characters of the pool. First the Data Matrix symbols
+   --  (With_Data_Matrix), in the order of their first row and, in a
+   --  row, of their first column; then the QR Code symbols
+   --  (With_QR_Code), in the order of Find_QR_Symbols. Room: the most
+   --  symbols. Outcome: Too_Many when there are more, No_Memory when
+   --  the memory of the pass cannot be allocated.
 
    procedure Find_Symbols
-     (Image    : access constant KI.Ks_Image_8_Grey_Data;
-      Region   : access constant KR.Ks_Pixel_Region_Data;
-      Box      : Scan_Box;
-      Contrast : Positive;
-      Room     : Natural;
-      Symbols  : in out Symbol_Array;
-      Count    : out Natural;
-      Pool     : in out Text_Pool_Access;
-      Used     : out Natural;
-      Outcome  : out Pass_Outcome)
+     (Image            : access constant KI.Ks_Image_8_Grey_Data;
+      Region           : access constant KR.Ks_Pixel_Region_Data;
+      Box              : Scan_Box;
+      Contrast         : Positive;
+      With_Data_Matrix : Boolean;
+      With_QR_Code     : Boolean;
+      Room             : Natural;
+      Symbols          : in out Symbol_Array;
+      Count            : out Natural;
+      Pool             : in out Text_Pool_Access;
+      Used             : out Natural;
+      Outcome          : out Pass_Outcome)
    is
       W : constant Positive := Box.X_Hi - Box.X_Lo + 1;
       H : constant Positive := Box.Y_Hi - Box.Y_Lo + 1;
@@ -1958,25 +2243,10 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          Mask_Region (Region, Box.X_Lo, Box.Y_Lo, Map.all);
       end if;
 
-      --  Every dark area once, at the first pixel of its outline.
-      Rows :
-      for Y in 0 .. H - 1 loop
-         pragma Loop_Invariant
-           (Map /= null and then Lefts /= null and then Rights /= null
-            and then Points /= null);
-         pragma Loop_Invariant
-           (Map'First (1) = 0 and then Map'Last (1) = H - 1
-            and then Map'First (2) = 0 and then Map'Last (2) = W - 1);
-         pragma Loop_Invariant
-           (DA.Extents_Fit (Lefts.all, Map.all)
-            and then DA.Extents_Fit (Rights.all, Map.all)
-            and then Points'First = 1
-            and then Points'Last = 2 * (H + 1));
-         pragma Loop_Invariant
-           (Outcome = Done and then Count <= Room
-            and then Symbols_OK (Symbols, Count, Used)
-            and then Pool_OK (Pool, Used));
-         for X in 0 .. W - 1 loop
+      if With_Data_Matrix then
+         --  Every dark area once, at the first pixel of its outline.
+         Rows :
+         for Y in 0 .. H - 1 loop
             pragma Loop_Invariant
               (Map /= null and then Lefts /= null and then Rights /= null
                and then Points /= null);
@@ -1992,20 +2262,44 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
               (Outcome = Done and then Count <= Room
                and then Symbols_OK (Symbols, Count, Used)
                and then Pool_OK (Pool, Used));
-            if Map (Y, X) = DA.Dark
-              and then (X = 0 or else Map (Y, X - 1) = DA.Light)
-            then
-               Read_Area (Map.all, X, Y, Lefts.all, Rights.all, Points.all,
-                          Field, Shape, Centre, Text, Length, Success);
-               if Success then
-                  Add_Symbol (Shape, Centre, Box.X_Lo, Box.Y_Lo, Text,
-                              Length, Room, Symbols, Count, Pool, Used,
-                              Outcome);
-                  exit Rows when Outcome /= Done;
+            for X in 0 .. W - 1 loop
+               pragma Loop_Invariant
+                 (Map /= null and then Lefts /= null and then Rights /= null
+                  and then Points /= null);
+               pragma Loop_Invariant
+                 (Map'First (1) = 0 and then Map'Last (1) = H - 1
+                  and then Map'First (2) = 0 and then Map'Last (2) = W - 1);
+               pragma Loop_Invariant
+                 (DA.Extents_Fit (Lefts.all, Map.all)
+                  and then DA.Extents_Fit (Rights.all, Map.all)
+                  and then Points'First = 1
+                  and then Points'Last = 2 * (H + 1));
+               pragma Loop_Invariant
+                 (Outcome = Done and then Count <= Room
+                  and then Symbols_OK (Symbols, Count, Used)
+                  and then Pool_OK (Pool, Used));
+               if Map (Y, X) = DA.Dark
+                 and then (X = 0 or else Map (Y, X - 1) = DA.Light)
+               then
+                  Read_Area (Map.all, X, Y, Lefts.all, Rights.all, Points.all,
+                             Field, Shape, Centre, Text, Length, Success);
+                  if Success then
+                     Add_Symbol (Data_Matrix_Symbol, Shape, Centre, Box.X_Lo,
+                                 Box.Y_Lo, Text_Pool (Text), Length, Room,
+                                 Symbols, Count, Pool, Used, Outcome);
+                     exit Rows when Outcome /= Done;
+                  end if;
                end if;
-            end if;
-         end loop;
-      end loop Rows;
+            end loop;
+         end loop Rows;
+      end if;
+
+      --  The finder patterns, in the same pixels (an outline that
+      --  was followed is marked, and still dark).
+      if With_QR_Code and then Outcome = Done then
+         Find_QR_Symbols (Map.all, Box.X_Lo, Box.Y_Lo, Room, Symbols, Count,
+                          Pool, Used, Outcome);
+      end if;
       Free (Map);
       Free (Lefts);
       Free (Rights);
@@ -2022,7 +2316,7 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
              and then Symbol.Length <= Pool'Last
              and then Symbol.Start - 1 <= Pool'Last - Symbol.Length,
      Post => Valid_Item (Item)
-             and then Item.Symbology = Symbology_Data_Matrix
+             and then Is_Matrix (Item.Symbology)
              and then Item.Length = Int32 (Symbol.Length);
    --  The result of a symbol, in the space that T maps pixel space to.
 
@@ -2035,16 +2329,26 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
       Shown : constant Positive :=
         Positive'Min (Symbol.Length, Max_Text_Length);
 
-      --  Along the lower side of the symbol, from the corner of the L.
-      AX : constant Span := Between (Symbol.LL.X, Symbol.LR.X);
-      AY : constant Span := Between (Symbol.LL.Y, Symbol.LR.Y);
+      Upper : constant Boolean := Symbol.Kind = QR_Code_Symbol;
+
+      --  Along the lower side of a Data Matrix symbol, from the corner
+      --  of the L, and along the upper side of a QR Code symbol, from
+      --  its upper left finder pattern: the way of the rows of both as
+      --  they are printed.
+      AX : constant Span :=
+        (if Upper then Between (Symbol.UL.X, Symbol.UR.X)
+         else Between (Symbol.LL.X, Symbol.LR.X));
+      AY : constant Span :=
+        (if Upper then Between (Symbol.UL.Y, Symbol.UR.Y)
+         else Between (Symbol.LL.Y, Symbol.LR.Y));
 
       --  The same in the selected space.
       DX : constant Long_Float := N.Mul (T.A, AX) + N.Mul (T.B, AY);
       DY : constant Long_Float := N.Mul (T.C, AX) + N.Mul (T.D, AY);
    begin
       Item := No_Result;
-      Item.Symbology := Symbology_Data_Matrix;
+      Item.Symbology :=
+        (if Upper then Symbology_QR_Code else Symbology_Data_Matrix);
       Item.Length := Int32 (Symbol.Length);
       for I in 1 .. Shown loop
          Item.Text (I) := Pool (Symbol.Start - 1 + I);
@@ -2393,8 +2697,10 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
          end if;
       end if;
 
-      --  Data Matrix, in the dark areas.
-      if not Empty and then Has (Params.Symbologies, Symbology_Data_Matrix)
+      --  The two-dimensional symbols, in the dark and light pixels.
+      if not Empty
+        and then (Has (Params.Symbologies, Symbology_Data_Matrix)
+                  or else Has (Params.Symbologies, Symbology_QR_Code))
       then
          Allocate_Symbols (Symbols);
          Allocate_Texts (Pool_Start, Pool);
@@ -2405,7 +2711,13 @@ package body AMV.Kernels.Code_Reader with SPARK_Mode is
             Out_Of_Memory (Status);
             return;
          end if;
-         Find_Symbols (Image, Region, Box, Settings.Threshold,
+         --  A block has dark and light pixels when they differ by
+         --  twice the contrast threshold: the lightest and the darkest
+         --  of its 64 pixels differ by the whole swing of the noise.
+         Find_Symbols (Image, Region, Box,
+                       Integer'Min (2 * Settings.Threshold, 255),
+                       Has (Params.Symbologies, Symbology_Data_Matrix),
+                       Has (Params.Symbologies, Symbology_QR_Code),
                        Max_Candidates - Count, Symbols.all, Matrix, Pool,
                        Used, Outcome);
          if Outcome /= Done then

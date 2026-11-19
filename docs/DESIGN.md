@@ -39,7 +39,7 @@ The child packages of `AMV`, by area:
 | Correlation search                  | `AMV.NCC_Search`               |
 | Geometric pattern location          | `AMV.Shape_Match`              |
 | Fixtures and calibration            | `AMV.Calib_Fix`                |
-| Code reading (linear barcodes, Data Matrix) | `AMV.Code_Reader`      |
+| Code reading (linear barcodes, Data Matrix, QR Code) | `AMV.Code_Reader` |
 | Tool groups and tool blocks         | `AMV.Tool_Group`, `AMV.Tool_Block` |
 
 Support packages: `AMV.Regions`
@@ -232,6 +232,44 @@ packages; their entry points form the C API (section 9).
   the same values. Every exception must be an AMV one, or the
   Constraint_Error a spec documents for an index. A new tool or
   subprogram that takes numbers gets its place in that sweep.
+* Mutation testing checks the tests and the contracts. AdaMutant
+  (https://github.com/gomurin0428/AdaMutant, set up in `adamutant.toml`)
+  makes small changes to a body (mutants: `<` for `<=`, a literal one
+  higher, a statement taken out), builds them, and runs each with the
+  areas of `test_suite` that execute its place (each area is a test of
+  its own; `test_suite <area> ...` runs only the areas named). A mutant
+  that the tests pass goes to the proof of its unit
+  (`tools/mutant_prove.sh`), and one that passes that too is compiled
+  again with optimisation: where its object code is that of the
+  unchanged body, it is an equivalent mutant (Ignored). A pull request
+  that adds or changes a body under `src/` runs `make mutation-diff`
+  (the changed lines) or `make mutation MUTATE=src/<file>.adb` (a whole
+  file) first; `MUTATION_BASELINE` takes the results of an earlier
+  report again for the lines that have not changed. The workflow
+  Mutation (`.github/workflows/mutation.yml`) does the same on every
+  pull request: one job for each changed body, seven for a large one
+  (`tools/mutant_shard.sh`), each keeping its report and its prover
+  cache from run to run. AdaMutant finds its places on the syntax tree
+  of Libadalang and is built with Alire; the workflow builds the commit
+  that it names once and keeps it in its cache. A test of a mutant may
+  take five minutes more than the test of the unchanged project, as the
+  proofs of other mutants run beside it (`timeout_ms`): a Timeout counts
+  as detected, and a loaded machine must not make one of a mutant that
+  changes nothing. A mutant that only the proof detects is a candidate
+  for a missing test, and gets one where the tests can see the change
+  (AdaMutant lists these with the counterexample of GNATprove). A mutant
+  that survives both gets a test, or a stronger contract; one that no
+  test can tell from the source and that the compiler does not reduce to
+  the same code (a guard that cannot act, a bound that is never reached)
+  stays Survived, and `docs/MUTATION.md` lists it with the reason,
+  outside the code. Where only an input that no search has found, or one
+  too large to make in a test (a map of thousands of pixels a side),
+  would tell it, the list says "not pinned" and what input would.
+  Contracts are mutated too (a conjunct or an assertion taken out, the
+  changes above within them). The kernels run their preconditions only
+  (`Assertion_Policy`), so a mutant that only a postcondition or a loop
+  invariant would notice is left to the proof; where that proof does not
+  finish within its time (`prove_timeout_ms`), the list says so.
 
 ## 9. SPARK kernels and the C API
 

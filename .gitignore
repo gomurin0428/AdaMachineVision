@@ -7,3 +7,5 @@
 *.exe
 /tests/output/
 __pycache__/
+/.adamutant/
+/adamutant-*.toml

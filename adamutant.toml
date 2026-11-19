@@ -1,0 +1,81 @@
+# Mutation testing with AdaMutant (https://github.com/gomurin0428/AdaMutant):
+# it changes the bodies in small ways and looks whether a test, or else
+# the proof, fails for every change. "make mutation-diff" takes the lines
+# changed since origin/main, "make mutation MUTATE=<file>" one file or
+# pattern (docs/DESIGN.md 8).
+
+# Bodies only: the specifications hold declarations and contracts.
+mutate = ["src/*.adb"]
+# The build of the tests, less three passes of the optimiser. AdaMutant
+# compiles all the mutants of a file as one unit, and on such a unit
+# (the 1076 mutants of the QR Code finder) these passes take the
+# compiler 16 minutes instead of 3; a build of more than 10 minutes
+# (build_timeout_ms) ends the run.
+build = "gprbuild -q -p -j2 -P amv_tests.gpr test_suite.adb -cargs -fno-tree-fre -fno-tree-pta -fno-var-tracking"
+# The proof of the unit of the mutated body, for a mutant that the tests
+# do not detect (tools/mutant_prove.sh).
+prove = "sh tools/mutant_prove.sh"
+# A mutant that neither detects is compiled again with optimisation and
+# without debug information: where its object code is that of the
+# unchanged project, it is an equivalent mutant.
+equivalence_build = "gprbuild -q -p -c -j2 -P amv_tests.gpr test_suite.adb -cargs -O2 -g0"
+# The time of a test of a mutant, at most: 1.5 times the time of the
+# test on the unchanged project, measured at the start, and five
+# minutes. The proofs of the mutants that pass their tests run beside
+# the tests of others and load the machine more than the tests alone
+# did at the start: with a minute, on a runner of the workflow Mutation,
+# tests of mutants that change nothing ran out of time, and a Timeout
+# counts as detected.
+timeout_ms = 300000
+# The time of the proof of a mutant, at most. The runs of the unchanged
+# project prove the bodies mutated together, from the cache, and no
+# mutant alone (tools/mutant_prove.sh): their time is no measure. A
+# proof cut short leaves its mutant Survived.
+prove_timeout_ms = 900000
+# A mutant of a size or of a loop bound can allocate without limit.
+test_memory_limit_mb = 2048
+sandbox_exclude = [".git", "build", "alire", "config", "obj"]
+
+[thresholds]
+high = 80
+low = 60
+break = 0
+
+# The areas of test_suite, each a test of its own, the quickest first:
+# a mutant runs with the areas that execute its place, in this order,
+# up to the first that detects it.
+[tests]
+Test_Code_Reader_QR_Patterns = "./build/bin/test_suite Test_Code_Reader_QR_Patterns"
+Test_Code_Reader_QR_Placing = "./build/bin/test_suite Test_Code_Reader_QR_Placing"
+Test_Coordinate_Spaces = "./build/bin/test_suite Test_Coordinate_Spaces"
+Test_Find_Line = "./build/bin/test_suite Test_Find_Line"
+Test_Geometry = "./build/bin/test_suite Test_Geometry"
+Test_Test_Images = "./build/bin/test_suite Test_Test_Images"
+Test_Create_Shapes = "./build/bin/test_suite Test_Create_Shapes"
+Test_Find_Circle = "./build/bin/test_suite Test_Find_Circle"
+Test_Tool_Group = "./build/bin/test_suite Test_Tool_Group"
+Test_Code_Reader_QR_Sampling = "./build/bin/test_suite Test_Code_Reader_QR_Sampling"
+Test_Image_File = "./build/bin/test_suite Test_Image_File"
+Test_Kernels = "./build/bin/test_suite Test_Kernels"
+Test_Regions = "./build/bin/test_suite Test_Regions"
+Test_Caliper = "./build/bin/test_suite Test_Caliper"
+Test_IP_Geometry = "./build/bin/test_suite Test_IP_Geometry"
+Test_Shapes = "./build/bin/test_suite Test_Shapes"
+Test_Image_Math = "./build/bin/test_suite Test_Image_Math"
+Test_Images = "./build/bin/test_suite Test_Images"
+Test_Tools = "./build/bin/test_suite Test_Tools"
+Test_Blob = "./build/bin/test_suite Test_Blob"
+Test_Image_Processing_Filters = "./build/bin/test_suite Test_Image_Processing_Filters"
+Test_Transforms = "./build/bin/test_suite Test_Transforms"
+Test_IP_One_Image = "./build/bin/test_suite Test_IP_One_Image"
+Test_Dimensioning = "./build/bin/test_suite Test_Dimensioning"
+Test_Code_Reader_2D = "./build/bin/test_suite Test_Code_Reader_2D"
+Test_Code_Reader_QR_Finder = "./build/bin/test_suite Test_Code_Reader_QR_Finder"
+Test_Code_Reader_QR_Symbol = "./build/bin/test_suite Test_Code_Reader_QR_Symbol"
+Test_Shape_Match = "./build/bin/test_suite Test_Shape_Match"
+Test_Robustness = "./build/bin/test_suite Test_Robustness"
+Test_Calib_Fix = "./build/bin/test_suite Test_Calib_Fix"
+Test_NCC_Search = "./build/bin/test_suite Test_NCC_Search"
+Test_Code_Reader = "./build/bin/test_suite Test_Code_Reader"
+Test_Code_Reader_Data_Matrix = "./build/bin/test_suite Test_Code_Reader_Data_Matrix"
+Test_Code_Reader_QR_Code = "./build/bin/test_suite Test_Code_Reader_QR_Code"

@@ -4,8 +4,8 @@
 --
 --  The tool reads the linear barcodes of an 8-bit grey image: EAN-13,
 --  EAN-8, UPC-A, UPC-E, Code 128, Code 39 and Interleaved 2 of 5 (ITF),
---  and its Data Matrix symbols (ECC 200), at any orientation and any
---  number of them per image:
+--  and its Data Matrix (ECC 200) and QR Code (Model 2) symbols, at any
+--  orientation and any number of them per image:
 --
 --     Tool.Input_Image := Image;
 --     Tool.Run;
@@ -56,10 +56,13 @@
 --  modules). It must be dark on a light ground, with a light margin of
 --  two pixels or more all around; its L must be one solid dark area
 --  that touches nothing else dark (a symbol of separate dots is not
---  read), and its modules about two pixels or more. Here
+--  read), and its modules about two pixels or more. Here twice
 --  ContrastThreshold is the smallest difference between the light and
---  the dark pixels of a neighbourhood. The corners of such a result are
---  those of the symbol as it is printed (0: upper left, 1: upper right,
+--  the dark pixels of a neighbourhood (24 grey levels with the
+--  default): it must be above the swing of the noise in an even area,
+--  or the middle of a large dark area is given light pixels; raise it
+--  in a noisy image. The corners of such a result are those of the
+--  symbol as it is printed (0: upper left, 1: upper right,
 --  2: lower right, 3: lower left, the corner of the L), its angle is
 --  the direction of the lower side from the corner of the L, its centre
 --  is the middle of the symbol as it is printed (where the diagonals
@@ -67,6 +70,32 @@
 --  its columns as they were read), and NumScanLines is 0. Its text can
 --  have up to 3125 characters: a result record holds the first 255 of
 --  them, and Results.Text (I) gives all.
+--
+--  QR Code is not among the default symbologies either; it is read when
+--  Code (QR_Code) is in Symbologies, in the same pass. The three finder
+--  patterns of a symbol are looked for (a line through the middle of
+--  one crosses dark and light in the proportions 1 : 1 : 3 : 1 : 1);
+--  they give the version and, with the alignment pattern near the
+--  fourth corner, the place of every module, and the codewords are
+--  corrected (Reed-Solomon) and decoded. A symbol is read at any
+--  orientation, seen at an angle or from behind (mirrored), in the
+--  versions 1 to 40 (21 x 21 to 177 x 177 modules) and at the four
+--  error correction levels; Micro QR Code and QR Code Model 1 are not
+--  read, and a symbol with a segment in a mode that ISO/IEC 18004 does
+--  not define (the Hanzi mode of GB/T 18284, say) is not reported. It
+--  must be dark on a light ground, with its three finder
+--  patterns whole, light pixels around each of them and one of its two
+--  timing patterns to be seen; its modules should be three pixels or
+--  more (two are enough in a sharp image).
+--  The corners of such a result are those of the symbol as it is
+--  printed (0: upper left, 1: upper right, 2: lower right, 3: lower
+--  left; 0, 1 and 3 have the finder patterns), its angle is the
+--  direction of the upper side from corner 0 to corner 1, its centre is
+--  the middle of the symbol as it is printed, and NumScanLines is 0.
+--  Its text is the bytes that the symbol encodes (a Kanji character is
+--  the two bytes of its Shift JIS code; no character set is applied),
+--  up to 7089 of them, held and given like the text of a Data Matrix
+--  symbol.
 --
 --  Accuracy. On clean symbols the angle is right to about half a degree
 --  and the ends of the symbol to a pixel. The corners bound the scan
@@ -85,6 +114,8 @@
 --     Tool.Run_Params.Num_Directions := 2;   --  horizontal and vertical
 --
 --     Tool.Run_Params.Symbologies := Code (Data_Matrix);   --  only these
+--
+--     Tool.Run_Params.Symbologies := Code (Data_Matrix) + Code (QR_Code);
 --
 --  Results are shared by copies of the tool or of the results (read-only;
 --  the next run replaces them) and are not stored in streams.
@@ -110,7 +141,8 @@ package AMV.Code_Reader is
    ---------------------------------------------------------------------
 
    type Ks_Code_Reader_Symbology_Constants is
-     (EAN_13, EAN_8, UPC_A, UPC_E, Code_128, Code_39, ITF, Data_Matrix);
+     (EAN_13, EAN_8, UPC_A, UPC_E, Code_128, Code_39, ITF, Data_Matrix,
+      QR_Code);
    for Ks_Code_Reader_Symbology_Constants use
      (EAN_13      => KC.Symbology_EAN_13,
       EAN_8       => KC.Symbology_EAN_8,
@@ -119,7 +151,8 @@ package AMV.Code_Reader is
       Code_128    => KC.Symbology_Code_128,
       Code_39     => KC.Symbology_Code_39,
       ITF         => KC.Symbology_ITF,
-      Data_Matrix => KC.Symbology_Data_Matrix);
+      Data_Matrix => KC.Symbology_Data_Matrix,
+      QR_Code     => KC.Symbology_QR_Code);
 
    function Code (Value : Ks_Code_Reader_Symbology_Constants) return Int32
    is (Ks_Code_Reader_Symbology_Constants'Enum_Rep (Value));
@@ -162,7 +195,8 @@ package AMV.Code_Reader is
    --  and Num_Scan_Lines (the number of scan lines that read it). For a
    --  Data Matrix symbol: the angle of its lower side, its four corners
    --  as printed (0: upper left, 1: upper right, 2: lower right, 3:
-   --  lower left) and 0 scan lines.
+   --  lower left) and 0 scan lines. For a QR Code symbol the same, with
+   --  the angle of its upper side.
 
    function Symbology
      (Result : Ks_Code_Reader_Result)
@@ -175,9 +209,10 @@ package AMV.Code_Reader is
    --  The text of the symbol: Result.Text (1 .. Result.Length). For
    --  EAN-13, EAN-8, UPC-A and UPC-E the digits with the check digit (13,
    --  8, 12 and 8 of them); for the other symbologies the characters the
-   --  symbol encodes. Of a Data Matrix text with more than 255
-   --  characters only the first 255, which is all that a result record
-   --  holds (the function Text of the results gives the whole text).
+   --  symbol encodes. Of a Data Matrix or QR Code text with more than
+   --  255 characters only the first 255, which is all that a result
+   --  record holds (the function Text of the results gives the whole
+   --  text).
    --  Ks_Bad_Parameter_Exception for a record whose Length is not in
    --  0 .. 7089 (never for a result of the tool).
 
@@ -191,9 +226,9 @@ package AMV.Code_Reader is
      (Results : Ks_Code_Reader_Results;
       Index   : Natural) return Ks_Code_Reader_Result;
    --  Symbol Index (0-based); the symbols read by the most scan lines
-   --  come first, and the Data Matrix symbols after the linear barcodes,
-   --  from the top of the image down. Constraint_Error unless
-   --  Index < Count.
+   --  come first, the Data Matrix symbols after the linear barcodes and
+   --  the QR Code symbols after those, each from the top of the image
+   --  down. Constraint_Error unless Index < Count.
 
    function Text
      (Results : Ks_Code_Reader_Results;

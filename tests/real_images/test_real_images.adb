@@ -81,15 +81,14 @@ procedure Test_Real_Images is
       return AMV.Image_File.Read_Image_8_Grey (File_Name);
    end Load;
 
-   function Text_Of (Name : String) return String;
-   --  The text of the file Name.txt, which is in UTF-8, as Latin-1.
-   --  Raises Missing, after a failure that names the file, when it is not
+   function File_Bytes (File_Name : String) return String;
+   --  The bytes of the file File_Name, each as a character. Raises
+   --  Missing, after a failure that names the file, when it is not
    --  there.
 
-   function Text_Of (Name : String) return String is
+   function File_Bytes (File_Name : String) return String is
       use Ada.Streams;
-      File_Name : constant String := Directory & "/" & Name & ".txt";
-      File      : Stream_IO.File_Type;
+      File : Stream_IO.File_Type;
    begin
       if not Ada.Directories.Exists (File_Name) then
          Fail (File_Name & " is missing: run make fetch-real-images");
@@ -107,10 +106,17 @@ procedure Test_Real_Images is
          for I in Text'Range loop
             Text (I) := Character'Val (Data (Stream_Element_Offset (I)));
          end loop;
-         return Ada.Strings.UTF_Encoding.Strings.Decode
-           (Text (1 .. Natural (Last)), Ada.Strings.UTF_Encoding.UTF_8);
+         return Text (1 .. Natural (Last));
       end;
-   end Text_Of;
+   end File_Bytes;
+
+   function Text_Of (Name : String) return String
+   is (Ada.Strings.UTF_Encoding.Strings.Decode
+         (File_Bytes (Directory & "/" & Name & ".txt"),
+          Ada.Strings.UTF_Encoding.UTF_8));
+   --  The text of the file Name.txt, which is in UTF-8, as Latin-1.
+   --  Raises Missing, after a failure that names the file, when it is not
+   --  there.
 
    type Point is record
       X, Y : Real;
@@ -3209,6 +3215,239 @@ procedure Test_Real_Images is
       Check (Images_Total = 59, "59 images");
    end Test_Data_Matrix;
 
+   --  Every image of the six series of QR Code symbols, read with every
+   --  symbology enabled and nothing else set. The reader reports the
+   --  bytes of a symbol as they are encoded, and the collection has the
+   --  text of each in UTF-8. So an image is read when a QR Code result
+   --  has, as its whole text, the expected text in UTF-8 (the file as it
+   --  is), in ISO 8859-1 or in Shift JIS (the file .sjis that the fetch
+   --  tool writes), where the text can be written so; the same for
+   --  every image. Every other result is a text that is not in the
+   --  picture, but for the second symbol that one picture shows
+   --  (Second). The reader was made on the images with an odd number;
+   --  those with an even number were run once after that, with nothing
+   --  changed since (tests/real_images/README.md). The images of either
+   --  part that are not read are the known failures (Unread), checked
+   --  to still fail.
+
+   function Bytes (Hex : String) return String;
+   --  The characters with the codes that Hex gives, two hexadecimal
+   --  digits each.
+
+   function Bytes (Hex : String) return String is
+      Result : String (1 .. Hex'Length / 2);
+   begin
+      for I in Result'Range loop
+         Result (I) := Character'Val
+           (Natural'Value
+              ("16#" & Hex (Hex'First + 2 * I - 2 .. Hex'First + 2 * I - 1)
+               & "#"));
+      end loop;
+      return Result;
+   end Bytes;
+
+   function Shown (Text : String) return String;
+   --  Text for a message: every character other than the printable
+   --  ASCII ones as \ and two hexadecimal digits, and no more than 60
+   --  characters of it.
+
+   function Shown (Text : String) return String is
+      Hex    : constant String := "0123456789ABCDEF";
+      Result : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for I in Text'Range loop
+         if I - Text'First >= 60 then
+            Ada.Strings.Unbounded.Append (Result, "...");
+            exit;
+         end if;
+         if Text (I) in ' ' .. '~' and then Text (I) /= '\' then
+            Ada.Strings.Unbounded.Append (Result, Text (I));
+         else
+            Ada.Strings.Unbounded.Append
+              (Result,
+               '\' & Hex (Character'Pos (Text (I)) / 16 + 1)
+               & Hex (Character'Pos (Text (I)) mod 16 + 1));
+         end if;
+      end loop;
+      return Ada.Strings.Unbounded.To_String (Result);
+   end Shown;
+
+   procedure Read_QR_Image
+     (File     : String;
+      Label    : String;
+      Also     : String;
+      Unread   : Boolean;
+      Found    : out Boolean;
+      Run_Time : in out Ada.Real_Time.Time_Span);
+   --  Reads the image File with every symbology enabled and checks the
+   --  two things above. Also: the text of a second QR Code symbol that
+   --  the picture shows, or "". Unread: the image is a known failure.
+   --  Found: it was read. Run_Time: the time of the run is added to it.
+
+   procedure Read_QR_Image
+     (File     : String;
+      Label    : String;
+      Also     : String;
+      Unread   : Boolean;
+      Found    : out Boolean;
+      Run_Time : in out Ada.Real_Time.Time_Span)
+   is
+      use AMV.Code_Reader;
+      use type Ada.Real_Time.Time;
+      use type Ada.Real_Time.Time_Span;
+      use type Ada.Strings.Unbounded.Unbounded_String;
+
+      Name  : constant String := Directory & "/" & File;
+      UTF_8 : constant String := File_Bytes (Name & ".txt");
+      SJIS  : constant String :=
+        (if Ada.Directories.Exists (Name & ".sjis")
+         then File_Bytes (Name & ".sjis") else UTF_8);
+
+      function Wanted (Text : String) return Boolean;
+      --  Whether Text is the expected text in one of the three forms.
+
+      function Wanted (Text : String) return Boolean is
+      begin
+         if Text = UTF_8 or else Text = SJIS then
+            return True;
+         end if;
+         return Text = Ada.Strings.UTF_Encoding.Strings.Decode
+           (UTF_8, Ada.Strings.UTF_Encoding.UTF_8);
+      exception
+         when Ada.Strings.UTF_Encoding.Encoding_Error =>
+            return False;
+      end Wanted;
+
+      Tool  : Ks_Code_Reader_Tool;
+      Start : Ada.Real_Time.Time;
+      Took  : Ada.Real_Time.Time_Span;
+      Wrong : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      Found := False;
+      Tool.Input_Image := Load (File);
+      Tool.Run_Params.Symbologies := All_Symbologies;
+      Start := Ada.Real_Time.Clock;
+      Tool.Run;
+      Took := Ada.Real_Time.Clock - Start;
+      Run_Time := Run_Time + Took;
+      Check (Tool.Run_Status.Result = Accept_Result,
+             Label & "the run succeeds");
+      for I in 0 .. Tool.Results.Count - 1 loop
+         declare
+            Whole : constant String := Tool.Results.Text (I);
+         begin
+            if Symbology (Tool.Results.Item (I)) = QR_Code
+              and then Wanted (Whole)
+            then
+               Found := True;
+            elsif Also = ""
+              or else Symbology (Tool.Results.Item (I)) /= QR_Code
+              or else Whole /= Also
+            then
+               Ada.Strings.Unbounded.Append
+                 (Wrong, " " & Symbology (Tool.Results.Item (I))'Image
+                  & " [" & Shown (Whole) & "]");
+            end if;
+         end;
+      end loop;
+      Check (Wrong = "",
+             Label & "a text that is not in the picture:"
+             & Ada.Strings.Unbounded.To_String (Wrong));
+      if Unread then
+         Check (not Found, Label & "known failure: still not read");
+      else
+         Check (Found, Label & "read as [" & Shown (UTF_8) & "]");
+      end if;
+   end Read_QR_Image;
+
+   procedure Test_QR_Code is
+      Images_Total : Natural := 0;
+      Read_Total   : Natural := 0;
+      Run_Time     : Ada.Real_Time.Time_Span := Ada.Real_Time.Time_Span_Zero;
+
+      Inner : constant String :=
+        "[" & Bytes ("93E091A4") & "QR" & Bytes ("8352815B8368") & "]"
+        & Bytes ("0D0A0D0A") & "*" & Bytes ("835F8375838B") & "QR*"
+        & Bytes ("0D0A") & "http://d-qr.net/ex/";
+      --  The picture of qrcode-2 16 has a second, smaller symbol in the
+      --  middle of the first, and the collection has the text of the
+      --  outer one only. This is the text of the inner one, in Shift
+      --  JIS: "[", the Japanese for "inner QR Code", "]", an empty
+      --  line, "*", the Japanese for "double QR", "*", and the address
+      --  that the outer one has too.
+
+      function Listed (List : String; N : Positive) return Boolean
+      is (Ada.Strings.Fixed.Index (" " & List & " ", N'Image & " ") > 0);
+      --  Whether N is one of the numbers of List ("3 12 14").
+
+      procedure Series
+        (Name      : String;
+         Last      : Positive;
+         Absent    : String := "";
+         Unread    : String := "";
+         Second_In : Natural := 0;
+         Second    : String := "");
+      --  Reads the images 1 .. Last of the series Name, except the
+      --  numbers Absent, which the collection does not have. Unread:
+      --  the numbers of the known failures. Second: the text of the
+      --  second symbol that the picture Second_In shows.
+
+      procedure Series
+        (Name      : String;
+         Last      : Positive;
+         Absent    : String := "";
+         Unread    : String := "";
+         Second_In : Natural := 0;
+         Second    : String := "")
+      is
+         Images : Natural := 0;
+         Read   : Natural := 0;
+      begin
+         for N in 1 .. Last loop
+            if not Listed (Absent, N) then
+               declare
+                  Two   : constant String := Integer'Image (100 + N);
+                  Found : Boolean;
+               begin
+                  Read_QR_Image
+                    (File     => "zxing_" & Name & "_" & Two (3 .. 4),
+                     Label    => Name & " " & Two (3 .. 4) & ": ",
+                     Also     => (if N = Second_In then Second else ""),
+                     Unread   => Listed (Unread, N),
+                     Found    => Found,
+                     Run_Time => Run_Time);
+                  Images := Images + 1;
+                  if Found then
+                     Read := Read + 1;
+                  end if;
+               end;
+            end if;
+         end loop;
+         Ada.Text_IO.Put_Line
+           ("  " & Name & ":" & Read'Image & " of" & Images'Image & " read");
+         Images_Total := Images_Total + Images;
+         Read_Total := Read_Total + Read;
+      end Series;
+   begin
+      Section ("Code Reader: ZXing's QR Code images (every symbology)");
+
+      Series ("qrcode-1", 20);
+      Series ("qrcode-2", 36, Absent => "3", Unread => "12 13 33",
+              Second_In => 16, Second => Inner);
+      Series ("qrcode-3", 42, Unread => "21 22 23");
+      Series ("qrcode-4", 48,
+              Unread => "5 6 8 9 13 14 26 30 31 32 33 34");
+      Series ("qrcode-5", 19);
+      Series ("qrcode-6", 15);
+
+      Ada.Text_IO.Put_Line
+        ("  all:" & Read_Total'Image & " of" & Images_Total'Image
+         & " read, in"
+         & Integer (Ada.Real_Time.To_Duration (Run_Time) * 1000.0)'Image
+         & " ms");
+      Check (Images_Total = 179, "179 images");
+   end Test_QR_Code;
+
    procedure Run_All is
       procedure Run (Test : not null access procedure) is
       begin
@@ -3243,6 +3482,7 @@ procedure Test_Real_Images is
       Run (Test_Candles'Access);
       Run (Test_Barcodes'Access);
       Run (Test_Data_Matrix'Access);
+      Run (Test_QR_Code'Access);
    end Run_All;
 
    procedure Main is new AMV_Test_Support.Standalone (Run_All);

@@ -242,9 +242,14 @@ static void test_defaults(void)
           "code reader: ALL_LINEAR is every linear symbology");
     check(KS_CODE_READER_SYMBOLOGY_ALL
             == (KS_CODE_READER_SYMBOLOGY_ALL_LINEAR
-                | KS_CODE_READER_SYMBOLOGY_DATA_MATRIX)
+                | KS_CODE_READER_SYMBOLOGY_DATA_MATRIX
+                | KS_CODE_READER_SYMBOLOGY_QR_CODE)
           && (KS_CODE_READER_SYMBOLOGY_ALL_LINEAR
-              & KS_CODE_READER_SYMBOLOGY_DATA_MATRIX) == 0,
+              & KS_CODE_READER_SYMBOLOGY_DATA_MATRIX) == 0
+          && (KS_CODE_READER_SYMBOLOGY_ALL_LINEAR
+              & KS_CODE_READER_SYMBOLOGY_QR_CODE) == 0
+          && KS_CODE_READER_SYMBOLOGY_QR_CODE
+               == 2 * KS_CODE_READER_SYMBOLOGY_DATA_MATRIX,
           "code reader: ALL is every symbology");
 }
 
@@ -544,15 +549,28 @@ static char long_digit(int32_t place)
 /* A white width x height image with a symbol of count x count modules in
    black: a module is size x size pixels and the upper left one starts at
    the pixel (x, y). */
+static void put_matrix(ks_image_8_grey *image, const char *const *rows,
+                       int32_t count, int32_t x, int32_t y, int32_t size);
+
 static ks_image_8_grey *paint_matrix(int32_t width, int32_t height,
                                      const char *const *rows, int32_t count,
                                      int32_t x, int32_t y, int32_t size)
 {
     ks_status status;
     ks_image_8_grey *image = NULL;
-    int32_t row, column, dx, dy;
 
     ks_image_8_grey_create(width, height, 255, &image, &status);
+    put_matrix(image, rows, count, x, y, size);
+    return image;
+}
+
+/* The symbol alone, in black, in an image that there is. */
+static void put_matrix(ks_image_8_grey *image, const char *const *rows,
+                       int32_t count, int32_t x, int32_t y, int32_t size)
+{
+    ks_status status;
+    int32_t row, column, dx, dy;
+
     for (row = 0; row < count; row++) {
         for (column = 0; column < count; column++) {
             if (rows[row][column] != '1') {
@@ -567,7 +585,6 @@ static ks_image_8_grey *paint_matrix(int32_t width, int32_t height,
             }
         }
     }
-    return image;
 }
 
 /* 1 when text holds exactly the length characters of expected, followed
@@ -824,6 +841,143 @@ static void test_data_matrix(void)
 }
 
 /* A run with one changed run parameter fails with that message. */
+/* The modules of a QR Code symbol, row by row from the top, '1' for a
+   dark one: the text "AMV QR Code 2" as bytes in a symbol of version 2
+   (25 x 25 modules) with the error correction level M and the mask 3.
+   They come from the encoder of the Ada tests (tests/amv_test_qr_code.ads),
+   which shares only the table of the blocks with the reader. */
+static const char *const qr_rows[25] = {
+    "1111111011100111001111111",
+    "1000001011101100101000001",
+    "1011101001011000101011101",
+    "1011101011001011001011101",
+    "1011101000110010101011101",
+    "1000001001010101101000001",
+    "1111111010101010101111111",
+    "0000000010010001100000000",
+    "1011011101111101001001011",
+    "0001010000111111000100011",
+    "0101111111111100100100100",
+    "1101000010101000100010110",
+    "1001001011111011011011110",
+    "0101010111011010111110010",
+    "0111011010110101110010110",
+    "1001100110010010111000011",
+    "0000111011001011111111010",
+    "0000000011100010100010100",
+    "1111111010000111101010011",
+    "1000001010110110100011000",
+    "1011101000000110111111111",
+    "1011101010100001101001001",
+    "1011101011000010011110110",
+    "1000001000111111000100100",
+    "1111111010010001001001111"
+};
+
+static void test_qr_code(void)
+{
+    ks_status status;
+    ks_code_reader_run_params params;
+    ks_code_reader_results *results = NULL;
+    ks_code_reader_result item;
+    ks_pixel_region *whole = NULL;
+    const ks_transform_2d_linear scaled = {2.0, 0.0, 0.0, 2.0, 10.0, 20.0};
+    char text[KS_CODE_READER_MAX_TEXT_LENGTH + 1];
+    ks_image_8_grey *image;
+    int32_t count = -1, length = -1;
+
+    /* Four pixels a module: from x = 39.5 to x = 139.5 and from y = 29.5
+       to y = 129.5 in a 300 x 160 image. */
+    image = paint_matrix(300, 160, qr_rows, 25, 40, 30, 4);
+    ks_pixel_region_whole_image(300, 160, &whole, &status);
+    ks_code_reader_run_params_default(&params, &status);
+    check(read_all(image, &params, &item) == 0,
+          "code reader: QR Code is not among the defaults");
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_DATA_MATRIX;
+    check(read_all(image, &params, &item) == 0,
+          "code reader: a QR Code symbol is no Data Matrix symbol");
+
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_QR_CODE;
+    ks_code_reader_execute(image, whole, &params, &identity, &results,
+                           &status);
+    check(status.failure == KS_FAILURE_NONE && results != NULL,
+          "code reader: execute for QR Code");
+    ks_code_reader_results_count(results, &count, &status);
+    memset(&item, 0xFF, sizeof item);
+    ks_code_reader_results_item(results, 0, &item, &status);
+    check(status.failure == KS_FAILURE_NONE && count == 1
+          && is_text(&item, KS_CODE_READER_SYMBOLOGY_QR_CODE,
+                     "AMV QR Code 2")
+          && item.num_scan_lines == 0,
+          "code reader: the QR Code text");
+    check(fabs(item.center_x - 89.5) < 0.5 && fabs(item.center_y - 79.5) < 0.5
+          && fabs(item.angle) < 0.01,
+          "code reader: the QR Code centre and angle");
+    check(fabs(item.corner_0_x - 39.5) < 0.5
+          && fabs(item.corner_0_y - 29.5) < 0.5
+          && fabs(item.corner_1_x - 139.5) < 0.5
+          && fabs(item.corner_1_y - 29.5) < 0.5
+          && fabs(item.corner_2_x - 139.5) < 0.5
+          && fabs(item.corner_2_y - 129.5) < 0.5
+          && fabs(item.corner_3_x - 39.5) < 0.5
+          && fabs(item.corner_3_y - 129.5) < 0.5,
+          "code reader: the QR Code corners, from the upper left one"
+          " clockwise");
+    part(results, 0, 4, text, &length, &status);
+    check(status.failure == KS_FAILURE_NONE
+          && holds(text, length, "QR Code 2"),
+          "code reader: the QR Code text from its fifth character");
+    ks_code_reader_results_destroy(&results);
+
+    /* Positions in the selected space. */
+    ks_code_reader_execute(image, whole, &params, &scaled, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    ks_code_reader_results_item(results, 0, &item, &status);
+    check(count == 1 && fabs(item.center_x - 189.0) < 1.0
+          && fabs(item.center_y - 179.0) < 1.0 && fabs(item.angle) < 0.01
+          && fabs(item.corner_0_x - 89.0) < 1.0
+          && fabs(item.corner_0_y - 79.0) < 1.0
+          && fabs(item.corner_2_x - 289.0) < 1.0
+          && fabs(item.corner_2_y - 279.0) < 1.0,
+          "code reader: a QR Code symbol in the selected space");
+    ks_code_reader_results_destroy(&results);
+
+    /* No region. */
+    ks_code_reader_execute(image, NULL, &params, &identity, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    check(status.failure == KS_FAILURE_NONE && results != NULL && count == 0,
+          "code reader: a NULL region reads no QR Code symbol");
+    ks_code_reader_results_destroy(&results);
+
+    /* With a Data Matrix symbol beside it (from x = 199.5 to x = 239.5)
+       and every symbology: the Data Matrix result comes first. */
+    put_matrix(image, matrix_small, 10, 200, 60, 4);
+    check(read_all(image, &params, &item) == 1
+          && is_text(&item, KS_CODE_READER_SYMBOLOGY_QR_CODE,
+                     "AMV QR Code 2"),
+          "code reader: QR Code alone does not read a Data Matrix symbol");
+    params.symbologies = KS_CODE_READER_SYMBOLOGY_ALL;
+    ks_code_reader_execute(image, whole, &params, &identity, &results,
+                           &status);
+    ks_code_reader_results_count(results, &count, &status);
+    memset(&item, 0xFF, sizeof item);
+    ks_code_reader_results_item(results, 0, &item, &status);
+    check(status.failure == KS_FAILURE_NONE && count == 2
+          && is_text(&item, KS_CODE_READER_SYMBOLOGY_DATA_MATRIX, "123456"),
+          "code reader: every symbology, the Data Matrix symbol first");
+    memset(&item, 0xFF, sizeof item);
+    ks_code_reader_results_item(results, 1, &item, &status);
+    check(status.failure == KS_FAILURE_NONE
+          && is_text(&item, KS_CODE_READER_SYMBOLOGY_QR_CODE,
+                     "AMV QR Code 2"),
+          "code reader: every symbology, the QR Code symbol after it");
+    ks_code_reader_results_destroy(&results);
+    ks_pixel_region_destroy(&whole, &status);
+    ks_image_8_grey_destroy(&image, &status);
+}
+
 static void check_bad(const ks_image_8_grey *image,
                       const ks_pixel_region *region,
                       const ks_code_reader_run_params *params,
@@ -866,13 +1020,13 @@ static void test_failures(void)
 
     check_bad(image, region, &params,
               "RunParams.Symbologies must be a sum of"
-              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255",
+              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 511",
               "code reader: Symbologies 0");
-    params.symbologies = 256;
+    params.symbologies = 512;
     check_bad(image, region, &params,
               "RunParams.Symbologies must be a sum of"
-              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 255",
-              "code reader: Symbologies 256");
+              " KS_CODE_READER_SYMBOLOGY_*, in 1 .. 511",
+              "code reader: Symbologies 512");
 
     params = defaults;
     params.num_directions = 0;
@@ -1017,5 +1171,6 @@ void test_c_code_reader(void)
     test_ean_13();
     test_itf();
     test_data_matrix();
+    test_qr_code();
     test_failures();
 }

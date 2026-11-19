@@ -1,9 +1,10 @@
 --  SPARK kernel for the code reader: reads the linear barcodes of an
 --  8-bit grey image, at any orientation and any number of them per image,
---  and its Data Matrix symbols when the run parameters ask for them.
+--  and its Data Matrix and QR Code symbols when the run parameters ask
+--  for them.
 --
 --  Symbologies: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39 and
---  Interleaved 2 of 5 (ITF); Data Matrix (ECC 200).
+--  Interleaved 2 of 5 (ITF); Data Matrix (ECC 200); QR Code (Model 2).
 --
 --  What a run does:
 --
@@ -71,21 +72,26 @@
 --      read by the most lines is kept. The results are ordered by the
 --      number of scan lines, greatest first.
 --
---   5. Data Matrix. When Symbology_Data_Matrix is among the symbologies,
---      a pass of its own follows, which does not use the scan lines. It
---      looks at the bounding box of the pixels of the region that lie in
---      the image; the children of this package describe its steps in
---      full.
+--   5. Two-dimensional symbols. When Symbology_Data_Matrix or
+--      Symbology_QR_Code is among the symbologies, a pass of its own
+--      follows, which does not use the scan lines. It looks at the
+--      bounding box of the pixels of the region that lie in the image;
+--      the children of this package describe its steps in full.
 --
 --      Dark_Areas. The pixels are marked dark or light against a
 --      threshold of their neighbourhood, from the blocks of 8 by 8
 --      pixels around them whose lightest and darkest pixel differ by
---      ContrastThreshold or more (an area without such a difference has
---      no dark pixel); the pixels outside the region are light. Every
---      connected dark area is followed along its outline, once, and the
---      convex hull of the outline is formed. An outline that encloses
---      64 pixels or less, or that has fewer than nine rows, is passed
---      over, and so is the outline of a hole in a dark area.
+--      twice ContrastThreshold or more (an area without such a
+--      difference has no dark pixel); the pixels outside the region
+--      are light. Twice: the lightest and the darkest of the 64 pixels
+--      of a block differ by the whole swing of the noise, and a block
+--      of noise alone would be given dark and light pixels.
+--
+--   6. Data Matrix. Every connected dark area is followed along its
+--      outline, once, and the convex hull of the outline is formed
+--      (Dark_Areas). An outline that encloses 64 pixels or less, or
+--      that has fewer than nine rows, is passed over, and so is the
+--      outline of a hole in a dark area.
 --
 --      Data_Matrix.Finder. A hull with two solid sides that meet (the
 --      "L" of a symbol) and two sides that are not solid gives the four
@@ -116,6 +122,55 @@
 --      ISO/IEC 21471: 8 x 48 to 26 x 64 modules); the older ECC 000 to
 --      140 are not. A symbol whose text is empty is not reported.
 --
+--   7. QR Code. The symbols are looked for by their finder patterns,
+--      in the same dark and light pixels.
+--
+--      QR_Code.Finder. A line through the middle of a finder pattern
+--      crosses dark, light, dark, light and dark in the proportions
+--      1 : 1 : 3 : 1 : 1. Every row is searched for five such runs;
+--      the column through their middle, the row through the middle
+--      that the column gives and the two diagonals must show them too,
+--      and a pattern must be found in two rows. Its middle is then
+--      that of the dark pixels of the three modules by three in it.
+--      Three patterns can be those of a symbol when the two arms from
+--      one of them to the others are about as long as each other and
+--      stand at 60 to 120 degrees, and their modules are about as
+--      wide. The length of the arms in modules gives the version. From
+--      the three middles comes a first mapping from the modules to the
+--      image, and a second one from the widths of the modules at the
+--      ends of the arms as well (a symbol seen at an angle has wider
+--      modules where it is nearer). Such a mapping is used if the
+--      three finder patterns and one of the two timing patterns at
+--      least (the modules in turn dark and light from one finder
+--      pattern to the next) are where it has them. From version 2 on,
+--      the alignment pattern nearest to the corner without a finder
+--      pattern is looked for around where the mapping puts it, and the
+--      perspective mapping of the four middles is the one through
+--      which the modules are looked up at their middles.
+--
+--      QR_Code and Reed_Solomon. The format information, the version
+--      information and the codewords are read from the modules, and
+--      the codewords are corrected and decoded. Until one gives a
+--      text, the versions one or two off the one that the arms give
+--      are tried as well, the nearest first, each also as the mirror
+--      image of the symbol. Every finder pattern is tried as the one
+--      in the corner between the two others, with the pairs of the 32
+--      patterns nearest to it whose modules are about as wide, the
+--      nearest first, until 16 pairs that could be those of a symbol
+--      have given no text. The finder patterns of a symbol that was
+--      read are not tried again; of 256 finder patterns or more in the
+--      area, some are passed over.
+--
+--      A symbol must be dark on light, with its three finder patterns
+--      whole and with light pixels around each of them (the border of
+--      the image and the pixels outside the region count as light),
+--      and with one of its two timing patterns to be seen; its modules
+--      should be three pixels or more, and two pixels are enough where
+--      the image is sharp. The versions 1 to 40 of QR Code Model 2
+--      (21 x 21 to 177 x 177 modules) are read at the four error
+--      correction levels; Micro QR Code and QR Code Model 1 are not. A
+--      symbol whose text is empty is not reported.
+--
 --  Results. Each result has the symbology, the text, the centre, the
 --  angle and the four corners of the area the reading scan lines cover:
 --  the start of the symbol on the first line, its end on the first line,
@@ -143,6 +198,14 @@
 --  diagonals cross; for a symbol at least twice as wide as high, the
 --  middle of its columns as they were read), and NumScanLines is 0.
 --
+--  The QR Code results follow those, in the order in which the rows of
+--  the area, from its top, meet the finder pattern of their corner 0.
+--  Their corners are those of the symbol as it is printed (0: upper
+--  left, 1: upper right, 3: lower left, the three with a finder
+--  pattern, and 2: lower right), the angle is the direction from corner
+--  0 to corner 1, the centre is the middle of the symbol as it is
+--  printed, and NumScanLines is 0.
+--
 --  Text:
 --   * Data Matrix: the characters of the ASCII, C40, Text, X12, EDIFACT
 --     and Base 256 encodations, each as one character (0 .. 255; no
@@ -153,6 +216,16 @@
 --     passed over. The text can have up to 3125 characters: a result
 --     holds its first Max_Text_Length and its whole length, and
 --     Results_Text gives all of it.
+--   * QR Code: the bytes of the numeric, alphanumeric, byte and Kanji
+--     segments as they are encoded, each as one character (0 .. 255; no
+--     character set is applied, so a Kanji character is the two bytes
+--     of its Shift JIS code). FNC1 in the first position (GS1) adds
+--     nothing to the text; FNC1 in the second position adds its
+--     application indicator before the text. After either, "%" in an
+--     alphanumeric segment is the character GS (29) and "%%" is "%".
+--     ECI and structured append are passed over. The text can have up
+--     to 7089 characters, held and given like that of a Data Matrix
+--     symbol.
 --   * EAN-13: 13 digits; EAN-8: 8 digits; UPC-A: 12 digits; UPC-E: 8
 --     digits (the number system, the six digits of the symbol and the
 --     check digit). A symbol that is both (an EAN-13 symbol whose first
@@ -172,12 +245,14 @@
 --  invalid image, region, transform or run parameter, and for a region
 --  to scan whose width plus height exceeds Max_Line_Samples;
 --  Out_Of_Memory; Other when more than Max_Candidates candidates (those
---  of the linear barcodes and the Data Matrix symbols together) arise.
+--  of the linear barcodes and the two-dimensional symbols together)
+--  arise.
 --
 --  Proved: no run-time error for any input, a valid status, and for every
 --  results handle the facts of Gold_Results. The decoders themselves are
---  checked by the tests. The children of the Data Matrix pass
---  (Dark_Areas, Data_Matrix, Data_Matrix.Finder, Reed_Solomon) are
+--  checked by the tests. The children of the pass for the
+--  two-dimensional symbols (Dark_Areas, Views, Data_Matrix,
+--  Data_Matrix.Finder, QR_Code, QR_Code.Finder, Reed_Solomon) are
 --  proved free of run-time errors as well, and a word that Reed_Solomon
 --  has corrected is proved to be a codeword of its code; that a symbol
 --  is found and that its text is the one printed is checked by the
@@ -219,14 +294,15 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    Symbology_ITF      : constant := 64;
 
    Symbology_Data_Matrix : constant := 128;
+   Symbology_QR_Code     : constant := 256;
 
    Symbology_All_Linear : constant := 127;
-   Symbology_All        : constant := 255;
+   Symbology_All        : constant := 511;
 
    function Is_Symbology (Value : Int32) return Boolean is
      (Value in Symbology_EAN_13 | Symbology_EAN_8 | Symbology_UPC_A
              | Symbology_UPC_E | Symbology_Code_128 | Symbology_Code_39
-             | Symbology_ITF | Symbology_Data_Matrix);
+             | Symbology_ITF | Symbology_Data_Matrix | Symbology_QR_Code);
    --  One symbology.
 
    ---------------------------------------------------------------------
@@ -239,8 +315,8 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    --  record holds.
 
    Max_Matrix_Text_Length : constant := 7089;
-   --  The longest text of a two-dimensional symbol (that of a Data
-   --  Matrix symbol has 3125 characters at most).
+   --  The longest text of a two-dimensional symbol: that of a QR Code
+   --  symbol (that of a Data Matrix symbol has 3125 characters at most).
 
    Max_Directions : constant := 180;
 
@@ -264,9 +340,10 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
 
    type Ks_Code_Reader_Run_Params is record
       Symbologies          : Int32 := Symbology_All_Linear;
-      --  The symbologies to read: a sum of Symbology_* in 1 .. 255. Data
-      --  Matrix is not among the default ones: its symbols are looked for
-      --  in a pass of its own over the image, which takes its time.
+      --  The symbologies to read: a sum of Symbology_* in 1 .. 511. Data
+      --  Matrix and QR Code are not among the default ones: their
+      --  symbols are looked for in a pass of its own over the image,
+      --  which takes its time.
 
       Num_Directions       : Int32 := 12;
       --  The number of scan directions, in 1 .. Max_Directions, evenly
@@ -282,8 +359,10 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
 
       Contrast_Threshold   : Int32 := 12;
       --  The smallest rise or fall that is an edge, in grey levels, in
-      --  1 .. 255. For Data Matrix: the smallest difference between the
-      --  light and the dark pixels of a neighbourhood.
+      --  1 .. 255. For Data Matrix and QR Code: half the smallest
+      --  difference between the lightest and the darkest pixel of a
+      --  block that has dark and light pixels (24 grey levels with
+      --  the default; 255 at most).
 
       Min_Scan_Lines       : Int32 := 2;
       --  The fewest scan lines that must read the same symbol, in
@@ -389,7 +468,7 @@ package AMV.Kernels.Code_Reader with SPARK_Mode, Preelaborate is
    --  A handle as Execute makes it (the structural part).
 
    function Is_Matrix (Symbology : Int32) return Boolean is
-     (Symbology = Symbology_Data_Matrix);
+     (Symbology in Symbology_Data_Matrix | Symbology_QR_Code);
    --  A two-dimensional symbology.
 
    function Is_Linear (Symbology : Int32) return Boolean is

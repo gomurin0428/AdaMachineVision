@@ -84,26 +84,24 @@ pragma Assertion_Policy
    Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
 
 with AMV.Kernels.Code_Reader.Dark_Areas;
+with AMV.Kernels.Code_Reader.Views;
 
 package AMV.Kernels.Code_Reader.Data_Matrix.Finder
   with SPARK_Mode, Preelaborate
 is
 
    package DA renames AMV.Kernels.Code_Reader.Dark_Areas;
+   package VW renames AMV.Kernels.Code_Reader.Views;
 
-   Limit : constant := 2.0 ** 28;
+   Limit : constant := VW.Limit;
 
-   subtype Coordinate is Long_Float range -Limit .. Limit;
+   subtype Coordinate is VW.Coordinate;
 
-   type Corner is record
-      X, Y : Coordinate := 0.0;
-   end record;
+   subtype Corner is VW.Corner;
    --  A point of a map: the pixel (X, Y) covers X .. X + 1 and
    --  Y .. Y + 1.
 
-   type Outline is record
-      Upper_Left, Upper_Right, Lower_Right, Lower_Left : Corner;
-   end record;
+   subtype Outline is VW.Outline;
    --  The corners of a symbol as it is printed: the L runs from the
    --  upper left corner by the lower left one to the lower right one.
 
