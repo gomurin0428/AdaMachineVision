@@ -226,6 +226,15 @@ without the conjunct that the type of `Ignored_Count` makes true.
 |---|---|---|---|
 | `Extract_Ignored` | `pragma Loop_Invariant (Model.Count = Model.Count'Loop_Entry and then Model.Spacing = ... and then Model.Features = ...)` (the loop over the rows of cells) | taken out; the conjunct on `Count` or on `Features` taken out | Changes nothing: an invariant is not run, and the proof passes without them; the loop assigns none of these components. With the conjunct on `Spacing` taken out, the proof fails. |
 
+## `AMV.Kernels.Sobel_Edge`
+
+The changed lines: the postcondition of `Visit`, now of the level
+`Static`, and an assertion in `Execute`.
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| `Visit` | `(Static => KI.Valid_Image (Target) and then KI.Size_Of (Target) = KI.Size_Of (Target)'Old and then Top <= Stack'Last + 1 and then (if Two_Valued (...)'Old then Two_Valued (...)))` (postcondition) | a conjunct taken out; an `and then` to `or else`; `=` to `/=`; `<=` to `<` or `=`; `'Last` to `'First`; `+` to `-`; `1` to `0`; the condition `Two_Valued (...)'Old` to `True` or `False` | A `Static` postcondition is run in no build. Proof not finished. Each fails a narrower proof: the changes that the body does not meet that of `Visit` alone, at the postcondition, and the others that of `Hysteresis` alone, at the loop invariants that need what they take away. |
+
 ## `AMV.Kernels.Blob.Extrema`
 
 The changed lines are four `pragma Warnings (Off, ...)` in place of a
