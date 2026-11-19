@@ -6,9 +6,14 @@ library project AMV is
    for Library_Kind use "static";
    for Languages use ("Ada");
 
+   --  -ffp-contract=off: gnatprove proves the floating-point code with
+   --  every operation rounded on its own, and GCC must not fuse a
+   --  multiplication and an addition into one instruction that rounds once
+   --  (it does at -O2 on arm64). Every project of the repository has it.
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatW8", "-gnatwa", "-gnatVa", "-O2", "-gnatn");
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-O2", "-gnatn");
    end Compiler;
 
    --  gnatprove settings (make prove). Raise the level for a single heavy

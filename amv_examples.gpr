@@ -12,6 +12,7 @@ project AMV_Examples is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatW8", "-gnatwa", "-O2");
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-O2");
    end Compiler;
 end AMV_Examples;

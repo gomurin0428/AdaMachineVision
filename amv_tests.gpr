@@ -16,7 +16,8 @@ project AMV_Tests is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatW8", "-gnata", "-gnatwa", "-gnatVa", "-g", "-O1");
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnata", "-gnatwa", "-gnatVa", "-g", "-O1");
    end Compiler;
 
    package Binder is

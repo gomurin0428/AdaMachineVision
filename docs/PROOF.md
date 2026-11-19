@@ -1988,6 +1988,13 @@ Lessons from the Data Matrix pass of `AMV.Kernels.Code_Reader`
 * Floating point results are proved to stay within their stated ranges and
   never to overflow; their accuracy (for example that `Hypot` is within an
   ulp of the true length) is shown by tests, not proofs.
+* gnatprove takes every floating-point operation to be rounded on its own
+  (IEEE 754 binary64, to nearest). Every project compiles with
+  `-ffp-contract=off`, so that GCC does not fuse a multiplication and an
+  addition into one instruction that rounds once, which it does at `-O2`
+  on arm64. A fused instruction computes something the proof did not: the
+  determinant `A * D - B * C` of a matrix with two equal columns, 0 when
+  each product is rounded, comes out as the rounding error of one of them.
 * The C side: pointers for results and status are trusted to point to
   valid objects that do not overlap the other arguments (C cannot express
   that, and SPARK sees them as Ada `out` parameters, which never alias
