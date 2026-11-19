@@ -1,4 +1,5 @@
 with Ada.Command_Line;
+with Ada.Environment_Variables;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
@@ -102,6 +103,19 @@ package body AMV_Test_Support is
 
    function Failures return Natural is (Failure_Count);
    function Checks return Natural is (Check_Count);
+
+   function Timing_Checked return Boolean is
+      Name : constant String := "ADAMUTANT_MUTANT_ID";
+   begin
+      if not Ada.Environment_Variables.Exists (Name) then
+         return True;
+      end if;
+      declare
+         Value : constant String := Ada.Environment_Variables.Value (Name);
+      begin
+         return Value = "" or else Value = "0";
+      end;
+   end Timing_Checked;
 
    procedure Finish is
    begin
