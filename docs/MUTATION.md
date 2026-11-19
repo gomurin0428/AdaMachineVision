@@ -33,7 +33,7 @@ on a whole body here.
 
 A test that checks how long a run takes (against a limit, or against
 another run) skips that check while a mutant is active
-(`AMV_Test_Support.Timing_Checked`): the tests of the mutants run beside
+(`AMV_Test_Support.Check_Timing`): the tests of the mutants run beside
 the proofs of others, and under that load such a check can fail
 whatever the mutant is. Before the check was skipped, four mutants of
 the QR Code bodies were counted as detected because `Test_Shape_Match`

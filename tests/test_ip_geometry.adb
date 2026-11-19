@@ -1530,9 +1530,10 @@ procedure Test_IP_Geometry is
            ("  640 x 480 " & Name & ":"
             & Integer'Image (Integer (Tool.Run_Status.Processing_Time))
             & " ms");
-         Check (Tool.Run_Status.Result = Accept_Result
-                and then Tool.Run_Status.Processing_Time < 1000.0,
-                Name & " runs on 640 x 480 in well under a second");
+         Check (Tool.Run_Status.Result = Accept_Result,
+                Name & " runs on 640 x 480");
+         Check_Timing (Tool.Run_Status.Processing_Time < 1000.0,
+                       Name & " runs on 640 x 480 in well under a second");
       end Report;
    begin
       AMV_Test_Support.Section ("Timing (640 x 480)");

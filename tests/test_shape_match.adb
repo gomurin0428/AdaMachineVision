@@ -1921,10 +1921,8 @@ procedure Test_Shape_Match is
          & " ms; +/-0.1 rad:" & Duration'Image (Narrow * 1000.0)
          & " ms; full circle, scale 0.9 .. 1.1:"
          & Duration'Image (Scaled * 1000.0) & " ms");
-      if Timing_Checked then
-         Check (Full < 5.0, "full circle within 5 s");
-         Check (Narrow < Full, "a narrow zone is faster");
-      end if;
+      Check_Timing (Full < 5.0, "full circle within 5 s");
+      Check_Timing (Narrow < Full, "a narrow zone is faster");
    end Test_Timing;
 
    procedure Run_All is

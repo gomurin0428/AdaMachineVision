@@ -2741,10 +2741,8 @@ procedure Test_Blob is
              "sorted by area");
       Check (abs (Real (Total) - Expected) / Expected < 0.03,
              "total area of the discs within 3 percent");
-      if Timing_Checked then
-         Check (Tool.Run_Status.Processing_Time < 1000.0,
-                "a 640 x 480 run takes well under a second");
-      end if;
+      Check_Timing (Tool.Run_Status.Processing_Time < 1000.0,
+                    "a 640 x 480 run takes well under a second");
       Ada.Text_IO.Put_Line
         ("  640 x 480 blob run:" & Tool.Run_Status.Processing_Time'Image
          & " ms");

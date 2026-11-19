@@ -2358,9 +2358,10 @@ procedure Test_IP_One_Image is
            ("  640 x 480 " & Name & ":"
             & Integer'Image (Integer (Tool.Run_Status.Processing_Time))
             & " ms");
-         Check (Tool.Run_Status.Result = Accept_Result
-                and then Tool.Run_Status.Processing_Time < 1000.0,
-                Name & " runs on 640 x 480 in well under a second");
+         Check (Tool.Run_Status.Result = Accept_Result,
+                Name & " runs on 640 x 480");
+         Check_Timing (Tool.Run_Status.Processing_Time < 1000.0,
+                       Name & " runs on 640 x 480 in well under a second");
       end Time;
 
       Op : IO.Ks_IP_One_Image_Operator;

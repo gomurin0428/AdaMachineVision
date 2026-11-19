@@ -460,10 +460,8 @@ procedure Test_Tools is
       Check (Processing_Time (Slow.Run_Status) >= 27.0,
              "slow tool: at least about 30 ms (got"
              & Real'Image (Processing_Time (Slow.Run_Status)) & ")");
-      if Timing_Checked then
-         Check (Processing_Time (Slow.Run_Status) < 5_000.0,
-                "slow tool: under 5 s");
-      end if;
+      Check_Timing (Processing_Time (Slow.Run_Status) < 5_000.0,
+                    "slow tool: under 5 s");
 
       Slow_Failed.Delay_Seconds := 0.03;
       Run_Safely (Slow_Failed, "slow failing tool");
