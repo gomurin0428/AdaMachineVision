@@ -4,38 +4,44 @@
 # be run in parallel jobs (the workflow Mutation; make mutation
 # MUTATION_CONFIG=adamutant-SHARD.toml). The parts:
 #
-#   operators  ArithmeticOperator, LogicalOperator, UnaryOperator,
-#              MembershipOperator, AttributeSwap
-#   conditions EqualityOperator, ConditionalExpression (together: the
-#              first also replaces a whole relation by True or False,
-#              which the second does too, and AdaMutant keeps one)
-#   values     NumericLiteral, BooleanLiteral, StringLiteral,
-#              StatementDeletion
-#   contracts  ConjunctDeletion, AssertionDeletion (each goes to the
-#              proof of its unit, the tests seeing no contract but a
-#              precondition)
-#   all        every mutator of AdaMutant's default set
+#   logical     LogicalOperator, MembershipOperator
+#   arithmetic  ArithmeticOperator, UnaryOperator, AttributeSwap
+#   conditions  EqualityOperator, ConditionalExpression (together: the
+#               first also replaces a whole relation by True or False,
+#               which the second does too, and AdaMutant keeps one)
+#   numbers     NumericLiteral
+#   statements  StatementDeletion, BooleanLiteral, StringLiteral
+#   conjuncts   ConjunctDeletion
+#   assertions  AssertionDeletion
+#   all         every mutator of AdaMutant's default set
 #
-# Together the first four are AdaMutant's default set (all but
-# LoopDirection) as of its version in .github/workflows/mutation.yml; a
-# mutator that a later version adds is in "all" only until it is put
-# here.
+# The time of a part goes mostly to the mutants that pass the tests and
+# go to the proof of the unit (the contracts, and the changes that the
+# tests do not see), each up to prove_timeout_ms: the parts keep these
+# few enough for the time of a job. Together the first seven are
+# AdaMutant's default set (all but LoopDirection) as of its version in
+# .github/workflows/mutation.yml; a mutator that a later version adds is
+# in "all" only until it is put here.
 set -eu
 case "${1:-}" in
-  operators)
-    list='"ArithmeticOperator", "LogicalOperator", "UnaryOperator",'
-    list="$list"' "MembershipOperator", "AttributeSwap"' ;;
+  logical)
+    list='"LogicalOperator", "MembershipOperator"' ;;
+  arithmetic)
+    list='"ArithmeticOperator", "UnaryOperator", "AttributeSwap"' ;;
   conditions)
     list='"EqualityOperator", "ConditionalExpression"' ;;
-  values)
-    list='"NumericLiteral", "BooleanLiteral", "StringLiteral",'
-    list="$list"' "StatementDeletion"' ;;
-  contracts)
-    list='"ConjunctDeletion", "AssertionDeletion"' ;;
+  numbers)
+    list='"NumericLiteral"' ;;
+  statements)
+    list='"StatementDeletion", "BooleanLiteral", "StringLiteral"' ;;
+  conjuncts)
+    list='"ConjunctDeletion"' ;;
+  assertions)
+    list='"AssertionDeletion"' ;;
   all)
     list='' ;;
   *)
-    echo "usage: $0 operators|conditions|values|contracts|all" >&2
+    echo "usage: $0 logical|arithmetic|conditions|numbers|statements|conjuncts|assertions|all" >&2
     exit 2 ;;
 esac
 out="adamutant-$1.toml"

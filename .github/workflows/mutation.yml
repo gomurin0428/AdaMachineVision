@@ -4,15 +4,15 @@
 # test_suite that execute it and, if they pass, with the proof of its
 # unit (adamutant.toml, tools/mutant_prove.sh). One job for each changed
 # body, in parallel; a body with many changed lines gets one job for
-# each of four parts of the mutators (tools/mutant_shard.sh), as its
+# each of seven parts of the mutators (tools/mutant_shard.sh), as its
 # mutants would take more than a job may (six hours on a hosted runner,
 # the contracts each with a proof of the unit). Each job keeps the
-# prover cache of its unit and its last
-# report from run to run: a later push proves only the goals that changed
-# and runs again only the mutants that were not detected or whose lines
-# changed. The report (HTML and JSON) is an artifact of the job, and the
-# end of the console output is its summary. The score does not fail the
-# run; a survivor is looked at by hand (docs/MUTATION.md).
+# prover cache of its unit and its last report from run to run: a later
+# push proves only the goals that changed and runs again only the
+# mutants that were not detected or whose lines changed. The report
+# (HTML and JSON) is an artifact of the job, and the end of the console
+# output is its summary. The score does not fail the run; a survivor is
+# looked at by hand (docs/MUTATION.md).
 
 name: Mutation
 
@@ -24,6 +24,8 @@ on:
       - 'tests/**.ads'
       - 'adamutant.toml'
       - 'tools/mutant_prove.sh'
+      - 'tools/mutant_shard.sh'
+      - '.github/workflows/mutation.yml'
   workflow_dispatch:
     inputs:
       files:
@@ -48,15 +50,18 @@ env:
   GPRBUILD_ASSET: gprbuild-x86_64-linux-26.0.0-1.tar.gz
   GNATPROVE_RELEASE: gnatprove-16.1.0-1
   GNATPROVE_ASSET: gnatprove-x86_64-linux-16.1.0-1.tar.gz
-  # The commit of AdaMutant that the jobs build. Its mutators and their
-  # mutants change from version to version, so it is set here and moved
-  # on with a new REPORT_TAG.
+  # The commit of AdaMutant that the job adamutant builds. Its mutators
+  # and their mutants change from version to version, so it is set here
+  # and moved on with a new REPORT_TAG.
   ADAMUTANT_REPO: https://github.com/gomurin0428/AdaMutant.git
-  ADAMUTANT_REF: 5feb3254345a7a60e2af3cf0a99d05f84f3ea392
+  ADAMUTANT_REF: d813faf4284c949dc8a9b37b6f32af4bfee01670
+  # The Alire that builds it, with Libadalang and the compiler that
+  # Libadalang takes (GNAT 15), as in the CI of AdaMutant.
+  ALIRE_VERSION: 2.1.1
   # Part of the key of the last reports: a new value runs every mutant
   # again (after a change of AdaMutant, of the tests or of the proof of
   # the mutants, which the reports do not see).
-  REPORT_TAG: r3
+  REPORT_TAG: r4
 
 jobs:
   plan:
@@ -70,7 +75,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # A body with more than 300 lines to mutate gets four jobs, one for
+      # A body with more than 300 lines to mutate gets seven jobs, one for
       # each part of the mutators; another one job with all of them.
       - name: The bodies to mutate, and their parts
         id: files
@@ -90,7 +95,7 @@ jobs:
           fi
           jobs=$(echo "$list" | awk 'NF == 2 {
                    if ($2 > 300) {
-                     n = split("operators conditions values contracts", p, " ")
+                     n = split("logical arithmetic conditions numbers statements conjuncts assertions", p, " ")
                      for (i = 1; i <= n; i++) print $1, p[i]
                    } else print $1, "all"
                  }' | jq -R 'split(" ") | {file: .[0], part: .[1]}' | jq -cs .)
@@ -98,8 +103,57 @@ jobs:
           echo "whole=$whole" >> "$GITHUB_OUTPUT"
           echo "jobs: $jobs (whole files: $whole)"
 
-  mutate:
+  # AdaMutant, built once for the run (about 20 minutes with Libadalang)
+  # or taken from the cache of its commit, for the jobs mutate.
+  adamutant:
     needs: plan
+    if: needs.plan.outputs.jobs != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Restore AdaMutant
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/adamutant-bin
+          key: adamutant-${{ env.ADAMUTANT_REF }}-ubuntu-24.04
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: alire-project/setup-alire@v4
+        with:
+          version: ${{ env.ALIRE_VERSION }}
+
+      - name: Build AdaMutant
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/adamutant"
+          git init -q "$dir"
+          git -C "$dir" fetch -q --depth 1 "$ADAMUTANT_REPO" "$ADAMUTANT_REF"
+          git -C "$dir" checkout -q FETCH_HEAD
+          git -C "$dir" log --oneline -1
+          # libgpr2, under Libadalang, runs gprbuild from the PATH when it
+          # is fetched: the toolchain has it.
+          (cd "$dir" && alr -n toolchain --select --local gnat_native=15.3.1 gprbuild && alr -n build)
+          mkdir -p "$RUNNER_TEMP/adamutant-bin"
+          cp "$dir/bin/adamutant" "$RUNNER_TEMP/adamutant-bin/"
+
+      - name: Save AdaMutant
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/adamutant-bin
+          key: adamutant-${{ env.ADAMUTANT_REF }}-ubuntu-24.04
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adamutant
+          path: ${{ runner.temp }}/adamutant-bin/adamutant
+          retention-days: 1
+          if-no-files-found: error
+
+  mutate:
+    needs: [plan, adamutant]
     if: needs.plan.outputs.jobs != '[]'
     name: mutate (${{ matrix.file }}, ${{ matrix.part }})
     runs-on: ubuntu-24.04
@@ -120,16 +174,16 @@ jobs:
 
       - uses: ./.github/actions/toolchain
 
-      - name: Build AdaMutant
+      - uses: actions/download-artifact@v4
+        with:
+          name: adamutant
+          path: ${{ runner.temp }}/adamutant-bin
+
+      - name: Put AdaMutant on the PATH
         run: |
-          set -euo pipefail
-          dir="$RUNNER_TEMP/adamutant"
-          git init -q "$dir"
-          git -C "$dir" fetch -q --depth 1 "$ADAMUTANT_REPO" "$ADAMUTANT_REF"
-          git -C "$dir" checkout -q FETCH_HEAD
-          git -C "$dir" log --oneline -1
-          make -C "$dir" build
-          echo "$dir/bin" >> "$GITHUB_PATH"
+          chmod +x "$RUNNER_TEMP/adamutant-bin/adamutant"
+          echo "$RUNNER_TEMP/adamutant-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/adamutant-bin/adamutant" --version || true
 
       - name: Choose the directories
         run: |
@@ -176,8 +230,9 @@ jobs:
             AMV_PROVE_UNITS="$UNIT.adb" sh tools/mutant_prove.sh
 
       # Four sandboxes on the four processors of a runner, each proof with
-      # one prover: with more, the tests that run beside the proofs take
-      # longer than their limit and seem to loop.
+      # one prover. The tests that run beside the proofs still take longer
+      # than at the start, where their limit is measured: hence the five
+      # minutes of timeout_ms in adamutant.toml.
       - name: Run AdaMutant
         run: |
           set -euo pipefail

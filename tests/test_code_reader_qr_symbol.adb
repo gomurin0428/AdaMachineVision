@@ -939,13 +939,17 @@ procedure Test_Code_Reader_QR_Symbol is
 
       --  Extended channel interpretations.
       Check (Enc.ECI (26)'Length = 12 and then Enc.ECI (1000)'Length = 20
-             and then Enc.ECI (20_000)'Length = 28,
+             and then Enc.ECI (20_000)'Length = 28
+             and then Enc.ECI (999_999)'Length = 28,
              "the test's designators have one, two and three codewords");
       Parse (Enc.ECI (26) & Bytes_3, 1);
       Good := Got ("abc");
       Parse (Enc.ECI (1000) & Bytes_3, 1);
       Good := Good and then Got ("abc");
       Parse (Enc.ECI (20_000) & Bytes_3, 1);
+      Good := Good and then Got ("abc");
+      --  The first codeword of three: 192 above, 207 here.
+      Parse (Enc.ECI (999_999) & Bytes_3, 1);
       Good := Good and then Got ("abc");
       Parse (Bytes_3 & Enc.ECI (899) & Bytes_3 & Enc.ECI (3), 1);
       Check (Good and then Got ("abcabc"), "the designators are passed over");

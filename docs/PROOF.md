@@ -2131,9 +2131,9 @@ Lessons from the QR Code pass of `AMV.Kernels.Code_Reader` (`Views`,
   `test_code_reader_qr_placing.adb`, `test_code_reader_qr_sampling.adb`),
   and `docs/MUTATION.md` lists those that survive them and the proof,
   with the reason. The mutants agreed with every
-  limit above that never acts, and showed two comments of the finder
+  limit above that never acts, and showed three comments of the finder
   to be imprecise (which patterns `Purge` takes away, and when
-  `Rows_Of` gives up); they are corrected.
+  `Rows_Of` and `Settle` give up); they are corrected.
 * A map that tells a mutant from the source can be searched for. The
   finder was linked twice into one program, as it is and, renamed,
   with the mutant, and the two were run on millions of random maps, or

@@ -20,10 +20,13 @@ prove = "sh tools/mutant_prove.sh"
 # unchanged project, it is an equivalent mutant.
 equivalence_build = "gprbuild -q -p -c -j2 -P amv_tests.gpr test_suite.adb -cargs -O2 -g0"
 # The time of a test of a mutant, at most: 1.5 times the time of the
-# test on the unchanged project, measured at the start, and a minute,
-# so that a machine loaded later does not make a test of a mutant that
-# changes nothing seem to loop (a Timeout counts as detected).
-timeout_ms = 60000
+# test on the unchanged project, measured at the start, and five
+# minutes. The proofs of the mutants that pass their tests run beside
+# the tests of others and load the machine more than the tests alone
+# did at the start: with a minute, on a runner of the workflow Mutation,
+# tests of mutants that change nothing ran out of time, and a Timeout
+# counts as detected.
+timeout_ms = 300000
 # The time of the proof of a mutant, at most. The runs of the unchanged
 # project prove the bodies mutated together, from the cache, and no
 # mutant alone (tools/mutant_prove.sh): their time is no measure. A

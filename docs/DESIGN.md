@@ -245,21 +245,31 @@ packages; their entry points form the C API (section 9).
   that adds or changes a body under `src/` runs `make mutation-diff`
   (the changed lines) or `make mutation MUTATE=src/<file>.adb` (a whole
   file) first; `MUTATION_BASELINE` takes the results of an earlier
-  report again for the lines that have not changed. A mutant that only
-  the proof detects is a candidate for a missing test, and gets one
-  where the tests can see the change (AdaMutant lists these with the
-  counterexample of GNATprove). A mutant that survives both gets a
-  test, or a stronger contract; one that no test can tell from the
-  source and that the compiler does not reduce to the same code (a
-  guard that cannot act, a bound that is never reached) stays
-  Survived, and `docs/MUTATION.md` lists it with the reason, outside
-  the code. Where only an input that no search has found, or one too
-  large to make in a test (a map of thousands of pixels a side), would
-  tell it, the list says "not pinned" and what input would. Contracts
-  and ghost code are not mutated, and the kernels run their
-  preconditions only (`Assertion_Policy`), so a mutant that only a
-  postcondition or a loop invariant would notice is left to the
-  proof.
+  report again for the lines that have not changed. The workflow
+  Mutation (`.github/workflows/mutation.yml`) does the same on every
+  pull request: one job for each changed body, seven for a large one
+  (`tools/mutant_shard.sh`), each keeping its report and its prover
+  cache from run to run. AdaMutant finds its places on the syntax tree
+  of Libadalang and is built with Alire; the workflow builds the commit
+  that it names once and keeps it in its cache. A test of a mutant may
+  take five minutes more than the test of the unchanged project, as the
+  proofs of other mutants run beside it (`timeout_ms`): a Timeout counts
+  as detected, and a loaded machine must not make one of a mutant that
+  changes nothing. A mutant that only the proof detects is a candidate
+  for a missing test, and gets one where the tests can see the change
+  (AdaMutant lists these with the counterexample of GNATprove). A mutant
+  that survives both gets a test, or a stronger contract; one that no
+  test can tell from the source and that the compiler does not reduce to
+  the same code (a guard that cannot act, a bound that is never reached)
+  stays Survived, and `docs/MUTATION.md` lists it with the reason,
+  outside the code. Where only an input that no search has found, or one
+  too large to make in a test (a map of thousands of pixels a side),
+  would tell it, the list says "not pinned" and what input would.
+  Contracts are mutated too (a conjunct or an assertion taken out, the
+  changes above within them). The kernels run their preconditions only
+  (`Assertion_Policy`), so a mutant that only a postcondition or a loop
+  invariant would notice is left to the proof; where that proof does not
+  finish within its time (`prove_timeout_ms`), the list says so.
 
 ## 9. SPARK kernels and the C API
 

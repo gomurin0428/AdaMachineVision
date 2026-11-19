@@ -240,7 +240,9 @@ section 9.1.
   The tests of the kernel got symbols whose dark modules are a pixel
   thinner on each side (their finder patterns give a version one or two
   above theirs), the 16 pairs that a corner is tried with, and the
-  exact number of symbols that the 256 finder patterns of a run give.
+  exact number of symbols that the 256 finder patterns of a run give;
+  those of the decoder, a designator of an extended channel
+  interpretation whose first codeword of three is above 192.
   `docs/MUTATION.md` lists the mutants that survive the tests and the
   proof with the reason (`docs/DESIGN.md` 8).
 * Examples: every example writes a picture of its results, the input
