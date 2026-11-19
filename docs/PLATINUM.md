@@ -121,9 +121,10 @@ the specifications passing.
 1. This document.
 2. **The build.** `-ffp-contract=off` (#9).
 3. **Infrastructure.** The configuration pragma files and the test build
-   that checks every contract, the root `AMV.Spec`, the test area of the
-   specifications, the independence check, and a Platinum column in the
-   table of [PROOF.md](PROOF.md) that each later phase fills in.
+   that checks every contract, the root `AMV.Spec`, the independence
+   check, and a Platinum section in [PROOF.md](PROOF.md) that each later
+   phase fills in. The test area of the specifications comes with the
+   first of them, in phase 4.
 4. **Pixel-exact tools**, to settle the patterns.
 5. **Window operators.**
 6. **Code reader decoding.**
