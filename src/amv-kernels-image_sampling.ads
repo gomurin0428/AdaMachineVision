@@ -62,8 +62,10 @@ private package AMV.Kernels.Image_Sampling with SPARK_Mode, Preelaborate is
    with
      Post => Valid (Status)
              and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter
+                        = (if Image = null then Failure_Image_No_Pixels
+                           elsif not Usable_Image (Image)
+                           then Failure_Bad_Parameter
+                           else Failure_None)
              and then (if Succeeded (Status) then Usable_Image (Image));
    --  Image_No_Pixels for null ("InputImage has no pixels"), Bad_Parameter
    --  for a record that is not a usable handle ("InputImage is not a valid

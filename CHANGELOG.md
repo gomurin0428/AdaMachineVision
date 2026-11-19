@@ -28,6 +28,15 @@ section 9.1.
   is at the level `Tested`, which the tests check. `make check` rejects a policy
   pragma in a unit. The first step of `docs/PLATINUM.md`, with the root of
   the specifications, `AMV.Spec`.
+* The two-image tools are specified completely (Platinum,
+  `docs/PLATINUM.md`): `AMV.Spec.IP_Two_Image` transcribes their
+  formulas from the documentation, and the postconditions of
+  `ks_ip_two_image_*_execute` fix the output and the failure code, in
+  the documented order of the checks (`Input_Failure`), from the inputs;
+  only the text of a message and Out_Of_Memory stay open. The checks of
+  an input image (`Image_Sampling.Check_Image`) state their failure code
+  exactly. A new area of `test_suite`, `Test_Spec`, runs the
+  specifications on their own.
 
 * Licence: AMV is dual-licensed, under the PolyForm Noncommercial
   License 1.0.0 for noncommercial use (`LICENSE.md`) or under a paid

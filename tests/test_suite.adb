@@ -55,6 +55,7 @@ with Test_NCC_Search;
 with Test_Shape_Match;
 with Test_Tool_Group;
 with Test_Robustness;
+with Test_Spec;
 
 procedure Test_Suite is
 
@@ -88,6 +89,7 @@ procedure Test_Suite is
 begin
    --  Ordered from the packages with no AMV dependencies up to the ones
    --  that build on them, so that a failure low in the stack shows first.
+   Run_Area ("Test_Spec", Test_Spec'Access);
    Run_Area ("Test_Kernels", Test_Kernels'Access);
    Run_Area ("Test_Transforms", Test_Transforms'Access);
    Run_Area ("Test_Coordinate_Spaces", Test_Coordinate_Spaces'Access);
