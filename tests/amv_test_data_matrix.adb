@@ -721,42 +721,56 @@ package body AMV_Test_Data_Matrix is
       Old     : Long_Float;
    begin
       for Y in Y_Lo .. Y_Hi loop
-         for X in X_Lo .. X_Hi loop
-            Hits := 0;
-            for J in 0 .. Samples - 1 loop
-               PY := Long_Float (Y) - 0.5
-                 + (Long_Float (J) + 0.5) / Long_Float (Samples);
-               for I in 0 .. Samples - 1 loop
-                  PX := Long_Float (X) - 0.5
-                    + (Long_Float (I) + 0.5) / Long_Float (Samples);
-                  W := Back (3, 1) * PX + Back (3, 2) * PY + Back (3, 3);
-                  if W /= 0.0 then
-                     U := (Back (1, 1) * PX + Back (1, 2) * PY
-                           + Back (1, 3)) / W;
-                     V := (Back (2, 1) * PX + Back (2, 2) * PY
-                           + Back (2, 3)) / W;
-                     if U >= 0.0 and then U < 1.0 and then V >= 0.0
-                       and then V < 1.0
-                       and then Symbol
-                         (Symbol'First (1)
-                          + Natural (Long_Float'Floor (V * Rows)),
-                          Symbol'First (2)
-                          + Natural (Long_Float'Floor (U * Cols)))
-                     then
-                        Hits := Hits + 1;
-                     end if;
-                  end if;
-               end loop;
+         declare
+            Row     : Grey_8_Row (0 .. Image.Width - 1);
+            Changed : Boolean := False;
+            --  Written a row at a time: the tests check the postconditions
+            --  of the image kernel, and those of its pixel setter compare
+            --  the whole image at every call.
+         begin
+            for X in Row'Range loop
+               Row (X) := Image.Get_Pixel (X, Y);
             end loop;
-            if Hits > 0 then
-               Old := Long_Float (Image.Get_Pixel (X, Y));
-               Image.Set_Pixel
-                 (X, Y,
-                  Grey_8 (Old + (Long_Float (Dark) - Old)
-                                * Long_Float (Hits)
-                                / Long_Float (Samples * Samples)));
+            for X in X_Lo .. X_Hi loop
+               Hits := 0;
+               for J in 0 .. Samples - 1 loop
+                  PY := Long_Float (Y) - 0.5
+                    + (Long_Float (J) + 0.5) / Long_Float (Samples);
+                  for I in 0 .. Samples - 1 loop
+                     PX := Long_Float (X) - 0.5
+                       + (Long_Float (I) + 0.5) / Long_Float (Samples);
+                     W := Back (3, 1) * PX + Back (3, 2) * PY + Back (3, 3);
+                     if W /= 0.0 then
+                        U := (Back (1, 1) * PX + Back (1, 2) * PY
+                              + Back (1, 3)) / W;
+                        V := (Back (2, 1) * PX + Back (2, 2) * PY
+                              + Back (2, 3)) / W;
+                        if U >= 0.0 and then U < 1.0 and then V >= 0.0
+                          and then V < 1.0
+                          and then Symbol
+                            (Symbol'First (1)
+                             + Natural (Long_Float'Floor (V * Rows)),
+                             Symbol'First (2)
+                             + Natural (Long_Float'Floor (U * Cols)))
+                        then
+                           Hits := Hits + 1;
+                        end if;
+                     end if;
+                  end loop;
+               end loop;
+               if Hits > 0 then
+                  Old := Long_Float (Row (X));
+                  Row (X) :=
+                    Grey_8 (Old + (Long_Float (Dark) - Old)
+                                  * Long_Float (Hits)
+                                  / Long_Float (Samples * Samples));
+                  Changed := True;
+               end if;
+            end loop;
+            if Changed then
+               Image.Set_Row (Y, Row);
             end if;
-         end loop;
+         end;
       end loop;
    end Draw;
 

@@ -47,9 +47,14 @@ build:
 # Ada tests, then the C API tests.
 test: test-ada test-c
 
+# test_suite checks every contract of the library (amv_tests.gpr);
+# test_suite_library runs the same tests with the library's policy, the
+# timings and the NaNs included (amv_tests_library.gpr).
 test-ada:
 	$(GPRBUILD) -p -P amv_tests.gpr
 	./build/bin/test_suite
+	$(GPRBUILD) -p -P amv_tests_library.gpr test_suite.adb
+	./build/bin/test_suite_library
 
 test-c:
 	$(GPRBUILD) -p -P amv_c_tests.gpr
@@ -63,7 +68,7 @@ fetch-real-images:
 
 # The tests on those real images (tests/real_images/README.md).
 test-real-images: fetch-real-images
-	$(GPRBUILD) -p -P amv_tests.gpr test_real_images.adb
+	$(GPRBUILD) -p -P amv_tests_library.gpr test_real_images.adb
 	./build/bin/test_real_images
 
 examples:
@@ -116,6 +121,7 @@ pictures: run-examples run-real-image-examples
 check: shell-check
 	$(GPRBUILD) -p -P amv.gpr -cargs:Ada -gnatwe
 	$(GPRBUILD) -p -P amv_tests.gpr -cargs:Ada -gnatwe
+	$(GPRBUILD) -p -P amv_tests_library.gpr -cargs:Ada -gnatwe
 	$(GPRBUILD) -p -P amv_c_tests.gpr -cargs:Ada -gnatwe -cargs:C -Werror
 	$(GPRBUILD) -p -P amv_examples.gpr -cargs:Ada -gnatwe
 	$(GPRBUILD) -p -P amv_c_examples.gpr -cargs:Ada -gnatwe -cargs:C -Werror

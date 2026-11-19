@@ -10,6 +10,7 @@ project AMV_C_Examples is
    for Main use ("c_blob_inspection.c");
 
    package Compiler is
+      for Local_Configuration_Pragmas use "contracts.adc";
       for Default_Switches ("Ada") use
         ("-gnat2022", "-gnatW8", "-ffp-contract=off",
          "-gnatwa", "-gnatVa", "-O2", "-gnatn");

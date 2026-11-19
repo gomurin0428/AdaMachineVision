@@ -209,7 +209,12 @@ packages; their entry points form the C API (section 9).
   ```
 
   Pass a private `--subdirs` value when several people build at once.
-  `tests/test_suite.adb` calls every `Test_<area>` procedure.
+  `tests/test_suite.adb` calls every `Test_<area>` procedure. `make
+  test-ada` builds it twice (9.2): `test_suite` (`amv_tests.gpr`) checks
+  every contract, `test_suite_library` (`amv_tests_library.gpr`) has the
+  library's policy and also runs the tests that the other skips
+  (`AMV_Test_Build.Contracts_Checked`: timings, NaNs, the largest
+  lists).
 * Test images are generated in code with `AMV_Test_Images` (filled
   rectangles, circles and polygons with anti-aliased edges, gradients,
   deterministic noise); no binary fixtures in the repository.
@@ -266,10 +271,11 @@ packages; their entry points form the C API (section 9).
   too large to make in a test (a map of thousands of pixels a side),
   would tell it, the list says "not pinned" and what input would.
   Contracts are mutated too (a conjunct or an assertion taken out, the
-  changes above within them). The kernels run their preconditions only
-  (`Assertion_Policy`), so a mutant that only a postcondition or a loop
-  invariant would notice is left to the proof; where that proof does not
-  finish within its time (`prove_timeout_ms`), the list says so.
+  changes above within them). The tests check the postconditions of the
+  kernels (9.2), so a mutant of the code that a postcondition notices
+  fails the test that runs it; one that only a loop invariant or an
+  assertion would notice is left to the proof, and where that proof does
+  not finish within its time (`prove_timeout_ms`), the list says so.
 
 ## 9. SPARK kernels and the C API
 
@@ -347,9 +353,20 @@ SPARK kernels").
 
 * Starts (spec and body) with `pragma Validity_Checks ("F");` so that NaN
   and infinities reach the entry point's range checks instead of raising
-  at the call, and with the assertion policy of `SPARK_PLAN.md` 4.5
-  (`Pre => Check`, everything else `Ignore`): contracts are proved, not
-  executed, even in the test build.
+  at the call.
+* Has its contracts checked at run time by one of two policies, kept in
+  configuration pragma files and not in the units. The library
+  (`contracts.adc`, used by `amv.gpr` and the C projects) checks the
+  preconditions only, as `SPARK_PLAN.md` 4.5 set out. The tests
+  (`tests/contracts.adc` on top of `-gnata`) check the preconditions,
+  postconditions, predicates and ghost code too, so that every test also
+  compares the code with its contracts. Loop invariants and variants and
+  assertions are steps of the proofs and are left to gnatprove: a
+  quantified invariant checked at every iteration would make a loop over
+  an image quadratic. A postcondition, or the part of one, that would be
+  as slow is written at the assertion level `Static` (proved, never run),
+  the rest of it at the level `Tested` (checked by the tests only):
+  `Post => (Tested => ..., Static => ...)` (`docs/PROOF.md`, Platinum).
 * Depends only on `AMV`, other kernels, `Interfaces`,
   `Ada.Numerics.Long_Elementary_Functions` and, for the trusted entry
   points that take C memory, `System` (`System.Address`). No sparklib,

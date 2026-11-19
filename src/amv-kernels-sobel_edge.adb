@@ -1,12 +1,5 @@
 pragma Validity_Checks ("F");
 
-pragma Assertion_Policy
-  (Pre => Check, Post => Ignore, Ghost => Ignore,
-   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
-   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
-   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
-   Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
-
 with Ada.Unchecked_Deallocation;
 
 with AMV.Kernels.Filter_Inputs;
@@ -497,12 +490,14 @@ package body AMV.Kernels.Sobel_Edge with SPARK_Mode is
              and then Magnitude.Height = Target.Height
              and then Stack'First = 0 and then Stack'Last < Natural'Last
              and then Top <= Stack'Last + 1,
-     Post => KI.Valid_Image (Target)
-             and then KI.Size_Of (Target) = KI.Size_Of (Target)'Old
-             and then Top <= Stack'Last + 1
-             and then
-               (if Two_Valued (Target, Region, Survivor, Non_Survivor)'Old
-                then Two_Valued (Target, Region, Survivor, Non_Survivor));
+     Post =>
+       (Static =>
+          KI.Valid_Image (Target)
+          and then KI.Size_Of (Target) = KI.Size_Of (Target)'Old
+          and then Top <= Stack'Last + 1
+          and then
+            (if Two_Valued (Target, Region, Survivor, Non_Survivor)'Old
+             then Two_Valued (Target, Region, Survivor, Non_Survivor)));
    --  One step of the flood fill: the pixel (NX, NY), when it lies in the
    --  image and the region, has a magnitude >= Low and is not a survivor
    --  yet, becomes one and is pushed onto Stack (Top is the number of
@@ -518,7 +513,7 @@ package body AMV.Kernels.Sobel_Edge with SPARK_Mode is
       Stack                  : in out Position_Array;
       Top                    : in out Natural)
    is
-      pragma Unreferenced (Non_Survivor);
+      pragma Warnings (Off, Non_Survivor);
       --  Only the postcondition refers to it.
    begin
       if NX >= 0 and then NY >= 0
@@ -780,6 +775,17 @@ package body AMV.Kernels.Sobel_Edge with SPARK_Mode is
                   KI.Grey_8 (Params.Hysteresis_Survivor_Pel_Value),
                   KI.Grey_8 (Params.Hysteresis_Non_Survivor_Pel_Value),
                   Final_Magnitude_Image, Done);
+               --  The postcondition of Execute in the terms of Params, a
+               --  step that the proof of the whole unit does not take
+               --  within its steps by itself.
+               pragma Assert
+                 (for all Y in Final_Magnitude_Image.Pixels'Range (1)
+                  => (for all X in Final_Magnitude_Image.Pixels'Range (2)
+                      => (if KR.Contains (Region, Int32 (X), Int32 (Y))
+                          then Int32 (Final_Magnitude_Image.Pixels (Y, X))
+                                 in Params.Hysteresis_Survivor_Pel_Value
+                                  | Params
+                                      .Hysteresis_Non_Survivor_Pel_Value)));
             end if;
          end if;
       end if;

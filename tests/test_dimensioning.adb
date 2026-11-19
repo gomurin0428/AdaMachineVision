@@ -28,6 +28,7 @@ with AMV.Kernels.Transforms;
 with AMV.Shapes;                   use AMV.Shapes;
 with AMV.Tools;                    use AMV.Tools;
 with AMV.Transforms;               use AMV.Transforms;
+with AMV_Test_Build;
 with AMV_Test_Support;             use AMV_Test_Support;
 
 procedure Test_Dimensioning is
@@ -1191,11 +1192,16 @@ procedure Test_Dimensioning is
       KF.Points_Set_Num_Points (Points, KF.Max_Points + 1, Status);
       Check (Status.Failure = K.Failure_Bad_Parameter and then Points = null,
              "more than Max_Points");
-      KF.Points_Set_Num_Points (Points, KF.Max_Points, Status);
-      Check (Status.Failure = K.Failure_None, "exactly Max_Points");
-      KF.Points_Add_Point (Points, 1.0, 1.0, Status);
-      Check (Status.Failure = K.Failure_Bad_Parameter,
-             "no room beyond Max_Points");
+      if not AMV_Test_Build.Contracts_Checked then
+         --  A million points, appended one at a time: the postcondition
+         --  of each append compares every point, which takes too long
+         --  when the tests check it.
+         KF.Points_Set_Num_Points (Points, KF.Max_Points, Status);
+         Check (Status.Failure = K.Failure_None, "exactly Max_Points");
+         KF.Points_Add_Point (Points, 1.0, 1.0, Status);
+         Check (Status.Failure = K.Failure_Bad_Parameter,
+                "no room beyond Max_Points");
+      end if;
       KF.Line_Execute (Points, Params, Result, Status);
       Check (Status.Failure = K.Failure_Bad_Parameter and then Result = null,
              "Max_Points coinciding points");

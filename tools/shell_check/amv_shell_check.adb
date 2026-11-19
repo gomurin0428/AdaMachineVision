@@ -24,6 +24,17 @@
 --  Bad_Parameter, and must not raise Constraint_Error on them itself
 --  (docs/DESIGN.md section 9.3).
 --
+--  The specifications of the kernels (SRC_DIR/amv-spec*.ads and .adb) are
+--  SPARK, not wrappers, and are not read as the bodies above are. A unit
+--  of them that is not ghost, or that depends on a unit other than
+--  AMV.Spec and its children, AMV.Kernels, Interfaces and the big numbers
+--  of Ada 2022, is reported (src/amv-spec.ads).
+--
+--  And it reports every pragma Assertion_Policy in SRC_DIR/amv-*.ads and
+--  amv-*.adb, the kernels included: the policies of the library and of
+--  the tests are configuration pragma files (contracts.adc,
+--  tests/contracts.adc; docs/DESIGN.md section 9.2).
+--
 --  Prints one line per finding as FILE:LINE:COLUMN: message, and exits
 --  with status 1 when there is any finding (2 for a usage error).
 
@@ -271,6 +282,101 @@ procedure AMV_Shell_Check is
               & " (docs/DESIGN.md 9.3)");
    end Check_Header;
 
+   procedure Check_No_Policy (Path, Name : String) is
+      F      : File_Type;
+      Number : Natural := 0;
+   begin
+      Open (F, In_File, Path);
+      while not End_Of_File (F) loop
+         Number := Number + 1;
+         if Starts_With
+              (Ada.Strings.Fixed.Trim (Get_Line (F), Ada.Strings.Both),
+               "pragma assertion_policy")
+         then
+            Report (Name, Number, 1,
+                    "pragma Assertion_Policy in a unit: the policies are"
+                    & " contracts.adc and tests/contracts.adc"
+                    & " (docs/DESIGN.md 9.2)");
+         end if;
+      end loop;
+      Close (F);
+   end Check_No_Policy;
+
+   function Allowed_In_Spec (Unit : String) return Boolean is
+     (Unit = "amv.spec" or else Starts_With (Unit, "amv.spec.")
+      or else Unit = "amv.kernels"
+      or else Unit = "interfaces" or else Starts_With (Unit, "interfaces.")
+      or else Unit = "ada.numerics.big_numbers"
+      or else Starts_With (Unit, "ada.numerics.big_numbers."));
+   --  The units that a unit of AMV.Spec may depend on (src/amv-spec.ads):
+   --  never the kernel that it specifies.
+
+   procedure Check_Spec_Unit (Path, Name : String) is
+      F        : File_Type;
+      Number   : Natural := 0;
+      In_Unit  : Boolean := False;
+      Ghost    : Boolean := False;
+      Unit_Row : Natural := 0;
+   begin
+      Open (F, In_File, Path);
+      while not End_Of_File (F) loop
+         Number := Number + 1;
+         declare
+            Line : constant String :=
+              To_Lower (Ada.Strings.Fixed.Trim (Get_Line (F),
+                                                Ada.Strings.Both));
+            Dash : constant Natural := Ada.Strings.Fixed.Index (Line, "--");
+            Code : constant String :=
+              Ada.Strings.Fixed.Trim
+                ((if Dash = 0 then Line else Line (Line'First .. Dash - 1)),
+                 Ada.Strings.Both);
+         begin
+            if not In_Unit and then Starts_With (Code, "with ") then
+               --  "with A, B;": every unit named.
+               declare
+                  First : Positive := Code'First + 5;
+               begin
+                  for I in Code'First + 5 .. Code'Last loop
+                     if Code (I) = ',' or else Code (I) = ';' then
+                        declare
+                           Unit : constant String :=
+                             Ada.Strings.Fixed.Trim
+                               (Code (First .. I - 1), Ada.Strings.Both);
+                        begin
+                           if not Allowed_In_Spec (Unit) then
+                              Report (Name, Number, 1,
+                                      "a specification depends on " & Unit
+                                      & " (src/amv-spec.ads)");
+                           end if;
+                        end;
+                        First := I + 1;
+                     end if;
+                  end loop;
+               end;
+            elsif not In_Unit and then Starts_Unit (Code) then
+               In_Unit := True;
+               Unit_Row := Number;
+            end if;
+            if In_Unit and then Unit_Row > 0 then
+               --  The declaration of the unit, up to its "is".
+               if Ada.Strings.Fixed.Index (" " & Code & " ", " ghost") > 0
+               then
+                  Ghost := True;
+               end if;
+               if Code = "is" or else Ada.Strings.Fixed.Tail (Code, 3) = " is"
+               then
+                  Unit_Row := 0;
+               end if;
+            end if;
+         end;
+      end loop;
+      Close (F);
+      if Ada.Strings.Fixed.Tail (Name, 4) = ".ads" and then not Ghost then
+         Report (Name, 1, 1,
+                 "a specification that is not ghost (src/amv-spec.ads)");
+      end if;
+   end Check_Spec_Unit;
+
    procedure Check_File (Path, Name : String) is
       F      : File_Type;
       Number : Natural := 0;
@@ -340,8 +446,12 @@ begin
       Ada.Directories.End_Search (Search);
 
       for Name of Names loop
+         Check_No_Policy (Ada.Directories.Compose (Src, Name), Name);
          if Ada.Strings.Fixed.Head (Name, 11) = "amv-kernels" then
             null;
+         elsif Ada.Strings.Fixed.Head (Name, 8) = "amv-spec" then
+            Check_Header (Ada.Directories.Compose (Src, Name), Name);
+            Check_Spec_Unit (Ada.Directories.Compose (Src, Name), Name);
          else
             Check_Header (Ada.Directories.Compose (Src, Name), Name);
             if Legacy.Contains (Name) then
@@ -353,8 +463,12 @@ begin
       end loop;
 
       for Name of Specs loop
+         Check_No_Policy (Ada.Directories.Compose (Src, Name), Name);
          if Ada.Strings.Fixed.Head (Name, 11) /= "amv-kernels" then
             Check_Header (Ada.Directories.Compose (Src, Name), Name);
+         end if;
+         if Ada.Strings.Fixed.Head (Name, 8) = "amv-spec" then
+            Check_Spec_Unit (Ada.Directories.Compose (Src, Name), Name);
          end if;
       end loop;
 

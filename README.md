@@ -147,7 +147,9 @@ Run the tests from the repository root (some write under `tests/output/`).
 ```
 src/             the library: AMV.* (Ada API) and AMV.Kernels.* (SPARK kernels)
 include/amv.h    the C API
-tests/           Ada tests (test_suite runs them all) and tests/c (C API)
+tests/           Ada tests (test_suite runs them all with every contract
+                 checked, test_suite_library as the library runs them)
+                 and tests/c (C API)
 examples/        example programs; examples/real_images runs on photographs
 tools/           development tools (the thin-API check)
 docs/            DESIGN.md (binding rules), PROOF.md,

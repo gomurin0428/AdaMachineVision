@@ -4,6 +4,7 @@ with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
 with AMV.Misc;
+with AMV_Test_Build;
 
 package body AMV_Test_Support is
 
@@ -50,7 +51,7 @@ package body AMV_Test_Support is
 
    procedure Check_Timing (Condition : Boolean; Description : String) is
    begin
-      if not Mutant_Active then
+      if not (Mutant_Active or else AMV_Test_Build.Contracts_Checked) then
          Check (Condition, Description);
       end if;
    end Check_Timing;

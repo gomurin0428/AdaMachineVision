@@ -78,7 +78,9 @@ jobs:
           fetch-depth: 0
 
       # A body with more than 300 lines to mutate gets seven jobs, one for
-      # each part of the mutators; another one job with all of them.
+      # each part of the mutators; another one job with all of them. A
+      # body whose changes only take lines out has no line to mutate and
+      # gets none.
       - name: The bodies to mutate, and their parts
         id: files
         env:
@@ -95,7 +97,7 @@ jobs:
                      "$(git merge-base "$BASE" HEAD)" HEAD -- 'src/*.adb' |
                    awk '{print $3, $1}')
           fi
-          jobs=$(echo "$list" | awk 'NF == 2 {
+          jobs=$(echo "$list" | awk 'NF == 2 && $2 > 0 {
                    if ($2 > 300) {
                      n = split("logical arithmetic conditions numbers statements conjuncts assertions", p, " ")
                      for (i = 1; i <= n; i++) print $1, p[i]

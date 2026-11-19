@@ -1,0 +1,29 @@
+--  The tests with the library's policy of contracts (contracts.adc: the
+--  preconditions only), as a program that uses the library runs it:
+--  test_suite_library runs every test of test_suite, those of timing and
+--  those that pass a NaN or an infinity included, and test_real_images
+--  runs on images too large for the checked postconditions. amv_tests.gpr
+--  builds test_suite with every contract checked (docs/DESIGN.md 9.2).
+
+project AMV_Tests_Library is
+   for Source_Dirs use ("src", "tests", "tests/real_images", "tests/library");
+   for Object_Dir use "build/test-library-obj";
+   for Exec_Dir use "build/bin";
+   for Main use ("test_suite.adb", "test_real_images.adb");
+   for Languages use ("Ada");
+
+   package Builder is
+      for Global_Configuration_Pragmas use "tests/initialize_scalars.adc";
+      for Executable ("test_suite.adb") use "test_suite_library";
+   end Builder;
+
+   package Compiler is
+      for Local_Configuration_Pragmas use "contracts.adc";
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-gnata", "-gnatwa", "-gnatVa", "-g", "-O1");
+   end Compiler;
+
+   package Binder is
+      for Default_Switches ("Ada") use ("-Es");
+   end Binder;
+end AMV_Tests_Library;

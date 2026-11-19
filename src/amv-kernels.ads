@@ -27,12 +27,6 @@ pragma Validity_Checks ("F");
 --  or an infinity reaches the range checks of an entry point (and becomes
 --  Bad_Parameter) instead of raising Constraint_Error at the call.
 
-pragma Assertion_Policy
-  (Pre => Check, Post => Ignore, Ghost => Ignore,
-   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
-   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
-   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
-   Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
 --  Contracts other than preconditions are proved by gnatprove rather than
 --  executed, even in the test build (-gnata). Preconditions of internal
 --  subprograms stay checked as a cheap second line of defence.

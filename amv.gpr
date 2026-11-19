@@ -11,6 +11,7 @@ library project AMV is
    --  multiplication and an addition into one instruction that rounds once
    --  (it does at -O2 on arm64). Every project of the repository has it.
    package Compiler is
+      for Local_Configuration_Pragmas use "contracts.adc";
       for Default_Switches ("Ada") use
         ("-gnat2022", "-gnatW8", "-ffp-contract=off",
          "-gnatwa", "-gnatVa", "-O2", "-gnatn");

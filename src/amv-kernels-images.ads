@@ -46,12 +46,11 @@
 
 pragma Validity_Checks ("F");
 
-pragma Assertion_Policy
-  (Pre => Check, Post => Ignore, Ghost => Ignore,
-   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
-   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
-   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
-   Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
+pragma Assertion_Level (Tested);
+--  The level of the part of a postcondition that the tests check where
+--  the rest, at the level Static, is proved only (contracts.adc,
+--  docs/PROOF.md, Platinum). Declared here as well as in the policy files,
+--  so that a program that withs this unit reads it with any configuration.
 
 with Interfaces;
 with System;
@@ -274,25 +273,29 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       Status : out Ks_Status)
    with
      Export, Convention => C, External_Name => "ks_image_8_grey_set_pixel",
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
-             and then Size_Of (Image) = Size_Of (Image)'Old
-             and then (if Succeeded (Status)
-                       then Valid_Image (Image)
-                            and then X in 0 .. Image.Width - 1
-                            and then Y in 0 .. Image.Height - 1
-                            and then Image.Pixels (Natural (Y), Natural (X))
-                                       = Value
-                            and then
-                              (for all J in Image.Pixels'Range (1)
-                               => (for all I in Image.Pixels'Range (2)
-                                   => (if J /= Natural (Y)
-                                         or else I /= Natural (X)
-                                       then Image.Pixels (J, I)
-                                              = Pixels_Of (Image)'Old (J, I))))
-                       else Pixels_Of (Image) = Pixels_Of (Image)'Old);
+     Post =>
+       (Tested =>
+          Valid (Status)
+          and then Status.Failure
+                     in Failure_None | Failure_Image_No_Pixels
+                      | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
+          and then Size_Of (Image) = Size_Of (Image)'Old
+          and then (if Succeeded (Status)
+                    then Valid_Image (Image)
+                         and then X in 0 .. Image.Width - 1
+                         and then Y in 0 .. Image.Height - 1
+                         and then Image.Pixels (Natural (Y), Natural (X))
+                                    = Value),
+        Static =>
+          (if Succeeded (Status)
+           then Valid_Image (Image)
+                and then
+                  (for all J in Image.Pixels'Range (1)
+                   => (for all I in Image.Pixels'Range (2)
+                       => (if J /= Natural (Y) or else I /= Natural (X)
+                           then Image.Pixels (J, I)
+                                  = Pixels_Of (Image)'Old (J, I))))
+           else Pixels_Of (Image) = Pixels_Of (Image)'Old));
    --  Sets the pixel at column X, row Y, and no other (Gold). Failures as
    --  for Get_Pixel; a failed call changes nothing.
 
@@ -451,25 +454,29 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       Status : out Ks_Status)
    with
      Export, Convention => C, External_Name => "ks_image_16_grey_set_pixel",
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
-             and then Size_Of (Image) = Size_Of (Image)'Old
-             and then (if Succeeded (Status)
-                       then Valid_Image (Image)
-                            and then X in 0 .. Image.Width - 1
-                            and then Y in 0 .. Image.Height - 1
-                            and then Image.Pixels (Natural (Y), Natural (X))
-                                       = Value
-                            and then
-                              (for all J in Image.Pixels'Range (1)
-                               => (for all I in Image.Pixels'Range (2)
-                                   => (if J /= Natural (Y)
-                                         or else I /= Natural (X)
-                                       then Image.Pixels (J, I)
-                                              = Pixels_Of (Image)'Old (J, I))))
-                       else Pixels_Of (Image) = Pixels_Of (Image)'Old);
+     Post =>
+       (Tested =>
+          Valid (Status)
+          and then Status.Failure
+                     in Failure_None | Failure_Image_No_Pixels
+                      | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
+          and then Size_Of (Image) = Size_Of (Image)'Old
+          and then (if Succeeded (Status)
+                    then Valid_Image (Image)
+                         and then X in 0 .. Image.Width - 1
+                         and then Y in 0 .. Image.Height - 1
+                         and then Image.Pixels (Natural (Y), Natural (X))
+                                    = Value),
+        Static =>
+          (if Succeeded (Status)
+           then Valid_Image (Image)
+                and then
+                  (for all J in Image.Pixels'Range (1)
+                   => (for all I in Image.Pixels'Range (2)
+                       => (if J /= Natural (Y) or else I /= Natural (X)
+                           then Image.Pixels (J, I)
+                                  = Pixels_Of (Image)'Old (J, I))))
+           else Pixels_Of (Image) = Pixels_Of (Image)'Old));
 
    procedure Fill
      (Image  : Ks_Image_16_Grey;
@@ -873,20 +880,25 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       Done  : out Boolean)
    with
      Inline,
-     Post => Done = Pixel_Exists (Image, X, Y)
-             and then Size_Of (Image) = Size_Of (Image)'Old
-             and then (if Done
-                       then Valid_Image (Image)
-                            and then Image.Pixels (Natural (Y), Natural (X))
-                                       = Value
-                            and then
-                              (for all J in Image.Pixels'Range (1)
-                               => (for all I in Image.Pixels'Range (2)
-                                   => (if J /= Natural (Y)
-                                         or else I /= Natural (X)
-                                       then Image.Pixels (J, I)
-                                              = Pixels_Of (Image)'Old (J, I))))
-                       else Pixels_Of (Image) = Pixels_Of (Image)'Old);
+     Post =>
+       (Tested =>
+          Done = Pixel_Exists (Image, X, Y)
+          and then Size_Of (Image) = Size_Of (Image)'Old
+          and then (if Done
+                    then Valid_Image (Image)
+                         and then Image.Pixels (Natural (Y), Natural (X))
+                                    = Value),
+        Static =>
+          (if Done
+           then Valid_Image (Image)
+                and then Pixel_Exists (Image, X, Y)
+                and then
+                  (for all J in Image.Pixels'Range (1)
+                   => (for all I in Image.Pixels'Range (2)
+                       => (if J /= Natural (Y) or else I /= Natural (X)
+                           then Image.Pixels (J, I)
+                                  = Pixels_Of (Image)'Old (J, I))))
+           else Pixels_Of (Image) = Pixels_Of (Image)'Old));
 
    procedure Try_Get_Pixel
      (Image : access constant Ks_Image_16_Grey_Data;
@@ -907,20 +919,25 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       Done  : out Boolean)
    with
      Inline,
-     Post => Done = Pixel_Exists (Image, X, Y)
-             and then Size_Of (Image) = Size_Of (Image)'Old
-             and then (if Done
-                       then Valid_Image (Image)
-                            and then Image.Pixels (Natural (Y), Natural (X))
-                                       = Value
-                            and then
-                              (for all J in Image.Pixels'Range (1)
-                               => (for all I in Image.Pixels'Range (2)
-                                   => (if J /= Natural (Y)
-                                         or else I /= Natural (X)
-                                       then Image.Pixels (J, I)
-                                              = Pixels_Of (Image)'Old (J, I))))
-                       else Pixels_Of (Image) = Pixels_Of (Image)'Old);
+     Post =>
+       (Tested =>
+          Done = Pixel_Exists (Image, X, Y)
+          and then Size_Of (Image) = Size_Of (Image)'Old
+          and then (if Done
+                    then Valid_Image (Image)
+                         and then Image.Pixels (Natural (Y), Natural (X))
+                                    = Value),
+        Static =>
+          (if Done
+           then Valid_Image (Image)
+                and then Pixel_Exists (Image, X, Y)
+                and then
+                  (for all J in Image.Pixels'Range (1)
+                   => (for all I in Image.Pixels'Range (2)
+                       => (if J /= Natural (Y) or else I /= Natural (X)
+                           then Image.Pixels (J, I)
+                                  = Pixels_Of (Image)'Old (J, I))))
+           else Pixels_Of (Image) = Pixels_Of (Image)'Old));
 
    procedure Try_Get_Pixel_Color
      (Red, Green, Blue                   : access constant
@@ -997,23 +1014,32 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       Row    : Grey_8_Row;
       Status : out Ks_Status)
    with
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
-             and then Size_Of (Image) = Size_Of (Image)'Old
-             and then (if Succeeded (Status)
-                       then Valid_Image (Image)
-                            and then Y in 0 .. Image.Height - 1
-                            and then Row'Length = Image.Width
-                            and then
-                              (for all J in Image.Pixels'Range (1)
-                               => (for all I in Image.Pixels'Range (2)
-                                   => Image.Pixels (J, I)
-                                        = (if J = Natural (Y)
-                                           then Row (Row'First + I)
-                                           else Pixels_Of (Image)'Old (J, I))))
-                       else Pixels_Of (Image) = Pixels_Of (Image)'Old);
+     Post =>
+       (Tested =>
+          Valid (Status)
+          and then Status.Failure
+                     in Failure_None | Failure_Image_No_Pixels
+                      | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
+          and then Size_Of (Image) = Size_Of (Image)'Old
+          and then (if Succeeded (Status)
+                    then Valid_Image (Image)
+                         and then Y in 0 .. Image.Height - 1
+                         and then Row'Length = Image.Width
+                         and then
+                           (for all I in Image.Pixels'Range (2)
+                            => Image.Pixels (Natural (Y), I)
+                                 = Row (Row'First + I))),
+        Static =>
+          (if Succeeded (Status)
+           then Valid_Image (Image)
+                and then Y in 0 .. Image.Height - 1
+                and then
+                  (for all J in Image.Pixels'Range (1)
+                   => (for all I in Image.Pixels'Range (2)
+                       => (if J /= Natural (Y)
+                           then Image.Pixels (J, I)
+                                  = Pixels_Of (Image)'Old (J, I))))
+           else Pixels_Of (Image) = Pixels_Of (Image)'Old));
    --  Copies Row into row Y, and changes no other row (Gold).
 
    procedure Get_Row
@@ -1041,23 +1067,32 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
       Row    : Grey_16_Row;
       Status : out Ks_Status)
    with
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
-             and then Size_Of (Image) = Size_Of (Image)'Old
-             and then (if Succeeded (Status)
-                       then Valid_Image (Image)
-                            and then Y in 0 .. Image.Height - 1
-                            and then Row'Length = Image.Width
-                            and then
-                              (for all J in Image.Pixels'Range (1)
-                               => (for all I in Image.Pixels'Range (2)
-                                   => Image.Pixels (J, I)
-                                        = (if J = Natural (Y)
-                                           then Row (Row'First + I)
-                                           else Pixels_Of (Image)'Old (J, I))))
-                       else Pixels_Of (Image) = Pixels_Of (Image)'Old);
+     Post =>
+       (Tested =>
+          Valid (Status)
+          and then Status.Failure
+                     in Failure_None | Failure_Image_No_Pixels
+                      | Failure_Bad_Parameter | Failure_Index_Out_Of_Range
+          and then Size_Of (Image) = Size_Of (Image)'Old
+          and then (if Succeeded (Status)
+                    then Valid_Image (Image)
+                         and then Y in 0 .. Image.Height - 1
+                         and then Row'Length = Image.Width
+                         and then
+                           (for all I in Image.Pixels'Range (2)
+                            => Image.Pixels (Natural (Y), I)
+                                 = Row (Row'First + I))),
+        Static =>
+          (if Succeeded (Status)
+           then Valid_Image (Image)
+                and then Y in 0 .. Image.Height - 1
+                and then
+                  (for all J in Image.Pixels'Range (1)
+                   => (for all I in Image.Pixels'Range (2)
+                       => (if J /= Natural (Y)
+                           then Image.Pixels (J, I)
+                                  = Pixels_Of (Image)'Old (J, I))))
+           else Pixels_Of (Image) = Pixels_Of (Image)'Old));
 
    procedure Matrix_Bounds
      (Image                 : access constant Ks_Image_8_Grey_Data;

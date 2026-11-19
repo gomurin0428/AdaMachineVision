@@ -11,6 +11,24 @@ section 9.1.
 
 ### Changed
 
+* The tests check the contracts of the kernels: every precondition,
+  postcondition, predicate and piece of ghost code runs in `test_suite`,
+  so that each test also compares the code with its contracts. The
+  policies of the contracts are two configuration pragma files instead of
+  a pragma at the top of every kernel unit: `contracts.adc` for the
+  library (preconditions only, as before) and `tests/contracts.adc` for
+  the tests; loop invariants and assertions are left to the proofs. The
+  same tests run a second time with the library's policy
+  (`test_suite_library`, `amv_tests_library.gpr`), with the timings and
+  the NaNs that the proofs assume away; the real-image tests run with it
+  too. What would be too slow to check at every call is at the assertion
+  level `Static`, proved only: a postcondition of the flood fill of the
+  Sobel tool, and the parts of the postconditions of the image kernel's
+  pixel and row setters that compare the whole image; the rest of those
+  is at the level `Tested`, which the tests check. `make check` rejects a policy
+  pragma in a unit. The first step of `docs/PLATINUM.md`, with the root of
+  the specifications, `AMV.Spec`.
+
 * Licence: AMV is dual-licensed, under the PolyForm Noncommercial
   License 1.0.0 for noncommercial use (`LICENSE.md`) or under a paid
   commercial licence (`LICENSING.md`).

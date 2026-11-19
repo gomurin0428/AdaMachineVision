@@ -1,12 +1,5 @@
 pragma Validity_Checks ("F");
 
-pragma Assertion_Policy
-  (Pre => Check, Post => Ignore, Ghost => Ignore,
-   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
-   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
-   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
-   Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
-
 package body AMV.Kernels.IP_One_Image.Flip_Rotate with SPARK_Mode is
 
    procedure Apply

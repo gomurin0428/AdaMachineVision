@@ -84,6 +84,7 @@ with AMV_Test_Barcodes;
 with AMV_Test_Data_Matrix;
 with AMV_Test_QR_Code;
 with AMV_Test_Images;
+with AMV_Test_Build;
 with AMV_Test_Support;                     use AMV_Test_Support;
 
 procedure Test_Robustness is
@@ -6909,7 +6910,24 @@ procedure Test_Robustness is
       End_Area;
    end Sweep_Streams;
 
+   procedure Run_All_Sweeps;
+
    procedure Run_All is
+   begin
+      if AMV_Test_Build.Contracts_Checked then
+         --  The sweeps pass NaNs, infinities and forged records, which the
+         --  proofs assume away (docs/PROOF.md, Assumptions and limits): a
+         --  postcondition that compares such a value fails although the
+         --  library rejects it. They run in the build of the tests with
+         --  the library's policy (test_suite_library).
+         Ada.Text_IO.Put_Line
+           ("Robustness: run by test_suite_library only");
+      else
+         Run_All_Sweeps;
+      end if;
+   end Run_All;
+
+   procedure Run_All_Sweeps is
    begin
       Sweep_Misc;
       Sweep_Transforms;
@@ -6947,7 +6965,7 @@ procedure Test_Robustness is
         ("Robustness:" & Tool_Types'Image & " tool types," & All_Calls'Image
          & " calls," & All_Leaks'Image & " non-AMV exceptions ("
          & Consumed'Image & " results read)");
-   end Run_All;
+   end Run_All_Sweeps;
 
    procedure Main is new AMV_Test_Support.Standalone (Run_All);
 begin

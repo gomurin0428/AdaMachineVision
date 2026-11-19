@@ -1,12 +1,5 @@
 pragma Validity_Checks ("F");
 
-pragma Assertion_Policy
-  (Pre => Check, Post => Ignore, Ghost => Ignore,
-   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
-   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
-   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
-   Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
-
 with AMV.Kernels.Numerics;
 
 package body AMV.Kernels.Shape_Match.Training with SPARK_Mode is
@@ -224,11 +217,9 @@ package body AMV.Kernels.Shape_Match.Training with SPARK_Mode is
       --  cell's edge pixel of largest gradient magnitude (the first in
       --  raster order among equals).
       for CY in 0 .. (H - 3) / Size loop
-         pragma Loop_Invariant (Model.Count <= Max_Features
-                                and then Model.Spacing = Size);
+         pragma Loop_Invariant (Model.Spacing = Size);
          for CX in 0 .. (W - 3) / Size loop
-            pragma Loop_Invariant (Model.Count <= Max_Features
-                                   and then Model.Spacing = Size);
+            pragma Loop_Invariant (Model.Spacing = Size);
             exit when Model.Count = Max_Features;
             declare
                Best_I, Best_J : Natural := 0;
@@ -370,8 +361,7 @@ package body AMV.Kernels.Shape_Match.Training with SPARK_Mode is
 
       for CY in 0 .. (H - 1) / Size loop
          pragma Loop_Invariant
-           (Model.Ignored_Count <= Max_Features
-            and then Model.Count = Model.Count'Loop_Entry
+           (Model.Count = Model.Count'Loop_Entry
             and then Model.Spacing = Model.Spacing'Loop_Entry
             and then Model.Features = Model.Features'Loop_Entry);
          for CX in 0 .. (W - 1) / Size loop
