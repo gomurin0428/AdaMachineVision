@@ -525,6 +525,35 @@ procedure Test_Code_Reader_Data_Matrix is
    ---------------------------------------------------------------------
 
    procedure Test_Perspective is
+
+      procedure Check_Drawn
+        (Description : String;
+         Size        : DM.Size_Index;
+         Seed        : Natural;
+         Where       : Enc.Corners;
+         Side        : Positive;
+         Dark, Light : Grey_8);
+      --  Reads a symbol of the size with the text Some_Text of the seed,
+      --  drawn between the corners Where with the level Dark on the level
+      --  Light in an image of Side by Side pixels.
+
+      procedure Check_Drawn
+        (Description : String;
+         Size        : DM.Size_Index;
+         Seed        : Natural;
+         Where       : Enc.Corners;
+         Side        : Positive;
+         Dark, Light : Grey_8)
+      is
+         Expect : constant String :=
+           Some_Text (DM.Sizes (Size).Data - 1, Seed);
+         Image  : Ks_Image_8_Grey := TI.Blank (Side, Side, Light);
+      begin
+         Enc.Draw (Image, Enc.Symbol (Enc.ASCII (Expect), Size), Where,
+                   Dark);
+         Check_Only (Run_On (Image), Expect, Description);
+      end Check_Drawn;
+
    begin
       Section ("CodeReader: Data Matrix symbols seen at an angle");
       Check_Series ("a corner 10 % nearer to the middle", Some_Sizes, 4.0,
@@ -533,6 +562,18 @@ procedure Test_Code_Reader_Data_Matrix is
                     Skewed => 0.2);
       Check_Series ("a corner 30 % nearer to the middle, modules of 6 "
                     & "pixels", Some_Sizes, 6.0, Skewed => 0.3);
+
+      --  Long symbols with every corner moved: the columns are spaced as
+      --  both the dark and the light modules of the alternating upper
+      --  side have them.
+      Check_Drawn ("8 x 32, every corner moved, modules of 2.5 to 3.4 "
+                   & "pixels", 26, 508,
+                   ((62.2, 116.5), (107.64, 48.77), (120.56, 65.89),
+                    (71.92, 141.83)), 183, 41, 165);
+      Check_Drawn ("8 x 80, every corner moved, modules of 2.6 to 3.1 "
+                   & "pixels", 33, 69,
+                   ((89.88, 71.3), (233.54, 221.01), (242.3, 259.36),
+                    (78.48, 92.93)), 331, 46, 254);
    end Test_Perspective;
 
    ---------------------------------------------------------------------
@@ -841,6 +882,16 @@ procedure Test_Code_Reader_Data_Matrix is
              and then Tool.Results.Count = 0,
              "4097 symbols: the run fails and says why (found"
              & Tool.Results.Count'Image & ", "
+             & Tool.Run_Status.Result'Image & " "
+             & Message (Tool.Run_Status) & ")");
+      Tool := Run_On (Image, (Matrix_Only with delta
+                                Symbologies =>
+                                  Code (Data_Matrix) + Code (QR_Code)));
+      Check (Status_Is (Tool, "KS_EXCEPTION",
+                        "CodeReader: more than 4096 candidates")
+             and then Tool.Results.Count = 0,
+             "the same with QR Code too: the run fails before it looks for "
+             & "QR Code symbols (found" & Tool.Results.Count'Image & ", "
              & Tool.Run_Status.Result'Image & " "
              & Message (Tool.Run_Status) & ")");
    end Test_Many;

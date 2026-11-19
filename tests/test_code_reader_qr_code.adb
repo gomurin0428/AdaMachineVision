@@ -778,6 +778,9 @@ procedure Test_Code_Reader_QR_Code is
                   "FNC1 in the first position: % is GS");
       Check_Text (Enc.FNC1_First & Seg (Enc.Alphanumeric, "A%%B"), "A%B",
                   "and %% is %");
+      Check_Text (Enc.FNC1_First & Seg (Enc.Alphanumeric, "A B$C"), "A B$C",
+                  "and the space and the $, below % in the set, are "
+                  & "themselves");
       Check_Text (Enc.FNC1_Second (165) & Seg (Enc.Alphanumeric, "X%Y"),
                   "AX" & GS & "Y",
                   "FNC1 in the second position: its application "
