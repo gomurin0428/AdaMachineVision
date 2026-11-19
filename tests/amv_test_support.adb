@@ -1,4 +1,5 @@
 with Ada.Command_Line;
+with Ada.Environment_Variables;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
@@ -30,6 +31,29 @@ package body AMV_Test_Support is
          Report_Failure (Description);
       end if;
    end Check;
+
+   function Mutant_Active return Boolean;
+   --  ADAMUTANT_MUTANT_ID is set and neither empty nor 0.
+
+   function Mutant_Active return Boolean is
+      Name : constant String := "ADAMUTANT_MUTANT_ID";
+   begin
+      if not Ada.Environment_Variables.Exists (Name) then
+         return False;
+      end if;
+      declare
+         Value : constant String := Ada.Environment_Variables.Value (Name);
+      begin
+         return Value /= "" and then Value /= "0";
+      end;
+   end Mutant_Active;
+
+   procedure Check_Timing (Condition : Boolean; Description : String) is
+   begin
+      if not Mutant_Active then
+         Check (Condition, Description);
+      end if;
+   end Check_Timing;
 
    procedure Check_Near
      (Actual, Expected : AMV.Real;
