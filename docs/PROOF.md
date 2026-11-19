@@ -289,6 +289,35 @@ no `pragma Assume`, no justified checks. The only bodies gnatprove skips
 are the trusted ones listed below (and the runtime's
 `Unchecked_Deallocation` and `Unchecked_Conversion` instances).
 
+## Platinum
+
+`docs/PLATINUM.md` is the plan for complete specifications: for every
+subprogram of a kernel, a postcondition that fixes every output, in terms
+of the functions of a ghost unit of `AMV.Spec` written from a definition,
+not from the code. The kernels below have them; this list grows with each
+phase of the plan.
+
+| Kernel | Specification | Exceptions |
+|---|---|---|
+| (none yet) | | |
+
+The tests check every precondition, postcondition, predicate and piece
+of ghost code (`tests/contracts.adc`, `docs/DESIGN.md` 9.2). What would
+be too slow to check at every call is written at the assertion level
+`Static`, which gnatprove proves as any other contract and no build runs:
+a postcondition that only serves the proof of its callers and quantifies
+over an image at every step of a loop (`Post => (Static => ...)`), and
+the part of a postcondition that compares a whole image with its value
+before the call where the call changes one pixel or one row. The rest of
+such a postcondition is at the level `Tested`, declared in both policy
+files and at the top of each unit that uses it (so that a program that
+withs the unit reads it with any configuration), which the tests check
+and the library ignores
+(`Post => (Tested => ..., Static => ...)`: a postcondition cannot mix a
+level with a plain expression). Those of the image kernel's pixel and row
+setters are split so; checked whole, they made the tests that draw an
+image pixel by pixel quadratic.
+
 ## Trusted (not proved)
 
 * The Ada API (`SPARK_Mode` off): by design it only passes values to the
@@ -1337,8 +1366,9 @@ quantified data invariant (details in `docs/handoff/SPARK_PLAN.md` 6.1):
 * Internal subprograms that need a valid tree take it as the body's
   subtype `Valid_Tree_Type`, whose `Dynamic_Predicate` is `Valid_Tree`:
   gnatprove proves the predicate at every call and assumes it inside, and
-  the assertion policy keeps it out of the executable code, so no
-  quantified precondition is evaluated at run time (`docs/DESIGN.md` 9.2).
+  the library's assertion policy keeps it out of the library's code, so
+  no quantified precondition is evaluated at run time there; the tests
+  check it (`docs/DESIGN.md` 9.2).
 * Loop invariants avoid nested indexing such as
   `R.Spaces (R.Spaces (I).Parent)`, whose preservation across an update
   was not provable at level 2; a ghost lemma with a proof loop derives

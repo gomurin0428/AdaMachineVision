@@ -1,0 +1,14 @@
+--  The contracts that the tests check (amv_tests.gpr, on top of -gnata):
+--  every precondition, postcondition, predicate and piece of ghost code,
+--  so that each test also compares the code with its contracts. The
+--  steps of the proofs (loop invariants and variants, assertions) are
+--  left to gnatprove: a quantified invariant checked at every iteration
+--  would make a loop over an image quadratic. So are the parts of
+--  postconditions at the assertion level Static; those at the level
+--  Tested (declared here and in contracts.adc) are checked.
+
+pragma Assertion_Level (Tested);
+
+pragma Assertion_Policy
+  (Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
+   Assert_And_Cut => Ignore, Tested => Check);

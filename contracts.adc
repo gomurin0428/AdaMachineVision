@@ -1,0 +1,25 @@
+--  The contracts that the library checks at run time (amv.gpr and the C
+--  projects, which compile the library's sources themselves): the
+--  preconditions of the kernels, which reject what a caller must not
+--  pass. Everything else (postconditions, ghost code, loop invariants,
+--  assertions, predicates) is proved by gnatprove (docs/PROOF.md) and
+--  ignored here. The tests (amv_tests.gpr, -gnata, tests/contracts.adc)
+--  check every contract but the steps of the proofs, so that each test
+--  also compares the code with its contracts (docs/DESIGN.md 9.2).
+--
+--  The assertion level Tested marks the part of a postcondition that the
+--  tests check where another part, at the level Static, is proved only:
+--  Post => (Tested => ..., Static => ...). A postcondition cannot mix a
+--  level with a plain expression. Both files declare it, and so does
+--  every unit that uses it, so that a program that withs the unit reads
+--  it with any configuration.
+
+pragma Assertion_Level (Tested);
+
+pragma Assertion_Policy
+  (Pre => Check, Post => Ignore, Ghost => Ignore,
+   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
+   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
+   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
+   Type_Invariant => Ignore, Default_Initial_Condition => Ignore,
+   Tested => Ignore);

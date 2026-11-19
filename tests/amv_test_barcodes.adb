@@ -523,20 +523,27 @@ package body AMV_Test_Barcodes is
             end loop;
          end loop;
          for Y in 0 .. H - 1 loop
-            for X in 0 .. W - 1 loop
-               Acc := 0.0;
-               for K in Weight'Range loop
-                  Acc := Acc
-                    + Weight (K)
-                      * Rows (Integer'Max (0, Integer'Min (H - 1, Y + K)),
-                              X);
+            declare
+               Row : Grey_8_Row (0 .. W - 1);
+               --  Written a row at a time: the tests check the
+               --  postconditions of the image kernel, and those of its
+               --  pixel setter compare the whole image at every call.
+            begin
+               for X in 0 .. W - 1 loop
+                  Acc := 0.0;
+                  for K in Weight'Range loop
+                     Acc := Acc
+                       + Weight (K)
+                         * Rows (Integer'Max (0, Integer'Min (H - 1, Y + K)),
+                                 X);
+                  end loop;
+                  Row (X) :=
+                    Grey_8 (Real'Max
+                              (0.0, Real'Min (255.0,
+                                              Real'Rounding (Acc / Sum))));
                end loop;
-               Image.Set_Pixel
-                 (X, Y,
-                  Grey_8 (Real'Max
-                            (0.0, Real'Min (255.0,
-                                            Real'Rounding (Acc / Sum)))));
-            end loop;
+               Image.Set_Row (Y, Row);
+            end;
          end loop;
          Free (Rows);
       end;
@@ -574,22 +581,27 @@ package body AMV_Test_Barcodes is
          end loop;
          Blur (Image, Sigma);
          for Y in 0 .. H - 1 loop
-            for X in 0 .. W - 1 loop
-               declare
-                  Level  : constant Real := Real (Before (Y, X));
-                  Smooth : constant Real := Real (Image.Get_Pixel (X, Y));
-               begin
-                  Image.Set_Pixel
-                    (X, Y,
-                     Grey_8 (Real'Max
-                               (0.0,
-                                Real'Min
-                                  (255.0,
-                                   Real'Rounding
-                                     (Level
-                                      + Amount * (Level - Smooth))))));
-               end;
-            end loop;
+            declare
+               Row : Grey_8_Row (0 .. W - 1);
+               --  A row at a time, as in Blur.
+            begin
+               for X in 0 .. W - 1 loop
+                  declare
+                     Level  : constant Real := Real (Before (Y, X));
+                     Smooth : constant Real := Real (Image.Get_Pixel (X, Y));
+                  begin
+                     Row (X) :=
+                       Grey_8 (Real'Max
+                                 (0.0,
+                                  Real'Min
+                                    (255.0,
+                                     Real'Rounding
+                                       (Level
+                                        + Amount * (Level - Smooth)))));
+                  end;
+               end loop;
+               Image.Set_Row (Y, Row);
+            end;
          end loop;
          Free (Before);
       end;
@@ -603,24 +615,29 @@ package body AMV_Test_Barcodes is
       W : constant Natural := Image.Width;
    begin
       for Y in 0 .. Image.Height - 1 loop
-         for X in 0 .. W - 1 loop
-            declare
-               Factor : constant Real :=
-                 (if W > 1
-                  then Left + (Right - Left) * Real (X) / Real (W - 1)
-                  else Left);
-            begin
-               Image.Set_Pixel
-                 (X, Y,
-                  Grey_8 (Real'Max
-                            (0.0,
-                             Real'Min
-                               (255.0,
-                                Real'Rounding
-                                  (Factor
-                                   * Real (Image.Get_Pixel (X, Y)))))));
-            end;
-         end loop;
+         declare
+            Row : Grey_8_Row (0 .. W - 1);
+            --  A row at a time, as in Blur.
+         begin
+            for X in 0 .. W - 1 loop
+               declare
+                  Factor : constant Real :=
+                    (if W > 1
+                     then Left + (Right - Left) * Real (X) / Real (W - 1)
+                     else Left);
+               begin
+                  Row (X) :=
+                    Grey_8 (Real'Max
+                              (0.0,
+                               Real'Min
+                                 (255.0,
+                                  Real'Rounding
+                                    (Factor
+                                     * Real (Image.Get_Pixel (X, Y))))));
+               end;
+            end loop;
+            Image.Set_Row (Y, Row);
+         end;
       end loop;
    end Shade;
 

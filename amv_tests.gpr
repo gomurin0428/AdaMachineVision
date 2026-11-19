@@ -2,12 +2,18 @@
 --  amv.gpr) so that building one test main only compiles its closure. That
 --  lets one area of the library be built and tested while another area is
 --  still being edited.
+--
+--  This build checks every precondition, postcondition, predicate and
+--  piece of ghost code of the library (tests/contracts.adc on top of
+--  -gnata), so that every test also compares the code with its contracts.
+--  amv_tests_library.gpr builds the same tests, and the real-image tests,
+--  with the library's policy (docs/DESIGN.md 9.2).
 
 project AMV_Tests is
-   for Source_Dirs use ("src", "tests", "tests/real_images");
+   for Source_Dirs use ("src", "tests", "tests/checked");
    for Object_Dir use "build/test-obj";
    for Exec_Dir use "build/bin";
-   for Main use ("test_suite.adb", "test_real_images.adb");
+   for Main use ("test_suite.adb");
    for Languages use ("Ada");
 
    package Builder is
@@ -15,6 +21,7 @@ project AMV_Tests is
    end Builder;
 
    package Compiler is
+      for Local_Configuration_Pragmas use "tests/contracts.adc";
       for Default_Switches ("Ada") use
         ("-gnat2022", "-gnatW8", "-ffp-contract=off",
          "-gnata", "-gnatwa", "-gnatVa", "-g", "-O1");

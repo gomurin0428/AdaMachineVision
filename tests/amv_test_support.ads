@@ -26,13 +26,17 @@ package AMV_Test_Support is
 
    procedure Check_Timing (Condition : Boolean; Description : String);
    --  A check of how long a run takes, against a limit or against another
-   --  run: as Check, except while AdaMutant runs the tests with a mutant
-   --  active (the environment variable ADAMUTANT_MUTANT_ID is set and not
-   --  0), where it checks nothing. The tests of the mutants run beside the
-   --  proofs of other mutants, and under that load a check of a time can
-   --  fail whatever the mutant is, which would count the mutant as
-   --  detected. The run of the unchanged project at the start of a
-   --  mutation run, and every other run of the tests, check the times.
+   --  run: as Check, except in two cases where it checks nothing.
+   --
+   --  * While AdaMutant runs the tests with a mutant active (the
+   --    environment variable ADAMUTANT_MUTANT_ID is set and not 0). The
+   --    tests of the mutants run beside the proofs of other mutants, and
+   --    under that load a check of a time can fail whatever the mutant
+   --    is, which would count the mutant as detected. The run of the
+   --    unchanged project at the start of a mutation run checks the times.
+   --  * In the build of the tests that checks every contract
+   --    (AMV_Test_Build), where the postconditions take their time too.
+   --    The build with the library's policy of contracts checks them.
 
    procedure Check_Near
      (Actual, Expected : AMV.Real;

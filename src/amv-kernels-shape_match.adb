@@ -1,12 +1,5 @@
 pragma Validity_Checks ("F");
 
-pragma Assertion_Policy
-  (Pre => Check, Post => Ignore, Ghost => Ignore,
-   Loop_Invariant => Ignore, Loop_Variant => Ignore, Assert => Ignore,
-   Assert_And_Cut => Ignore, Contract_Cases => Ignore,
-   Subprogram_Variant => Ignore, Dynamic_Predicate => Ignore,
-   Type_Invariant => Ignore, Default_Initial_Condition => Ignore);
-
 with Ada.Unchecked_Deallocation;
 
 with AMV.Kernels.Filter_Inputs;
@@ -553,8 +546,8 @@ package body AMV.Kernels.Shape_Match with SPARK_Mode is
 
    procedure Clear_Model (Pattern : Ks_Shape_Match_Pattern)
    with Pre  => Pattern /= null,
-        Post => not Pattern.Trained
-                and then Pattern.Params = Pattern.Params'Old;
+        Post => Pattern.Params = Pattern.Params'Old
+                and then not Pattern.Trained;
    --  Untrains the pattern and empties every level.
 
    procedure Clear_Model (Pattern : Ks_Shape_Match_Pattern) is

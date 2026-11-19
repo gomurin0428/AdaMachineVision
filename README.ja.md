@@ -133,7 +133,9 @@ make pictures    # docs/images の結果画像を作り直す
 ```
 src/             ライブラリ:AMV.*(Ada の API)と AMV.Kernels.*(SPARK のカーネル)
 include/amv.h    C API
-tests/           Ada のテスト(test_suite が全部を実行)と tests/c(C API)
+tests/           Ada のテスト(test_suite が全部を全契約の検査つきで、
+                 test_suite_library がライブラリと同じ方針で実行)と
+                 tests/c(C API)
 examples/        サンプルプログラム。examples/real_images は写真を使うもの
 tools/           開発用のツール(API の薄さの検査)
 docs/            DESIGN.md(拘束力のある規則)、PROOF.md、

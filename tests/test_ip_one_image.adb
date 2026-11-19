@@ -34,6 +34,7 @@ with AMV.Shapes;             use AMV.Shapes;
 with AMV.Shapes.Region_Holders;
 with AMV.Tools;              use AMV.Tools;
 with AMV.Transforms;
+with AMV_Test_Build;
 with AMV_Test_Support;       use AMV_Test_Support;
 
 procedure Test_IP_One_Image is
@@ -1945,16 +1946,22 @@ procedure Test_IP_One_Image is
                           & " supported (use Reflected)",
              "BoundaryMode Clipped (" & Tool.Run_Status.Message & ")");
       IO.Clear (Tool.Operators);
-      Op := IO.New_Operator (IO.Unsharp_Mask);
-      Op.Unsharp_Mask.Amount := Zero / Zero;
-      IO.Add (Tool.Operators, Op);
-      Tool.Run;
-      Check (Tool.Run_Status.Result = Error
-             and then Tool.Run_Status.Message
-                        = "Operators(0).Amount must be finite, >= 0 and"
-                          & " <= 1000",
-             "a NaN Amount (" & Tool.Run_Status.Message & ")");
-      IO.Clear (Tool.Operators);
+      if not AMV_Test_Build.Contracts_Checked then
+         --  The postcondition of Add compares the operator stored with
+         --  the one given, and a NaN is not equal to itself: the proofs
+         --  assume finite values (docs/PROOF.md, Assumptions and limits),
+         --  and the run rejects this one.
+         Op := IO.New_Operator (IO.Unsharp_Mask);
+         Op.Unsharp_Mask.Amount := Zero / Zero;
+         IO.Add (Tool.Operators, Op);
+         Tool.Run;
+         Check (Tool.Run_Status.Result = Error
+                and then Tool.Run_Status.Message
+                           = "Operators(0).Amount must be finite, >= 0 and"
+                             & " <= 1000",
+                "a NaN Amount (" & Tool.Run_Status.Message & ")");
+         IO.Clear (Tool.Operators);
+      end if;
       Tool.Region := Rectangle (0.0, 0.0, 3.0, 3.0);
       declare
          R : Ks_Rectangle;
@@ -2099,6 +2106,15 @@ procedure Test_IP_One_Image is
       Op      : KO.Ks_IP_One_Image_Operator;
       Status  : K.Ks_Status;
       NaN     : constant Real := Zero / Zero;
+      Rejected : constant Real :=
+        (if AMV_Test_Build.Contracts_Checked then 1.0E7 else NaN);
+      Rejected_Name : constant String :=
+        (if AMV_Test_Build.Contracts_Checked then "1.0E7" else "a NaN");
+      --  A value that the checks of an operator reject: a NaN, or, where
+      --  the tests check every contract, 1.0E7, beyond the bound 1.0E6.
+      --  The postconditions of the list compare the operators, and a NaN
+      --  is not equal to itself: the proofs assume finite values
+      --  (docs/PROOF.md, Assumptions and limits).
       Identity : constant KT.Ks_Transform_2D_Linear := (others => <>);
 
       procedure Expect_Fault (What, Message : String) is
@@ -2211,8 +2227,8 @@ procedure Test_IP_One_Image is
       Expect_Fault ("shift -8",
                     "Operators(0).MagnitudeShift must be in -7 .. 7");
       KO.Operator_Default (KO.Kind_Multiply_Constant, Op, Status);
-      Op.Multiply_Constant.Constant_Value := NaN;
-      Expect_Fault ("a NaN constant",
+      Op.Multiply_Constant.Constant_Value := Rejected;
+      Expect_Fault ("the constant " & Rejected_Name,
                     "Operators(0).ConstantValue must be finite, >= 0 and <="
                     & " 1.0E6");
       Op.Multiply_Constant.Constant_Value := -0.5;
@@ -2225,15 +2241,17 @@ procedure Test_IP_One_Image is
                     "Operators(0).OverflowMode must be Bounded (0) or Wrap"
                     & " (1)");
       KO.Operator_Default (KO.Kind_Convolve_NxM, Op, Status);
-      Op.Convolve_NxM.Kernel (5 * 15 + 5) := NaN;
+      Op.Convolve_NxM.Kernel (5 * 15 + 5) := Rejected;
       KO.Operators_Default (Ops);
       KO.Operators_Add (Ops, Op, Status);
       KO.Check_Operators (Ops, Status);
       Check (K.Succeeded (Status),
-             "a NaN in a cell outside the kernel's size is not used");
+             Rejected_Name
+             & " in a cell outside the kernel's size is not used");
       Op.Convolve_NxM.Kernel_Width := 7;
       Op.Convolve_NxM.Kernel_Height := 7;
-      Expect_Fault ("a NaN kernel value in cell (5, 5) of a 7 x 7 kernel",
+      Expect_Fault (Rejected_Name
+                    & " as the value of cell (5, 5) of a 7 x 7 kernel",
                     "Operators(0).kernel values must be finite and within"
                     & " +/-1.0E6");
       Op.Convolve_NxM.Kernel_Width := 17;
