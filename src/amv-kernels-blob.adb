@@ -1800,14 +1800,28 @@ package body AMV.Kernels.Blob with SPARK_Mode is
                   and then Image.Height = Height);
                pragma Loop_Invariant
                  (for all YY in Image.Pixels'Range (1) =>
+                    (YY in M'Range (1)
+                     or else
+                       (for all XX in Image.Pixels'Range (2) =>
+                          Image.Pixels (YY, XX) = 0)));
+               pragma Loop_Invariant
+                 (for all YY in M'Range (1) =>
                     (for all XX in Image.Pixels'Range (2) =>
-                       Image.Pixels (YY, XX)
-                         = (if YY in M'Range (1) and then XX in M'Range (2)
-                              and then (YY < Y
-                                        or else (YY = Y and then XX <= X))
-                            then Stretched (Level_At (M, XX, YY), Full,
-                                            Stretch)
-                            else 0)));
+                       (XX in M'Range (2)
+                        or else Image.Pixels (YY, XX) = 0)));
+               pragma Loop_Invariant
+                 (for all YY in M'Range (1) =>
+                    (YY >= Y
+                     or else
+                       (for all XX in M'Range (2) =>
+                          Image.Pixels (YY, XX)
+                            = Stretched
+                                (Int32 (M (YY, XX)), Full, Stretch))));
+               pragma Loop_Invariant
+                 (for all XX in M'Range (2) =>
+                    (XX > X
+                     or else Image.Pixels (Y, XX)
+                       = Stretched (Int32 (M (Y, XX)), Full, Stretch)));
             end loop;
             pragma Loop_Invariant
               (KI.Valid_Image (Image)
@@ -1815,13 +1829,23 @@ package body AMV.Kernels.Blob with SPARK_Mode is
                and then Image.Height = Height);
             pragma Loop_Invariant
               (for all YY in Image.Pixels'Range (1) =>
+                 (YY in M'Range (1)
+                  or else
+                    (for all XX in Image.Pixels'Range (2) =>
+                       Image.Pixels (YY, XX) = 0)));
+            pragma Loop_Invariant
+              (for all YY in M'Range (1) =>
                  (for all XX in Image.Pixels'Range (2) =>
-                    Image.Pixels (YY, XX)
-                      = (if YY in M'First (1) .. Y
-                           and then XX in M'Range (2)
-                         then Stretched (Level_At (M, XX, YY), Full,
-                                         Stretch)
-                         else 0)));
+                    (XX in M'Range (2)
+                     or else Image.Pixels (YY, XX) = 0)));
+            pragma Loop_Invariant
+              (for all YY in M'Range (1) =>
+                 (YY > Y
+                  or else
+                    (for all XX in M'Range (2) =>
+                       Image.Pixels (YY, XX)
+                         = Stretched
+                             (Int32 (M (YY, XX)), Full, Stretch))));
          end loop;
       end if;
    end Make_Segmented;
