@@ -47,6 +47,15 @@ the tests now checks postconditions, predicates and ghost code too
 (`tests/contracts.adc`), but not loop invariants and assertions, which
 are steps of the proofs.
 
+Until each proof of a mutant started without the why3 sessions of the
+proofs before it (`tools/mutant_prove.sh`), a session could answer a goal
+with an old failure, and a mutant could be counted as detected by the
+proof wrongly: of the mutants of `IP_Two_Image`, `Pixel_Map` and
+`Image_Convert` that a run here counted so, 76 passed the tests and the
+proof once the sessions were cleared. The lists of the QR Code bodies
+come from runs before that, and may lack such survivors; they are to be
+run again.
+
 The lists below are those of the last run on each body: the whole body
 where it is new, the changed lines where it is not. Mutants that do not
 compile, and those whose object code is that of the source (Ignored),
@@ -239,3 +248,50 @@ The changed lines: the postcondition of `Visit`, now of the level
 
 The changed lines are four `pragma Warnings (Off, ...)` in place of a
 `pragma Unreferenced`: no mutant.
+
+## `AMV.Kernels.IP_Two_Image`
+
+The whole body (Platinum phase 4; workflow Mutation run 44641866623,
+after the why3 sessions were cleared before each proof).
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| `Combined_At` | `Same_Size (Image_A, Image_B) and then Valid_Mode (Op, Mode) and then Y <= Image_A.Pixels'Last (1) and then X <= Image_A.Pixels'Last (2)` (precondition) | a conjunct taken out; an `and then` to `or else` | Changes nothing at run time: every caller meets the whole. Proof not finished; the proof of `Combined_At` alone fails for each (the indices of the images, lines 78 to 81). |
+| `Check_Inputs` | `(if Succeeded (Status) then Same_Size (Image_A, Image_B) and then KI.Usable_Image (Image_A))` (postcondition) | taken out; the condition to `False`; a conjunct taken out; `and then` to `or else` | Changes nothing: the conjunct before it, `Status.Failure = Input_Failure (Image_A, Image_B)`, implies it (the proof passes without it). |
+| `Run` | `Same_Size (Image_A, Image_B) and then KI.Usable_Image (Image_A) and then Valid_Mode (Op, Mode)` (precondition) | `KI.Usable_Image (Image_A)` taken out; an `and then` to `or else` | Taken out: changes nothing, `Run` needs only valid images of one size (the proof passes). `or else`: proof not finished; the proof of `Run` alone fails. |
+| `Run` | `KI.Create (Image_A.Width, Image_A.Height, 0, Output, Status);` | `0` to `1` | Changes nothing: every pixel of the output is set below. |
+| `Run` | `if not Succeeded (Status) then` after `KI.Create`, and its `return;` | the condition to `False`; `return` taken out | Not reached: only an allocation that fails reaches it, and no test runs out of memory. Proof not finished; the proof of `Run` alone fails for both. |
+| `Run` | `"IPTwoImage: not enough memory for the output image"` | to `""` | Not reached; the text of a message is not specified (`docs/PLATINUM.md`). |
+| `Run` | the loop invariants `KI.Valid_Image (Output) and then Output.Width = ... and then Output.Height = ...` (both loops) and `for all J in 0 .. Y - 1 => ...` (the inner loop) | taken out; a conjunct taken out | Changes nothing: an invariant is not run, and the proof passes without them; the loops assign only pixels of the output, and GNATprove keeps what a loop does not assign. |
+| `Run` | `Set_Success (Status);` | taken out | Changes nothing: `KI.Create` has set the status to success. |
+| `Subtract_Execute` | `"RunParams.OverflowMode must be Bounded (0), Wrap (1), " & "Shift (2) or Absolute (3)"` | either part to `""` | Not reached by the tests: none gives Subtract an OverflowMode out of range (its status, Bad_Parameter, is the postcondition's); the text of a message is not specified. |
+
+## `AMV.Kernels.Pixel_Map`
+
+The whole body (Platinum phase 4; the same run).
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| `Execute` | `KI.Create (Image.Width, Image.Height, 0, Output, Status);` | `0` to `1` | Changes nothing: every pixel of the output is set below. |
+| `Execute` | `if not Succeeded (Status) then` after `KI.Create`, and its `return;` | the condition to `False`; `return` taken out | Not reached: only an allocation that fails reaches it. Proof not finished; no narrower proof made yet. |
+| `Execute` | `"PixelMap: not enough memory for the output image"` | to `""` | Not reached; the text of a message is not specified. |
+| `Execute` | the loop invariants `KI.Valid_Image (Output) and then Output.Width = ... and then Output.Height = ...` (both loops) and `for all J in 0 .. Y - 1 => ...` (the inner loop) | taken out; a conjunct taken out | Changes nothing: an invariant is not run, and the proof passes without them (as in `IP_Two_Image.Run`). |
+| `Execute` | `Set_Success (Status);` | taken out | Changes nothing: `KI.Create` has set the status to success. |
+
+## `AMV.Kernels.Image_Convert`
+
+The whole body (Platinum phase 4; the same run).
+
+| Subprogram | Code | Change | Why it survives |
+|---|---|---|---|
+| `Check_Input` | the postcondition's case on `Kind`: `Grey_8 /= null and then SM.Usable_Image (Grey_8)`, `Grey_8 = null and then Grey_16 /= null and then ...`, `Grey_8 = null and then Grey_16 = null and then ...` | a conjunct taken out; a relation to `True`; an `and then` to `or else` | Changes nothing: with the kind, the first conjunct, `Status.Failure = Input_Failure (...)`, implies them (the proof passes without them). |
+| `Mode_Name` | `Mode_Name'Result'First = 1 and then Mode_Name'Result'Length <= 24` (postcondition) | the second taken out; `24` to `25` | Changes nothing: the callers put the name in a message, which has room for it either way (the proof passes). |
+| `Check_Params` | `Fault := 2;` to `Fault := 10;` | each one higher | Not reached by the tests: none gives a parameter out of range after the first ones. `Fault` chooses only the text of the message; the status, Bad_Parameter, is the postcondition's (`Valid_Params`). |
+| `Check_Params` | `when 10 =>` | `10` to `11` | Changes nothing but the text of a message, which is not specified. |
+| `Check_Input`, `Check_Params`, `Convert_16`, `Convert_Colour`, `Execute` | the messages (an image that is not valid, the parameters out of range, not enough memory) | to `""` | Not reached by the tests, or only the text of a message, which is not specified. |
+| `Convert_16`, `Convert_Colour` | `KI.Create (..., 0, Output, Status);` | `0` to `1` | Changes nothing: every pixel of the output is set below. |
+| `Convert_16`, `Convert_Colour` | `if not Succeeded (Status) then` after `KI.Create`, and its `return;` | the condition to `False`; `return` taken out | Not reached: only an allocation that fails reaches it. Proof not finished; no narrower proof made yet. |
+| `Convert_16`, `Convert_Colour` | the loop invariants `KI.Valid_Image (Output) and then Output.Width = ... and then Output.Height = ...` (both loops) and `for all J in 0 .. Y - 1 => ...` (the inner loop) | taken out; a conjunct taken out | Changes nothing: an invariant is not run, and the proof passes without them (as in `IP_Two_Image.Run`). |
+| `Convert_16`, `Convert_Colour` | `Set_Success (Status);` | taken out | Changes nothing: `KI.Create` has set the status to success. |
+| `Convert_Colour` | `Same_Planes (Red, Green, Blue) and then SM.Usable_Image (Red) and then Valid_Params (Params)` (precondition) | `SM.Usable_Image (Red)` taken out | Changes nothing: the body needs only planes of one size (the proof passes). |
+| `Convert_Colour` | the same | `Same_Planes (...)` or `Valid_Params (Params)` taken out; an `and then` to `or else` | Changes nothing at run time: the caller meets the whole. Proof not finished; no narrower proof made yet. |
