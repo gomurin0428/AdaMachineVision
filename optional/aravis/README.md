@@ -3,24 +3,75 @@
 `AMV.GigE_Vision` is an optional, non-SPARK Ada adapter for GigE Vision
 cameras. Its implementation and C shim live outside `src/`; it does not
 change the default `amv.gpr` build, the SPARK kernels, or `include/amv.h`.
-The adapter currently targets Linux; Aravis 0.8.20 is the minimum
-tested/supported version. Its first implementation accepts packed Mono8
-payloads only and rejects other pixel formats instead of converting them.
+The adapter targets Linux and Windows. Aravis 0.8.20 is the minimum tested
+Linux version; Windows CI pins Aravis 0.8.33. Its first implementation accepts
+packed Mono8 payloads only and rejects other pixel formats instead of
+converting them.
 Exposure and gain controls are not included.
 
 ## Dependency and build
 
-Install GNAT/gprbuild as for AMV, plus the Aravis 0.8.20-or-newer
-development package, `libusb-1.0-0-dev`, and `pkg-config` (for example,
-`libaravis-dev` on Debian or Ubuntu). Aravis is an independent backend dependency, licensed
-LGPL-2.1-or-later; its licence does not change AMV's licensing. The default
-core build and tests do not require Aravis.
+On Linux, install GNAT/gprbuild as for AMV, plus Aravis 0.8.20-or-newer
+development files, `libusb-1.0-0-dev`, and `pkg-config` (for example,
+`libaravis-dev` on Debian or Ubuntu). Aravis is an independent backend
+dependency, licensed LGPL-2.1-or-later; its licence does not change AMV's
+licensing. The default core build and tests do not require Aravis.
 
 ```sh
 make build-aravis
 make test-aravis
 make example-aravis CAMERA_ID=192.168.1.20 IMAGE=capture.pgm
 ```
+
+### Windows (MSYS2 MINGW64)
+
+Use MINGW64 for the GNAT FSF Windows ABI. Windows CI uses GNAT 16.1.0,
+gprbuild 26.0.1, and builds the pinned Aravis 0.8.33 release with only the
+GigE/core dependencies enabled. The release tag resolves to commit
+`99081fbda9e820a171d2aaccea0bc95ba5f8c37b`; the source archive is verified
+against SHA-256
+`3c4409a12ea70bba4de25e5b08c777112de854bc801896594f2cb6f8c2bd6fbc`.
+
+Install Alire 2.1.1 for Windows and, in an MSYS2 MINGW64 shell, install:
+
+```sh
+pacman -S --needed make unzip mingw-w64-x86_64-toolchain \
+  mingw-w64-x86_64-gcc mingw-w64-x86_64-meson mingw-w64-x86_64-ninja \
+  mingw-w64-x86_64-pkgconf mingw-w64-x86_64-glib2 \
+  mingw-w64-x86_64-libxml2 mingw-w64-x86_64-zlib
+alr -n toolchain --select gnat_native=16.1.0 gprbuild=26.0.1
+```
+
+Run Meson and Ninja through Alire as shown so Aravis uses the selected GNAT
+MINGW64 C compiler; its dependencies come from the same MINGW64 runtime.
+
+Build and install Aravis from its pinned release archive:
+
+```sh
+mkdir -p build/deps
+cd build/deps
+curl -fsSL -o aravis-0.8.33.tar.xz \
+  https://github.com/AravisProject/aravis/releases/download/0.8.33/aravis-0.8.33.tar.xz
+printf '%s  %s\n' \
+  3c4409a12ea70bba4de25e5b08c777112de854bc801896594f2cb6f8c2bd6fbc \
+  aravis-0.8.33.tar.xz | sha256sum -c -
+tar -xf aravis-0.8.33.tar.xz
+cd aravis-0.8.33
+MSYS2_ARG_CONV_EXCL='--prefix=' alr -n exec -- meson setup build \
+  --prefix="$MINGW_PREFIX" --buildtype=plain \
+  -Ddocumentation=disabled -Dgst-plugin=disabled \
+  -Dintrospection=disabled -Dusb=disabled -Dpacket-socket=disabled \
+  -Dviewer=disabled -Dtests=false
+alr -n exec -- ninja -C build install
+cd ../../..
+export PATH="$MINGW_PREFIX/bin:$PATH"
+alr -n exec -- make test-aravis
+```
+
+The test target links with `pkg-config --cflags/--libs aravis-0.8`; the
+MINGW64 `bin` directory must remain on `PATH` so the Aravis and GLib DLLs load.
+The Windows test runner executes `test_gige_vision.exe` directly and does not
+use Linux namespace tools.
 
 `optional/aravis/amv_gige_vision.gpr` is the reusable static library
 project. A consumer GPR imports it, for example:
@@ -91,12 +142,14 @@ recovery.
 
 ## Tests and verification scope
 
-`make test-aravis` builds the optional project and runs the in-process fake
-camera explicitly on `127.0.0.1` in a fresh network namespace, bringing up
-loopback only. It first tries an unprivileged user/network namespace and
-falls back to `sudo -n unshare --net` when necessary; if neither can create
-a namespace, it refuses to run rather than testing outside one. It tests
-invalid inputs, lifecycle behavior, timeout handling, Mono8 copy lifetime,
-unsupported pixel formats, and padded/truncated row fixtures. It does not
-scan for or connect to hardware cameras. No physical camera hardware
+`make test-aravis` builds the optional project and uses an in-process fake
+camera explicitly bound to `127.0.0.1`; the Ada client opens that literal
+address and the test shim rejects every other selector before route or device
+calls. Linux runs in a fresh network namespace, trying an unprivileged
+namespace and then `sudo -n unshare --net`; it refuses to run if neither is
+available. Windows runs the `.exe` directly, with both endpoints restricted
+to loopback. The test reports the native OS and successful Mono8 frame
+dimensions, and covers lifecycle behavior, timeout handling, distinct frames,
+copy lifetime, unsupported formats, and padded/truncated row fixtures. It
+does not scan for or connect to hardware cameras. No physical camera hardware
 verification is claimed.

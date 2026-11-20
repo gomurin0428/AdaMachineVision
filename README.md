@@ -10,8 +10,10 @@ results and a run status in it.
 
 The logic is written in SPARK and proved free of run-time errors, and
 the same kernels are the C API. The core uses no other library. The
-optional Linux GigE Vision adapter is outside the SPARK kernels and C API;
-it uses Aravis 0.8 (see [`optional/aravis/README.md`](optional/aravis/README.md)).
+optional Linux and Windows GigE Vision adapter is outside the SPARK kernels
+and C API; it uses Aravis 0.8 (see
+[`optional/aravis/README.md`](optional/aravis/README.md) for platform-specific
+dependencies and setup).
 
 ## What it finds
 
@@ -128,7 +130,8 @@ are available as `ks_transform_2d_linear_*` functions (`include/amv.h`).
 Requirements: GNAT 16.1 and gprbuild 26 (for example the GNAT FSF builds or
 Alire), and gnatprove 16.1 for the proofs. GNAT 14 builds and tests the
 Ada code too. The core has no other dependencies. The optional GigE Vision
-adapter requires Aravis 0.8 development files and pkg-config.
+adapter requires Aravis 0.8 and pkg-config; platform-specific dependencies
+and setup are documented in `optional/aravis/README.md`.
 
 ```
 make build       # the library: build/lib/libamv.a

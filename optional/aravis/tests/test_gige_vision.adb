@@ -43,6 +43,10 @@ procedure Test_GigE_Vision is
      with Import, Convention => C,
        External_Name => "amv_aravis_test_stop_attempts";
 
+   function C_Test_Selector_Policy return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "amv_aravis_test_selector_policy";
+
    Camera : AMV.GigE_Vision.Ks_GigE_Camera;
    Frame : AMV.Images.Ks_Image_8_Grey;
    Next_Frame : AMV.Images.Ks_Image_8_Grey;
@@ -116,6 +120,8 @@ begin
          Raised := True;
    end;
    Check (Raised, "empty device selector is rejected");
+   Check (C_Test_Selector_Policy = 0,
+          "test adapter accepts only the literal loopback selector");
 
    Check (C_Fake_Start = 0, "loopback fake camera starts");
    begin
@@ -163,6 +169,13 @@ begin
 
       Check (C_Fake_Set_Packet_Loss (0) = 0, "restore fake packet delivery");
       Frame := Grab_Complete;
+      Check (AMV.Images.Width (Frame) > 0
+             and AMV.Images.Height (Frame) > 0,
+             "captured Mono8 frame dimensions are positive");
+      Check (AMV.Images.Width (Frame) = 64
+             and AMV.Images.Height (Frame) = 48,
+             "captured Mono8 frame dimensions are 64x48");
+      Ada.Text_IO.Put_Line ("PASS: loopback Mono8 frame dimensions 64x48");
       Saved_Pixel := Frame.Get_Pixel (0, 0);
       for Index in 1 .. 5 loop
          Next_Frame := Grab_Complete;

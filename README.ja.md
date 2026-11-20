@@ -10,7 +10,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 
 ツール(たとえば `Ks_Blob_Tool`)は、入力画像と実行パラメータを持ちます。`Run` を呼ぶと、結果と実行状態がツールに残ります。
 
-ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。
+ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux/Windows 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。
 
 ## 検出例
 
@@ -112,6 +112,7 @@ end Quick_Look;
 - 証明には gnatprove 16.1
 - GNAT 14 でも Ada のビルドとテストは通ります。
 - コアにほかの依存はありません。任意の GigE Vision アダプタには Aravis 0.8 の開発ファイルと pkg-config が必要です。
+- Windows では MSYS2 MINGW64 を使います。Aravis、GNAT、gprbuild の依存関係とテスト手順は [`optional/aravis/README.md`](optional/aravis/README.md) を参照してください。
 
 ```
 make build       # ライブラリ:build/lib/libamv.a

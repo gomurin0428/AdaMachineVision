@@ -36,6 +36,7 @@ int amv_aravis_copy_mono8(const void *source, size_t source_size,
 void amv_aravis_test_reset_stop_attempts(void);
 void amv_aravis_test_fail_next_stop(void);
 unsigned int amv_aravis_test_stop_attempts(void);
+int amv_aravis_test_selector_policy(void);
 #endif
 
 #endif

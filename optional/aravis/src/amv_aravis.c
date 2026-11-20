@@ -21,6 +21,22 @@ typedef struct {
 static unsigned int test_stop_attempts;
 static unsigned int test_stop_failures_remaining;
 
+static gboolean
+test_selector_allowed(const char *device_id)
+{
+	return device_id != NULL && strcmp(device_id, "127.0.0.1") == 0;
+}
+
+int
+amv_aravis_test_selector_policy(void)
+{
+	return test_selector_allowed("127.0.0.1") &&
+		!test_selector_allowed("127.0.0.2") &&
+		!test_selector_allowed("192.0.2.1") &&
+		!test_selector_allowed("AMVFAKE") &&
+		!test_selector_allowed("127.0.0.1 ") ? 0 : 1;
+}
+
 void
 amv_aravis_test_reset_stop_attempts(void)
 {
@@ -137,6 +153,14 @@ amv_aravis_open(const char *device_id, void **camera_out,
 		set_error(error, error_size, "Device ID must not be empty");
 		return AMV_ARAVIS_BAD_PARAMETER;
 	}
+
+#ifdef AMV_ARAVIS_TESTING
+	if (!test_selector_allowed(device_id)) {
+		set_error(error, error_size,
+			  "Test adapter only permits the literal address 127.0.0.1");
+		return AMV_ARAVIS_BAD_PARAMETER;
+	}
+#endif
 
 	device_address = g_inet_address_new_from_string(device_id);
 	if (device_address != NULL) {

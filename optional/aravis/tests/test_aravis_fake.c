@@ -34,6 +34,14 @@ amv_test_fake_start(void)
 	if (fake_camera != NULL)
 		return 0;
 
+#if defined(_WIN32)
+	printf("Native OS: Windows_NT\n");
+#elif defined(__linux__)
+	printf("Native OS: Linux\n");
+#else
+	printf("Native OS: unknown\n");
+#endif
+
 	next_pixel_value = 1;
 	fake_camera = arv_gv_fake_camera_new("127.0.0.1", "AMVFAKE");
 	if (fake_camera == NULL || !arv_gv_fake_camera_is_running(fake_camera)) {

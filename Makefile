@@ -73,11 +73,14 @@ build-aravis:
 	$(GPRBUILD) -p -P optional/aravis/examples/capture_one_image.gpr \
 	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
 
-# The fake camera and client run in a fresh network namespace with loopback
-# only; the tests use the explicit address 127.0.0.1 and never scan devices.
+# Both endpoints use the explicit loopback address 127.0.0.1 and never scan
+# devices. Linux runs them in a fresh network namespace; Windows runs locally.
 test-aravis: build-aravis
 	$(GPRBUILD) -p -P optional/aravis/tests/amv_gige_vision_tests.gpr \
 	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
+ifeq ($(OS),Windows_NT)
+	@PATH="$(MINGW_PREFIX)/bin:$$PATH" ./build/bin/test_gige_vision.exe
+else
 	@set -eu; \
 	test_cmd='ip link set lo up && "$(CURDIR)/build/bin/test_gige_vision"'; \
 	if unshare --user --map-root-user --net /bin/sh -c ':' 2>/dev/null; then \
@@ -88,6 +91,7 @@ test-aravis: build-aravis
 	  echo "Cannot create an isolated network namespace; refusing to run the fake camera outside one" >&2; \
 	  exit 1; \
 	fi
+endif
 
 example-aravis: build-aravis
 	@test -n "$(CAMERA_ID)" || { \

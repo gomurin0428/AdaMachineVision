@@ -104,6 +104,98 @@ jobs:
       - name: Test the optional adapter with its loopback fake camera
         run: make test-aravis
 
+  aravis-loopback-windows:
+    name: optional Aravis loopback tests (Windows)
+    runs-on: windows-2022
+    env:
+      OS: Windows_NT
+      ARAVIS_VERSION: "0.8.33"
+      ARAVIS_TAG_COMMIT: "99081fbda9e820a171d2aaccea0bc95ba5f8c37b"
+      ARAVIS_TARBALL_SHA256: "3c4409a12ea70bba4de25e5b08c777112de854bc801896594f2cb6f8c2bd6fbc"
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSYS2 MINGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          release: true
+          path-type: minimal
+          update: false
+          install: >-
+            make
+            unzip
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-zlib
+
+      - name: Install Alire and the pinned GNAT toolchain
+        run: |
+          set -euo pipefail
+          alr="$HOME/.local/bin/alr.exe"
+          if [ ! -x "$alr" ]; then
+            tmp=$(mktemp -d)
+            trap 'rm -rf "$tmp"' EXIT
+            curl -fsSL --retry 3 -o "$tmp/alr.zip" \
+              https://github.com/alire-project/alire/releases/download/v2.1.1/alr-2.1.1-bin-x86_64-windows.zip
+            printf '%s  %s\n' \
+              863013b1f94da6f3b7d0d5a74022ac3370424eeea9a470ebdb33d188d61b9125 \
+              "$tmp/alr.zip" | sha256sum -c -
+            mkdir -p "$(dirname "$alr")"
+            unzip -j "$tmp/alr.zip" bin/alr.exe -d "$(dirname "$alr")"
+          fi
+          "$alr" -n toolchain --select gnat_native=16.1.0 gprbuild=26.0.1
+
+      - name: Check MINGW64 compiler target
+        run: |
+          set -euo pipefail
+          mingw_target=$(gcc -dumpmachine)
+          gnat_target=$("$HOME/.local/bin/alr.exe" -n exec -- gcc -dumpmachine)
+          printf 'MSYS2 GCC target: %s\nGNAT GCC target: %s\n' \
+            "$mingw_target" "$gnat_target"
+          test "$mingw_target" = "$gnat_target"
+
+      - name: Build pinned Aravis 0.8.33 for MINGW64
+        run: |
+          set -euo pipefail
+          printf 'Aravis %s, release commit %s\n' \
+            "$ARAVIS_VERSION" "$ARAVIS_TAG_COMMIT"
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+          archive="$tmp/aravis-${ARAVIS_VERSION}.tar.xz"
+          curl -fsSL --retry 3 -o "$archive" \
+            "https://github.com/AravisProject/aravis/releases/download/${ARAVIS_VERSION}/aravis-${ARAVIS_VERSION}.tar.xz"
+          printf '%s  %s\n' "$ARAVIS_TARBALL_SHA256" "$archive" | sha256sum -c -
+          tar -xf "$archive" -C "$tmp"
+          build_dir="$tmp/build"
+          MSYS2_ARG_CONV_EXCL='--prefix=' \
+            "$HOME/.local/bin/alr.exe" -n exec -- meson setup \
+            "$build_dir" "$tmp/aravis-${ARAVIS_VERSION}" \
+            --prefix="$MINGW_PREFIX" --buildtype=plain \
+            -Ddocumentation=disabled -Dgst-plugin=disabled \
+            -Dintrospection=disabled -Dusb=disabled \
+            -Dpacket-socket=disabled -Dviewer=disabled -Dtests=false
+          "$HOME/.local/bin/alr.exe" -n exec -- ninja -C "$build_dir" install
+          test "$(pkg-config --modversion aravis-0.8)" = "$ARAVIS_VERSION"
+
+      - name: Test the optional adapter with the loopback fake camera
+        run: |
+          set -euo pipefail
+          export PATH="$MINGW_PREFIX/bin:$PATH"
+          "$HOME/.local/bin/alr.exe" -n exec -- gnat --version
+          "$HOME/.local/bin/alr.exe" -n exec -- gprbuild --version
+          "$HOME/.local/bin/alr.exe" -n exec -- gcc --version
+          pkg-config --modversion aravis-0.8
+          "$HOME/.local/bin/alr.exe" -n exec -- make test-aravis
+
   prove:
     name: prove (${{ matrix.group }})
     runs-on: ubuntu-24.04
