@@ -391,8 +391,7 @@ amv_aravis_grab(void *opaque_camera, uint64_t timeout_ms,
 	*buffer_status_out = arv_buffer_get_status(buffer);
 	payload_type = arv_buffer_get_payload_type(buffer);
 	*payload_type_out = (uint32_t) payload_type;
-	if (payload_type == ARV_BUFFER_PAYLOAD_TYPE_IMAGE ||
-	    payload_type == ARV_BUFFER_PAYLOAD_TYPE_IMAGE_EXTENDED_CHUNK) {
+	if (payload_type == ARV_BUFFER_PAYLOAD_TYPE_IMAGE) {
 		*pixel_format_out =
 			(uint32_t) arv_buffer_get_image_pixel_format(buffer);
 		*width_out = arv_buffer_get_image_width(buffer);
