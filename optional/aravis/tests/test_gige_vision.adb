@@ -3,14 +3,12 @@ with AMV;
 with AMV.GigE_Vision;
 with AMV.Images;
 with Interfaces.C;
+with Test_GigE_Vision_Fixtures;
 
 procedure Test_GigE_Vision is
    use type Interfaces.C.int;
    use type Interfaces.C.unsigned;
    use type AMV.Images.Grey_8;
-
-   function C_Test_Copy_Rows return Interfaces.C.int
-     with Import, Convention => C, External_Name => "amv_test_copy_rows";
 
    function C_Fake_Start return Interfaces.C.int
      with Import, Convention => C, External_Name => "amv_test_fake_start";
@@ -98,7 +96,9 @@ procedure Test_GigE_Vision is
    end Grab_Complete;
 
 begin
-   Check (C_Test_Copy_Rows = 0, "C Mono8 padding and size fixtures");
+   Test_GigE_Vision_Fixtures.Run;
+   Ada.Text_IO.Put_Line
+     ("PASS: GigE Vision spec and production-kernel fixtures");
    Check (not Camera.Is_Open, "default camera is closed");
    Check_Bad_Parameter ("Start on a closed camera is rejected");
    Raised := False;
@@ -235,7 +235,6 @@ begin
    end;
 
    C_Fake_Stop;
-   Ada.Text_IO.Put_Line ("PASS: C row-copy fixtures");
    Ada.Text_IO.Put_Line ("PASS: loopback camera lifecycle, timeout, and copy lifetime");
    Ada.Text_IO.Put_Line ("PASS: unsupported pixel format and invalid input");
 end Test_GigE_Vision;

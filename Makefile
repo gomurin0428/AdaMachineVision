@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	build-aravis test-aravis example-aravis prove mutation mutation-diff clean
+	build-aravis test-aravis example-aravis prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -175,6 +175,13 @@ prove:
 	$(GNATPROVE) -P amv.gpr -j$(PROVE_JOBS) --checks-as-errors=on \
 	  --warnings=error --report=fail $(PROVE_CACHE_SWITCH) \
 	  $(foreach u,$(PROVE_UNITS),-u $(u))
+
+# Proves only the optional GigE specification and its production engine.
+ARAVIS_PROVE_UNITS ?= amv-spec-gige_vision.ads amv-kernels-gige_vision.adb
+prove-aravis:
+	$(GNATPROVE) -P optional/aravis/amv_gige_vision_proof.gpr -j$(PROVE_JOBS) \
+	  --checks-as-errors=on --warnings=error --report=fail \
+	  $(foreach u,$(ARAVIS_PROVE_UNITS),-u $(u))
 
 # Mutation testing: every small change of a body (a mutant) is run with
 # the areas of test_suite that execute its place and, if they pass, the
