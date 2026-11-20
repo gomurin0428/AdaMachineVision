@@ -6,6 +6,7 @@ with Interfaces.C;
 
 procedure Test_GigE_Vision is
    use type Interfaces.C.int;
+   use type Interfaces.C.unsigned;
    use type AMV.Images.Grey_8;
 
    function C_Test_Copy_Rows return Interfaces.C.int
@@ -29,6 +30,18 @@ procedure Test_GigE_Vision is
 
    procedure C_Fake_Stop
      with Import, Convention => C, External_Name => "amv_test_fake_stop";
+
+   procedure C_Test_Reset_Stop_Attempts
+     with Import, Convention => C,
+       External_Name => "amv_aravis_test_reset_stop_attempts";
+
+   procedure C_Test_Fail_Next_Stop
+     with Import, Convention => C,
+       External_Name => "amv_aravis_test_fail_next_stop";
+
+   function C_Test_Stop_Attempts return Interfaces.C.unsigned
+     with Import, Convention => C,
+       External_Name => "amv_aravis_test_stop_attempts";
 
    Camera : AMV.GigE_Vision.Ks_GigE_Camera;
    Frame : AMV.Images.Ks_Image_8_Grey;
@@ -54,6 +67,18 @@ procedure Test_GigE_Vision is
       end;
       Check (Raised, Message);
    end Check_Bad_Parameter;
+
+   procedure Check_Stop_Failure (Message : String) is
+   begin
+      Raised := False;
+      begin
+         Camera.Stop;
+      exception
+         when AMV.Ks_Exception =>
+            Raised := True;
+      end;
+      Check (Raised, Message);
+   end Check_Stop_Failure;
 
    function Grab_Complete return AMV.Images.Ks_Image_8_Grey is
    begin
@@ -149,7 +174,29 @@ begin
       Check (not Camera.Is_Streaming, "Stop is idempotent");
       Camera.Start;
       Check (Camera.Is_Streaming, "camera can restart after Stop");
+
+      C_Test_Reset_Stop_Attempts;
+      C_Test_Fail_Next_Stop;
+      Check_Stop_Failure ("stop failure is reported");
+      Check (Camera.Is_Streaming,
+             "failed Stop preserves the streaming state");
+      Check (C_Test_Stop_Attempts = 1,
+             "first Stop attempted acquisition shutdown");
+      Camera.Stop;
+      Check (C_Test_Stop_Attempts = 2,
+             "Stop retries acquisition shutdown");
+      Check (not Camera.Is_Streaming,
+             "successful Stop retry clears the streaming state");
+
+      Camera.Start;
+      C_Test_Reset_Stop_Attempts;
+      C_Test_Fail_Next_Stop;
+      Check_Stop_Failure ("second stop failure is reported");
+      Check (Camera.Is_Streaming,
+             "failed Stop leaves resources available to Close");
       Camera.Close;
+      Check (C_Test_Stop_Attempts = 2,
+             "Close retries acquisition shutdown after Stop failure");
       Check (Frame.Get_Pixel (0, 0) = Saved_Pixel,
              "captured image owns pixels after buffer reuse and Close");
       Check (not Camera.Is_Open, "Close clears the camera state");

@@ -17,6 +17,30 @@ typedef struct {
 	gboolean streaming;
 } AmvAravisCamera;
 
+#ifdef AMV_ARAVIS_TESTING
+static unsigned int test_stop_attempts;
+static unsigned int test_stop_failures_remaining;
+
+void
+amv_aravis_test_reset_stop_attempts(void)
+{
+	test_stop_attempts = 0;
+	test_stop_failures_remaining = 0;
+}
+
+void
+amv_aravis_test_fail_next_stop(void)
+{
+	test_stop_failures_remaining = 1;
+}
+
+unsigned int
+amv_aravis_test_stop_attempts(void)
+{
+	return test_stop_attempts;
+}
+#endif
+
 static void
 set_error(char *buffer, size_t buffer_size, const char *format, ...)
 {
@@ -39,6 +63,21 @@ set_gerror(int status, GError **error, char *message, size_t message_size)
 	}
 
 	return status;
+}
+
+static void
+stop_acquisition(ArvCamera *camera, GError **error)
+{
+#ifdef AMV_ARAVIS_TESTING
+	test_stop_attempts++;
+	if (test_stop_failures_remaining > 0) {
+		test_stop_failures_remaining--;
+		g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_FAILED,
+				    "Injected acquisition stop failure");
+		return;
+	}
+#endif
+	arv_camera_stop_acquisition(camera, error);
 }
 
 static GInetAddress *
@@ -176,7 +215,7 @@ stop_and_release_stream(AmvAravisCamera *camera)
 	GError *error = NULL;
 
 	if (camera->streaming) {
-		arv_camera_stop_acquisition(camera->camera, &error);
+		stop_acquisition(camera->camera, &error);
 		g_clear_error(&error);
 		camera->streaming = FALSE;
 	}
@@ -239,7 +278,7 @@ amv_aravis_start(void *opaque_camera, char *error, size_t error_size)
 	arv_camera_start_acquisition(camera->camera, &gerror);
 	if (gerror != NULL) {
 		set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
-		arv_camera_stop_acquisition(camera->camera, &gerror);
+		stop_acquisition(camera->camera, &gerror);
 		g_clear_error(&gerror);
 		g_clear_object(&camera->stream);
 		return AMV_ARAVIS_ERROR;
@@ -258,11 +297,11 @@ amv_aravis_stop(void *opaque_camera, char *error, size_t error_size)
 	if (camera == NULL || !camera->streaming)
 		return AMV_ARAVIS_SUCCESS;
 
-	arv_camera_stop_acquisition(camera->camera, &gerror);
-	camera->streaming = FALSE;
-	g_clear_object(&camera->stream);
+	stop_acquisition(camera->camera, &gerror);
 	if (gerror != NULL)
 		return set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
+	camera->streaming = FALSE;
+	g_clear_object(&camera->stream);
 	return AMV_ARAVIS_SUCCESS;
 }
 

@@ -1,4 +1,4 @@
-with "../amv_gige_vision.gpr";
+with "amv_gige_vision_test_library.gpr";
 
 project AMV_GigE_Vision_Tests is
    for Source_Dirs use (".");

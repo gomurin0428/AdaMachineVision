@@ -32,4 +32,10 @@ int amv_aravis_copy_mono8(const void *source, size_t source_size,
 			  size_t *copied_size,
 			  char *error, size_t error_size);
 
+#ifdef AMV_ARAVIS_TESTING
+void amv_aravis_test_reset_stop_attempts(void);
+void amv_aravis_test_fail_next_stop(void);
+unsigned int amv_aravis_test_stop_attempts(void);
+#endif
+
 #endif
