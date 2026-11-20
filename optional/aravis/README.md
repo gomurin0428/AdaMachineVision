@@ -3,15 +3,16 @@
 `AMV.GigE_Vision` is an optional, non-SPARK Ada adapter for GigE Vision
 cameras. Its implementation and C shim live outside `src/`; it does not
 change the default `amv.gpr` build, the SPARK kernels, or `include/amv.h`.
-The adapter currently targets Linux and Aravis 0.8, and accepts Mono8 image
-payloads only. It rejects other pixel formats instead of converting them.
+The adapter currently targets Linux; Aravis 0.8.20 is the minimum
+tested/supported version. Its first implementation accepts packed Mono8
+payloads only and rejects other pixel formats instead of converting them.
 Exposure and gain controls are not included.
 
 ## Dependency and build
 
-Install GNAT/gprbuild as for AMV, plus the Aravis 0.8 development package,
-`libusb-1.0-0-dev`, and `pkg-config` (for example, `libaravis-dev` on Debian
-or Ubuntu). Aravis is an independent backend dependency, licensed
+Install GNAT/gprbuild as for AMV, plus the Aravis 0.8.20-or-newer
+development package, `libusb-1.0-0-dev`, and `pkg-config` (for example,
+`libaravis-dev` on Debian or Ubuntu). Aravis is an independent backend dependency, licensed
 LGPL-2.1-or-later; its licence does not change AMV's licensing. The default
 core build and tests do not require Aravis.
 
@@ -68,15 +69,16 @@ resources on finalization. A camera object is for single-threaded use; do
 not call its operations concurrently.
 
 The C shim checks the Aravis buffer status and image payload, requires
-Mono8, and validates positive dimensions. The Aravis 0.8 public
-`ArvBuffer` API exposes raw `arv_buffer_get_data` and image dimensions,
-but no image-data/padding metadata or row-stride accessor. This adapter
-therefore accepts only packed payloads whose size is exactly
-`width * height`; any nonpacked or otherwise mismatched payload is
-rejected rather than interpreting its size as a stride. Payloads with
-chunk data are not accepted. The internal row-copy validator receives
-explicit row stride and X/Y padding values; its fixtures cover padded
-rows, trailing Y-padding rows, and truncated payloads.
+Mono8, and validates positive dimensions. Aravis 0.8.20 exposes raw
+`arv_buffer_get_data` and image dimensions. Later 0.8 releases add
+`arv_buffer_get_image_padding` (since 0.8.23) and
+`arv_buffer_get_image_data` (since 0.8.25), but the first adapter version
+intentionally does not use those accessors: it accepts only packed payloads
+whose size is exactly `width * height`, and rejects nonpacked or otherwise
+mismatched payloads rather than inferring a stride. Payloads with chunk data
+are not accepted. The internal row-copy validator receives explicit row
+stride and X/Y padding values; its fixtures cover padded rows, trailing
+Y-padding rows, and truncated payloads.
 
 Invalid identifiers, lifecycle calls, or zero timeouts raise
 `AMV.Ks_Bad_Parameter_Exception`; backend or malformed-frame failures and
