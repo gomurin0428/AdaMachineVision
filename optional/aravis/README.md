@@ -42,8 +42,9 @@ pacman -S --needed make unzip mingw-w64-x86_64-toolchain \
 alr -n toolchain --select gnat_native=16.1.0 gprbuild=26.0.1
 ```
 
-Run Meson and Ninja through Alire as shown so Aravis uses the selected GNAT
-MINGW64 C compiler; its dependencies come from the same MINGW64 runtime.
+Run Meson and Ninja directly in the MINGW64 shell so Aravis uses the MSYS2
+MINGW64 GCC/C++ compiler and dependencies; the GNAT FSF toolchain uses that
+same MINGW64 ABI/CRT.
 
 Build and install Aravis from its pinned release archive:
 
@@ -58,12 +59,12 @@ printf '%s  %s\n' \
 tar -xf aravis-0.8.33.tar.xz
 cd aravis-0.8.33
 mingw_prefix=$(cygpath -m "$MINGW_PREFIX")
-alr -n exec -- meson setup build \
+CC=gcc CXX=g++ meson setup build \
   --prefix="$mingw_prefix" --libdir=lib --buildtype=plain \
   -Ddocumentation=disabled -Dgst-plugin=disabled \
   -Dintrospection=disabled -Dusb=disabled -Dpacket-socket=disabled \
   -Dviewer=disabled -Dtests=false
-alr -n exec -- ninja -C build install
+ninja -C build install
 cd ../../..
 export PATH="$MINGW_PREFIX/bin:$PATH"
 alr -n exec -- make test-aravis

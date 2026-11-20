@@ -178,13 +178,13 @@ jobs:
           tar -xf "$archive" -C "$tmp"
           build_dir="$tmp/build"
           mingw_prefix=$(cygpath -m "$MINGW_PREFIX")
-          "$HOME/.local/bin/alr.exe" -n exec -- meson setup \
+          CC=gcc CXX=g++ meson setup \
             "$build_dir" "$tmp/aravis-${ARAVIS_VERSION}" \
             --prefix="$mingw_prefix" --libdir=lib --buildtype=plain \
             -Ddocumentation=disabled -Dgst-plugin=disabled \
             -Dintrospection=disabled -Dusb=disabled \
             -Dpacket-socket=disabled -Dviewer=disabled -Dtests=false
-          "$HOME/.local/bin/alr.exe" -n exec -- ninja -C "$build_dir" install
+          ninja -C "$build_dir" install
           test "$(pkg-config --modversion aravis-0.8)" = "$ARAVIS_VERSION"
 
       - name: Test the optional adapter with the loopback fake camera
