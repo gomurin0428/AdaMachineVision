@@ -158,7 +158,8 @@ jobs:
         run: |
           set -euo pipefail
           mingw_target=$(gcc -dumpmachine)
-          gnat_target=$("$HOME/.local/bin/alr.exe" -n exec -- gcc -dumpmachine)
+          gnat_target=$("$HOME/.local/bin/alr.exe" -n exec -- gcc -dumpmachine \
+            | tail -n 1 | tr -d '\r')
           printf 'MSYS2 GCC target: %s\nGNAT GCC target: %s\n' \
             "$mingw_target" "$gnat_target"
           test "$mingw_target" = "$gnat_target"
@@ -176,10 +177,10 @@ jobs:
           printf '%s  %s\n' "$ARAVIS_TARBALL_SHA256" "$archive" | sha256sum -c -
           tar -xf "$archive" -C "$tmp"
           build_dir="$tmp/build"
-          MSYS2_ARG_CONV_EXCL='--prefix=' \
-            "$HOME/.local/bin/alr.exe" -n exec -- meson setup \
+          mingw_prefix=$(cygpath -m "$MINGW_PREFIX")
+          "$HOME/.local/bin/alr.exe" -n exec -- meson setup \
             "$build_dir" "$tmp/aravis-${ARAVIS_VERSION}" \
-            --prefix="$MINGW_PREFIX" --buildtype=plain \
+            --prefix="$mingw_prefix" --libdir=lib --buildtype=plain \
             -Ddocumentation=disabled -Dgst-plugin=disabled \
             -Dintrospection=disabled -Dusb=disabled \
             -Dpacket-socket=disabled -Dviewer=disabled -Dtests=false

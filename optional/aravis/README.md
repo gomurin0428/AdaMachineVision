@@ -57,8 +57,9 @@ printf '%s  %s\n' \
   aravis-0.8.33.tar.xz | sha256sum -c -
 tar -xf aravis-0.8.33.tar.xz
 cd aravis-0.8.33
-MSYS2_ARG_CONV_EXCL='--prefix=' alr -n exec -- meson setup build \
-  --prefix="$MINGW_PREFIX" --buildtype=plain \
+mingw_prefix=$(cygpath -m "$MINGW_PREFIX")
+alr -n exec -- meson setup build \
+  --prefix="$mingw_prefix" --libdir=lib --buildtype=plain \
   -Ddocumentation=disabled -Dgst-plugin=disabled \
   -Dintrospection=disabled -Dusb=disabled -Dpacket-socket=disabled \
   -Dviewer=disabled -Dtests=false
