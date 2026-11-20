@@ -2212,3 +2212,65 @@ Lessons from the QR Code pass of `AMV.Kernels.Code_Reader` (`Views`,
   with `Failure_Bad_Parameter`. Handles passed to one call are assumed to
   be different images for the functional postconditions (see the proof
   notes); absence of run-time errors does not depend on it.
+
+## Optional Aravis adapter: AMV-local SPARK scope
+
+`make prove-aravis` runs GNATprove on the executable ghost
+`AMV.Spec.GigE_Vision` and production-path `AMV.Kernels.GigE_Vision` units
+using `optional/aravis/amv_gige_vision_proof.gpr`. The target uses
+`--checks-as-errors=on --warnings=error --report=fail`; the Linux CI workflow
+has a separate job for it. It does not add adapter units to the core proof
+matrix.
+
+The executable ghost specification is independent of the engine. Its local
+selector predicate accepts only nonempty strings with no NUL and at least one
+character other than a space. The lifecycle contracts specify that successful
+`Open` changes `Closed` to `Open_Stopped`, while failed opens preserve state
+and handle; `Start` changes `Open_Stopped` to `Streaming` only on native
+success; failed `Stop` retains `Streaming` for retry; and idempotent
+`Start`/`Stop` paths do not dispatch native operations. `Close` establishes
+`Closed` and a null handle and releases local ownership. A failed native stop
+during close is not evidence that the remote camera physically stopped.
+
+For `Grab`, the independent status function fixes the decision order:
+
+1. Non-streaming state or zero timeout: `Frame_Bad_Parameter`.
+2. Acquisition result: `Native_Not_Called`/`Native_Bad_Parameter` maps to
+   `Frame_Bad_Parameter`; `Native_Timeout` to `Frame_Timeout`;
+   `Native_Out_Of_Memory` to `Frame_Out_Of_Memory`; and
+   `Native_Unsupported`/`Native_Error` to `Frame_Error`.
+3. Buffer timeout, then other unsuccessful buffer status.
+4. Payload must be exactly an image payload; extended-chunk payloads are
+   rejected.
+5. Pixel format must be Mono8.
+6. Width and height must be positive; their product must not exceed
+   `2**31 - 1` pixels.
+7. Source size, byte count, and the one-based Ada byte-array bounds must
+   agree exactly with `width * height`; otherwise the frame is invalid.
+
+On success, `Build_Frame` returns a valid kernel image with the observation's
+dimensions and a quantified pixel postcondition: for every zero-based
+coordinate `(x, y)`, output pixel `(y, x)` equals the independent spec's
+`Pixel_At`, which selects packed source byte `1 + y * width + x`. Frame
+validation itself handles all listed malformed-input statuses; an image
+allocation failure is additionally reported as `Frame_Out_Of_Memory` only
+when the independent expected status is success. No stride, padding, or
+conversion algorithm is part of this local contract.
+
+The proof boundary and trusted assumptions are:
+
+| Boundary | What the proof establishes | Trusted / not established |
+| --- | --- | --- |
+| `AMV.Kernels.GigE_Vision` lifecycle | Status, logical state transition, idempotence, and native-dispatch receipt obey the spec when the contracted native operation returns. | The receipt accurately reflects the native operation; logical state is not physical-device state. |
+| `Build_Frame` | Exact validation precedence, output status/absence on errors, dimensions, and all pixel values for a valid Ada byte-array observation. | The observation's access value points to a live, correctly sized array; allocation can fail. |
+| `AMV.GigE_Vision_Native` and C/Aravis | The engine uses the SPARK-visible bridge contracts. | Bridge implementation, Aravis metadata/status accuracy, C allocation/copy/free, raw pointer validity, snapshot lifetime, and native buffer release/requeue are not proved. |
+| Public controlled façade | Loopback tests exercise delegation, adoption, cleanup, exceptions, and public behavior. | Façade, `AMV.Images.Kernel_Images.Adopt`, controlled finalization, C/Aravis, camera hardware, and network behavior are outside `prove-aravis`. |
+
+The native setup path also checks Mono8 during `Open`; the frame engine
+independently checks every acquired frame. That setup check is native C/Aravis
+behavior, not part of the SPARK proof. The optional proof is groundwork for
+this AMV-local API contract only: it is not a GigE Vision standard-version or
+clause-derived specification, protocol-conformance evidence, a proof of
+Aravis/native memory/hardware, or a whole-module Platinum claim. The Linux
+and Windows loopback tests are integration checks, not proofs of those
+trusted assumptions.

@@ -9,6 +9,7 @@ library project AMV_GigE_Vision_Test_Library is
    for Languages use ("Ada", "C");
 
    package Compiler is
+      for Local_Configuration_Pragmas use "../../../contracts.adc";
       for Default_Switches ("Ada") use
         ("-gnat2022", "-gnatW8", "-ffp-contract=off",
          "-gnatwa", "-gnatVa", "-gnatwe", "-O2");

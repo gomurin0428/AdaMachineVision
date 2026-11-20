@@ -121,17 +121,37 @@ before Aravis recycles its stream buffer. The object closes its backend
 resources on finalization. A camera object is for single-threaded use; do
 not call its operations concurrently.
 
-The C shim checks the Aravis buffer status and image payload, requires
-Mono8, and validates positive dimensions. Aravis 0.8.20 exposes raw
-`arv_buffer_get_data` and image dimensions. Later 0.8 releases add
-`arv_buffer_get_image_padding` (since 0.8.23) and
-`arv_buffer_get_image_data` (since 0.8.25), but the first adapter version
-intentionally does not use those accessors: it accepts only packed payloads
-whose size is exactly `width * height`, and rejects nonpacked or otherwise
-mismatched payloads rather than inferring a stride. Payloads with chunk data
-are not accepted. The internal row-copy validator receives explicit row
-stride and X/Y padding values; its fixtures cover padded rows, trailing
-Y-padding rows, and truncated payloads.
+The logical engine has an AMV-local state contract. `Open` is accepted only
+from `Closed`; the selector must be nonempty, contain no NUL, and contain at
+least one character other than a space. A successful native open changes the
+logical state to `Open_Stopped`; a failed open preserves the closed state and
+handle. `Start` on a closed camera is rejected, on a streaming camera is an
+idempotent success without native dispatch, and on an open stopped camera
+changes state only after native success. `Stop` on a non-streaming camera is
+an idempotent success; a failed native stop preserves `Streaming` so it can
+be retried. `Close` always clears the local handle and state. If native stop
+fails during `Close`, local resources are still released; this does not claim
+that the physical camera stopped.
+
+The native setup path preserves the existing early Mono8 check during
+`Open`. Independently, every acquired frame is validated by the Ada engine.
+It accepts only successful image buffers with the Mono8 format, positive
+dimensions no larger than `2**31 - 1` pixels, and an exact packed byte count
+of `width * height`. Extended-chunk payloads, padding, truncated data,
+excess data, and null byte arrays are rejected; no stride is inferred. The
+frame-status precedence is specified as: invalid camera state or zero
+timeout; `Native_Not_Called`/`Native_Bad_Parameter` as bad parameter,
+`Native_Timeout` as timeout, `Native_Out_Of_Memory` as out of memory, and
+`Native_Unsupported`/`Native_Error` as frame error; buffer timeout/error;
+unsupported payload; unsupported format; invalid dimensions; too many pixels;
+invalid byte length; success. For zero-based `x` and `y`, the output pixel at
+`(y, x)` equals `bytes(1 + y * width + x)`.
+
+On `Grab`, the C shim obtains Aravis status and metadata and copies the raw
+buffer to a temporary snapshot. The native Ada bridge copies that snapshot
+to an owned Ada byte array; the SPARK engine validates the metadata and
+performs the pixel mapping. The façade releases the Ada snapshot after
+building/adopting the image, including exceptional exits.
 
 Invalid identifiers, lifecycle calls, or zero timeouts raise
 `AMV.Ks_Bad_Parameter_Exception`; backend or malformed-frame failures and
@@ -150,8 +170,20 @@ address and the test shim rejects every other selector before route or device
 calls. Linux runs in a fresh network namespace, trying an unprivileged
 namespace and then `sudo -n unshare --net`; it refuses to run if neither is
 available. Windows runs the `.exe` directly, with both endpoints restricted
-to loopback. The test reports the native OS and successful Mono8 frame
-dimensions, and covers lifecycle behavior, timeout handling, distinct frames,
-copy lifetime, unsupported formats, and padded/truncated row fixtures. It
-does not scan for or connect to hardware cameras. No physical camera hardware
-verification is claimed.
+to loopback. The Ada fixtures exercise the ghost specification and production
+engine, including status precedence, worked 3x2 pixel mapping, snapshot
+mutation/free, lifecycle receipts, timeout handling, and unsupported or
+malformed observations. The loopback test covers lifecycle behavior, distinct
+frames, copy lifetime, and the Open-time unsupported-format rejection. No
+physical camera discovery or connection is performed.
+
+`make prove-aravis` proves only `AMV.Spec.GigE_Vision` and the production
+`AMV.Kernels.GigE_Vision` engine against their local contracts. It proves the
+logical state/status results, frame-status precedence, packed-size checks,
+and each output pixel's equality to the independent row-major specification.
+The image-allocation out-of-memory result is allowed when frame validation
+otherwise succeeds. The public controlled façade, `AMV.Images` adoption,
+Aravis, C, raw pointer validity/lifetime, and physical camera or network
+behavior are outside this proof. This is not a GigE Vision standard
+conformance or whole-module Platinum claim; the native bridge contracts are
+trusted boundaries.
