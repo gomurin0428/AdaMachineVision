@@ -152,6 +152,9 @@ package AMV.Kernels.GigE_Vision with SPARK_Mode is
      Post    =>
        T.Valid_Observation (Observation)
        and then
+         ((State = T.Streaming and Timeout > 0) =
+            (Observation.Acquisition_Status /= T.Native_Not_Called))
+       and then
          (Status = AMV.Spec.GigE_Vision.Grab_Status
             (State, Timeout, Observation)
           or else
