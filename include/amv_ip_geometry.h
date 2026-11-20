@@ -117,10 +117,19 @@ _Static_assert(sizeof(ks_copy_region) == 20,
 #endif
 
 void ks_copy_region_run_params_default(ks_copy_region *params);
-/* A new image of the size of the region's bounding box: region pixels
-   copied (fill_region_value with fill_region = 1), the other pixels of
-   the box fill_bounding_box_value (with fill_bounding_box = 1) or copied.
-   A NULL (empty) region fails with KS_FAILURE_BAD_PARAMETER. */
+/* Returns a new image with the width and height of the region's bounding
+   box. Output pixel (x, y) corresponds to input pixel (x_min + x,
+   y_min + y), where (x_min, y_min) is the bounding-box origin. In
+   KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX_ADJUST_MASK mode, a pixel is
+   in the region only if its corresponding input pixel is in the rasterized
+   region; in KS_REGION_MODE_PIXEL_ALIGNED_BOUNDING_BOX mode, every pixel
+   in the box is in the region. In-region pixels use fill_region_value
+   when fill_region = 1, and the corresponding input pixel otherwise.
+   Other pixels use fill_bounding_box_value when fill_bounding_box = 1,
+   and the corresponding input pixel otherwise.
+   KS_REGION_MODE_AFFINE_TRANSFORM is not implemented and fails with
+   KS_FAILURE_BAD_PARAMETER. A NULL (empty) region fails with
+   KS_FAILURE_BAD_PARAMETER. */
 void ks_copy_region_execute(const ks_image_8_grey *image,
                             const ks_pixel_region *region,
                             const ks_transform_2d_linear *pixel_from_root,
