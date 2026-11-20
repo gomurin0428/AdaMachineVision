@@ -10,7 +10,8 @@
 --
 --  * is ghost as a whole, so that the library holds none of it (its
 --    policy ignores ghost code, contracts.adc), while the tests run it
---    (tests/contracts.adc) and test it on its own;
+--    (tests/contracts.adc) and test it on its own (test_suite area
+--    Test_Spec, tests/checked/test_spec.adb);
 --  * depends only on AMV.Spec and its children, on AMV.Kernels (the types
 --    that every kernel shares), on Interfaces and on the big numbers of
 --    Ada 2022: never on the kernel that it specifies;

@@ -11,14 +11,63 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
    type Operation is (Add, Subtract, Min_Max);
    --  The tool an internal call works for.
 
-   function Combined (Op : Operation; Mode : Int32; A, B : KI.Grey_8)
+   function Valid_Mode (Op : Operation; Mode : Int32) return Boolean is
+     (case Op is
+         when Add      => Mode in Add_Overflow_Mode,
+         when Subtract => Mode in Subtract_Overflow_Mode,
+         when Min_Max  => Mode in Min_Max_Operation);
+   --  Mode is a code that tool Op takes.
+
+   function Specified (Op : Operation; Mode : Int32; A, B : KI.Grey_8)
       return KI.Grey_8
    is
      (case Op is
-         when Add      => Add_Pixel (Mode, A, B),
-         when Subtract => Subtract_Pixel (Mode, A, B),
-         when Min_Max  => Min_Max_Pixel (Mode, A, B));
+         when Add      => Spec.Add (Integer (Mode), A, B),
+         when Subtract => Spec.Subtract (Integer (Mode), A, B),
+         when Min_Max  => Spec.Min_Max (Integer (Mode), A, B))
+   with Ghost, Pre => Valid_Mode (Op, Mode);
+   --  The output pixel that the specification gives.
+
+   function Combined (Op : Operation; Mode : Int32; A, B : KI.Grey_8)
+      return KI.Grey_8
+   with Pre  => Valid_Mode (Op, Mode),
+        Post => Combined'Result = Specified (Op, Mode, A, B);
    --  The output pixel of tool Op, Mode its overflow mode or operation.
+
+   function Combined (Op : Operation; Mode : Int32; A, B : KI.Grey_8)
+      return KI.Grey_8 is
+   begin
+      case Op is
+         when Add =>
+            case Mode is
+               when Add_Overflow_Mode_Wrap =>
+                  return KI.Grey_8 ((Natural (A) + Natural (B)) mod 256);
+               when Add_Overflow_Mode_Shift =>
+                  return KI.Grey_8 ((Natural (A) + Natural (B)) / 2);
+               when others =>
+                  return KI.Grey_8
+                    (Natural'Min (Natural (A) + Natural (B), 255));
+            end case;
+         when Subtract =>
+            case Mode is
+               when Subtract_Overflow_Mode_Wrap =>
+                  return KI.Grey_8 ((Integer (A) - Integer (B)) mod 256);
+               when Subtract_Overflow_Mode_Shift =>
+                  return KI.Grey_8 ((Integer (A) - Integer (B) + 256) / 2);
+               when Subtract_Overflow_Mode_Absolute =>
+                  return KI.Grey_8 (abs (Integer (A) - Integer (B)));
+               when others =>
+                  return KI.Grey_8
+                    (Integer'Max (Integer (A) - Integer (B), 0));
+            end case;
+         when Min_Max =>
+            if Mode = Min_Max_Operation_Max then
+               return KI.Grey_8'Max (A, B);
+            else
+               return KI.Grey_8'Min (A, B);
+            end if;
+      end case;
+   end Combined;
 
    function Combined_At
      (Op               : Operation;
@@ -26,11 +75,12 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
       Image_A, Image_B : access constant KI.Ks_Image_8_Grey_Data;
       X, Y             : Natural) return KI.Grey_8
    with Pre  => Same_Size (Image_A, Image_B)
+                and then Valid_Mode (Op, Mode)
                 and then Y <= Image_A.Pixels'Last (1)
                 and then X <= Image_A.Pixels'Last (2),
         Post => Combined_At'Result
-                  = Combined (Op, Mode, Image_A.Pixels (Y, X),
-                              Image_B.Pixels (Y, X));
+                  = Specified (Op, Mode, Image_A.Pixels (Y, X),
+                               Image_B.Pixels (Y, X));
    --  The output pixel (X, Y). An ordinary function, so that the loop
    --  invariants of Run mention one call per pixel (with the formula and
    --  the reads of both images in them, a check took up to 10 seconds).
@@ -66,12 +116,10 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
       Status           : out Ks_Status)
    with
      Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter
+             and then Status.Failure = Input_Failure (Image_A, Image_B)
              and then (if Succeeded (Status)
                        then Same_Size (Image_A, Image_B)
-                            and then SM.Usable_Image (Image_A));
+                            and then KI.Usable_Image (Image_A));
    --  Both images usable and of one size.
 
    procedure Check_Inputs
@@ -106,7 +154,8 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
       Status           : out Ks_Status)
    with
      Pre  => Same_Size (Image_A, Image_B)
-             and then SM.Usable_Image (Image_A),
+             and then KI.Usable_Image (Image_A)
+             and then Valid_Mode (Op, Mode),
      Post => Valid (Status)
              and then Status.Failure
                         in Failure_None | Failure_Out_Of_Memory
@@ -119,9 +168,9 @@ package body AMV.Kernels.IP_Two_Image with SPARK_Mode is
                        (for all Y in Output.Pixels'Range (1)
                         => (for all X in Output.Pixels'Range (2)
                             => Output.Pixels (Y, X)
-                                 = Combined (Op, Mode,
-                                             Image_A.Pixels (Y, X),
-                                             Image_B.Pixels (Y, X))))
+                                 = Specified (Op, Mode,
+                                              Image_A.Pixels (Y, X),
+                                              Image_B.Pixels (Y, X))))
                 else Output = null);
    --  The output of tool Op for two checked images.
 

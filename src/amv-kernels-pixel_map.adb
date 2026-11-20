@@ -6,6 +6,20 @@ package body AMV.Kernels.Pixel_Map with SPARK_Mode is
 
    package FI renames AMV.Kernels.Filter_Inputs;
 
+   function Map_Pixel
+     (Map    : Pixel_Map_Table;
+      Region : access constant KR.Ks_Pixel_Region_Data;
+      Value  : KI.Grey_8;
+      X, Y   : Natural) return KI.Grey_8
+   is
+     (if KR.Contains (Region, Int32 (X), Int32 (Y)) then Map (Value)
+      else Value)
+   with Post => Map_Pixel'Result
+                  = Spec.Mapped (Spec.Table (Map),
+                                 KR.Contains (Region, Int32 (X), Int32 (Y)),
+                                 Value);
+   --  The output pixel at (X, Y) for the input value Value.
+
    procedure Run_Params_Default (Params : out Ks_IP_One_Image_Pixel_Map) is
    begin
       Params := (Map => Identity_Map);
