@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#define AMV_TEST_FAKE_WIDTH 64
+#define AMV_TEST_FAKE_HEIGHT 48
+
 static ArvGvFakeCamera *fake_camera;
 static guint8 next_pixel_value;
 
@@ -10,8 +13,7 @@ static void
 fill_pattern(ArvBuffer *buffer, void *data, guint32 exposure_time_us,
 	     guint32 gain, ArvPixelFormat pixel_format)
 {
-	size_t buffer_size = 0;
-	void *pixels = (void *) arv_buffer_get_data(buffer, &buffer_size);
+	void *pixels = (void *) arv_buffer_get_data(buffer, NULL);
 	guint8 *next_value = data;
 
 	(void) exposure_time_us;
@@ -19,7 +21,8 @@ fill_pattern(ArvBuffer *buffer, void *data, guint32 exposure_time_us,
 	if (pixel_format != ARV_PIXEL_FORMAT_MONO_8 || pixels == NULL)
 		return;
 
-	memset(pixels, *next_value, buffer_size);
+	memset(pixels, *next_value,
+	       AMV_TEST_FAKE_WIDTH * AMV_TEST_FAKE_HEIGHT);
 	(*next_value)++;
 }
 
@@ -41,9 +44,9 @@ amv_test_fake_start(void)
 
 	camera = arv_gv_fake_camera_get_fake_camera(fake_camera);
 	if (!arv_fake_camera_write_register
-		    (camera, ARV_FAKE_CAMERA_REGISTER_WIDTH, 64) ||
+		    (camera, ARV_FAKE_CAMERA_REGISTER_WIDTH, AMV_TEST_FAKE_WIDTH) ||
 	    !arv_fake_camera_write_register
-		    (camera, ARV_FAKE_CAMERA_REGISTER_HEIGHT, 48)) {
+		    (camera, ARV_FAKE_CAMERA_REGISTER_HEIGHT, AMV_TEST_FAKE_HEIGHT)) {
 		fprintf(stderr, "Could not set the loopback fixture dimensions\n");
 		g_clear_object(&fake_camera);
 		return 1;
