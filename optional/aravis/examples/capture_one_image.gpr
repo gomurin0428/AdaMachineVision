@@ -1,0 +1,15 @@
+with "../amv_gige_vision.gpr";
+
+project Capture_One_Image is
+   for Source_Dirs use (".");
+   for Object_Dir use "../../../build/aravis-example-obj";
+   for Exec_Dir use "../../../build/bin";
+   for Main use ("capture_one_image.adb");
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-gnatwe", "-O2");
+   end Compiler;
+end Capture_One_Image;

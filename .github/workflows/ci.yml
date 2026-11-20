@@ -88,6 +88,22 @@ jobs:
             tools/prove_groups.sh "$group" > /dev/null
           done
 
+  aravis-loopback:
+    name: optional Aravis loopback tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/toolchain
+
+      - name: Install Aravis development files
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libaravis-dev libusb-1.0-0-dev iproute2
+
+      - name: Test the optional adapter with its loopback fake camera
+        run: make test-aravis
+
   prove:
     name: prove (${{ matrix.group }})
     runs-on: ubuntu-24.04

@@ -10,7 +10,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 
 ツール(たとえば `Ks_Blob_Tool`)は、入力画像と実行パラメータを持ちます。`Run` を呼ぶと、結果と実行状態がツールに残ります。
 
-ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。ほかのライブラリは使っていません。
+ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。
 
 ## 検出例
 
@@ -111,7 +111,7 @@ end Quick_Look;
 - GNAT 16.1 と gprbuild 26(GNAT FSF builds や Alire など)
 - 証明には gnatprove 16.1
 - GNAT 14 でも Ada のビルドとテストは通ります。
-- ほかの依存はありません。
+- コアにほかの依存はありません。任意の GigE Vision アダプタには Aravis 0.8 の開発ファイルと pkg-config が必要です。
 
 ```
 make build       # ライブラリ:build/lib/libamv.a
@@ -124,6 +124,9 @@ make run-examples  # サンプルを実行し、結果を確かめる
 make test-real-images  # 公開画像を取得して実画像テストを実行する
 make run-real-image-examples  # その画像でサンプルを実行する
 make pictures    # docs/images の結果画像を作り直す
+make build-aravis  # 任意の Aravis カメラアダプタとサンプルをビルド
+make test-aravis   # fake camera とクライアントを loopback のみに隔離してテスト
+# make example-aravis CAMERA_ID=192.168.1.20 IMAGE=capture.pgm
 ```
 
 テストはリポジトリのルートから実行してください(`tests/output/` に書き出すものがあります)。
@@ -138,6 +141,7 @@ tests/           Ada のテスト(test_suite が全部を全契約の検査つ�
                  tests/c(C API)
 examples/        サンプルプログラム。examples/real_images は写真を使うもの
 tools/           開発用のツール(API の薄さの検査)
+optional/aravis/ 任意の Aravis GigE Vision アダプタとテスト
 docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
                  images/(README に載せている結果画像)、
                  handoff/(計画とメモ。日本語)
@@ -151,6 +155,7 @@ docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
 - `examples/README.md` と `examples/real_images/README.md`:サンプルと、その検出結果の画像(英語)。
 - `tests/real_images/README.md`:実画像テストの画像とライセンス、調整用と評価用を分ける手順。
 - `docs/images/README.md`:結果画像の一覧と、元の写真の出典とライセンス(英語)。
+- `optional/aravis/README.md`:任意の Mono8 GigE Vision アダプタ、Aravis 依存、ライフサイクル、loopback 限定テスト(英語)。
 
 ## ライセンス
 
