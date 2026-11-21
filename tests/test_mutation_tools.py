@@ -243,6 +243,26 @@ class MutationTargetTests(unittest.TestCase):
                     self.assertIn("--since origin/main", result.stdout)
 
 
+class MutationWorkflowTriggerTests(unittest.TestCase):
+    def test_bounded_max_pixels_launcher_triggers_mutation_workflow(self):
+        workflow = (ROOT / ".github/workflows/mutation.yml").read_text(
+            encoding="utf-8"
+        )
+        trigger = re.search(
+            r"(?ms)^  pull_request:\n(?P<block>.*?)(?=^  workflow_dispatch:|\Z)",
+            workflow,
+        )
+        self.assertIsNotNone(trigger)
+        if trigger is None:
+            return
+        paths = re.findall(
+            r"""(?m)^      - ['"]([^'"]+)['"]$""",
+            trigger.group("block"),
+        )
+        launcher = MAX_PIXELS_LAUNCHER.relative_to(ROOT).as_posix()
+        self.assertIn(launcher, paths)
+
+
 class MutatorShardCoverageTests(unittest.TestCase):
     def test_seven_shards_equal_the_pinned_default_mutator_set(self):
         workflow = (ROOT / ".github/workflows/mutation.yml").read_text(encoding="utf-8")

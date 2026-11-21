@@ -28,6 +28,7 @@ on:
       - 'tools/mutation_plan.py'
       - 'tools/mutation_proof_gate.py'
       - 'Makefile'
+      - 'tests/run_bounded_max_pixels_probe.py'
       - 'tests/test_mutation_tools.py'
       - '.github/workflows/mutation.yml'
   workflow_dispatch:
