@@ -46,15 +46,30 @@ five-minute test and 15-minute mutant-proof limits are unchanged.
 The mutation wrapper records each proof invocation's real exit code and
 fresh per-unit .spark final-check evidence under a run-specific directory.
 AdaMutant's raw report remains unchanged. A proof-killed result passes the
-gate only with a fresh .spark high-severity final check or a high-severity
-diagnostic matched to a fresh unproved check. One confirmed counterexample is
-sufficient even when other checks are inconclusive; without confirmation,
-resource-limited or unknown checks and missing, stale, or malformed evidence
-fail closed. A timeout in one prover attempt does not invalidate a final
-check marked proved. Proof-killed entries are removed from a filtered copy
-of a baseline report so they are rerun; other baseline classifications are
-reused. The last report is cached only after the gate succeeds, while raw
-reports and evidence remain available as artifacts on failure.
+gate only with a fresh selected-unit .spark high-severity final check or a
+high-severity diagnostic matched to a fresh unproved check. Every final-check
+entry must be well-formed and carry location metadata; one confirmed
+counterexample is sufficient despite other well-formed inconclusive checks.
+Malformed or unlocated checks block confirmation. Raw Survived results and
+NoCoverage results whose reason depends on proof require fresh selected-unit
+evidence, GNATprove exit 0, and all final checks proved. Missing, stale,
+incomplete, resource-limited, unknown, or timed-out proof evidence is explicitly
+Inconclusive and fails the job; the gate stays closed for every resource-only
+outcome. A timeout in one prover attempt does not invalidate a final check
+marked proved. Proof-killed, Survived, and proof-dependent NoCoverage entries
+are removed from a filtered copy of a baseline report so they are rerun;
+ordinary test, compile, and runtime results are reused. The last report is
+cached only after the gate succeeds, while raw reports and evidence remain
+available as artifacts on failure.
+
+The mutation tests include a separate `Test_Max_Pixels_Limit` executable for
+the exact `Max_Pixels` boundary. It is not part of the normal `test_suite`.
+Its Python launcher sets and verifies both soft and hard `RLIMIT_AS` at
+256 MiB on Linux before replacing itself with the Ada test; the Ada test also
+refuses to run without the launcher's marker. The unchanged kernel must return
+`Out_Of_Memory` with a null image under that cap. The cap keeps this regression
+from attempting an unbounded multi-gigabyte allocation, and the launcher fails
+closed if it cannot enforce the limit.
 
 Changed bodies with more than 30 added lines use the same seven mutator
 shards; 30 or fewer use the default set together. Whole-file requests use

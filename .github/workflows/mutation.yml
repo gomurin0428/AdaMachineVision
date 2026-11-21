@@ -67,7 +67,7 @@ env:
   # Part of the key of the last reports: a new value runs every mutant
   # again (after a change of AdaMutant, of the tests or of the proof of
   # the mutants, which the reports do not see).
-  REPORT_TAG: r6
+  REPORT_TAG: r7
 
 jobs:
   plan:

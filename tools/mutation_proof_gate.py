@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record fresh GNATprove evidence and gate AdaMutant proof-killed results."""
+"""Record fresh GNATprove evidence and gate proof-dependent AdaMutant results."""
 
 import argparse
 import copy
@@ -15,8 +15,9 @@ import tempfile
 import time
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 PROOF_KILLED = "proof-killed"
+FINAL_CHECK_SEVERITIES = {"high", "info", "low", "medium"}
 HIGH_DIAGNOSTIC = re.compile(r"^\s*(?:(?P<file>[^:\s]+\.ad[bs]):(?P<line>\d+):(?P<col>\d+):\s*)?high:\s*(?P<message>.*)$")
 LOCATION = re.compile(r"^\s*-->\s*(?P<file>[^:\s]+\.ad[bs]):(?P<line>\d+):(?P<col>\d+)")
 
@@ -63,15 +64,26 @@ def _parse_high_diagnostics(text):
     return diagnostics
 
 
+def _has_location(item):
+    file_name = item.get("file")
+    line = item.get("line")
+    column = item.get("column", item.get("col"))
+    return (
+        isinstance(file_name, str)
+        and bool(file_name.strip())
+        and type(line) is int
+        and line > 0
+        and type(column) is int
+        and column > 0
+    )
+
+
 def _same_location(left, right):
-    if not left.get("file") or not right.get("file") or left.get("line") is None or right.get("line") is None:
+    if not _has_location(left) or not _has_location(right):
         return False
     if pathlib.Path(left["file"]).name != pathlib.Path(right["file"]).name:
         return False
-    if int(left["line"]) != int(right["line"]):
-        return False
-    left_col, right_col = left.get("column", left.get("col")), right.get("column", right.get("col"))
-    return left_col is None or right_col is None or int(left_col) == int(right_col)
+    return left["line"] == right["line"] and left.get("column", left.get("col")) == right.get("column", right.get("col"))
 
 
 def _matches_diagnostic(check, diagnostic):
@@ -96,6 +108,7 @@ def _proof_record(unit, spark_root, started_ns, diagnostics):
         "checks": [],
         "confirmed_high_checks": [],
         "issues": [],
+        "final_checks_well_formed": False,
     }
     try:
         stat = spark_path.stat()
@@ -120,19 +133,48 @@ def _proof_record(unit, spark_root, started_ns, diagnostics):
         record["issues"].append(".spark proof field is missing or malformed")
         return record
 
+    record["final_checks_well_formed"] = True
     for check in checks:
-        if not isinstance(check, dict) or not isinstance(check.get("severity"), str):
+        if (
+            not isinstance(check, dict)
+            or not isinstance(check.get("severity"), str)
+            or check["severity"] not in FINAL_CHECK_SEVERITIES
+        ):
             record["issues"].append("malformed final-check entry in .spark")
+            record["final_checks_well_formed"] = False
             continue
         message = check.get("message")
-        message_text = message.get("text", "") if isinstance(message, dict) else ""
+        if message is None:
+            message_text = ""
+        elif isinstance(message, dict) and isinstance(message.get("text", ""), str):
+            message_text = message.get("text", "")
+        elif isinstance(message, str):
+            message_text = message
+        else:
+            message_text = ""
+            record["issues"].append("malformed final-check message in .spark")
+            record["final_checks_well_formed"] = False
+        file_name = check.get("check_file") or check.get("file")
+        line = check.get("check_line", check.get("line"))
+        column = check.get("check_col", check.get("col"))
+        location_valid = _has_location(
+            {"file": file_name, "line": line, "column": column}
+        )
+        if not location_valid:
+            record["issues"].append("final check is missing valid location metadata")
+            record["final_checks_well_formed"] = False
+        unproved_status = check.get("unproved_status")
+        if unproved_status is not None and not isinstance(unproved_status, dict):
+            record["issues"].append("malformed final-check unproved_status in .spark")
+            record["final_checks_well_formed"] = False
         item = {
             "severity": check["severity"],
-            "file": check.get("check_file", check.get("file")),
-            "line": check.get("check_line", check.get("line")),
-            "column": check.get("check_col", check.get("col")),
+            "file": file_name,
+            "line": line,
+            "column": column,
+            "location_valid": location_valid,
             "message": message_text,
-            "unproved_status": check.get("unproved_status"),
+            "unproved_status": unproved_status,
         }
         record["checks"].append(item)
         matching_diagnostics = [
@@ -187,7 +229,7 @@ def _mutants(report):
         for mutant in file_data["mutants"]:
             if not isinstance(mutant, dict) or "id" not in mutant or not isinstance(mutant.get("status"), str):
                 raise ValueError(f"malformed mutant entry for {file_name}")
-            yield mutant
+            yield file_name, mutant
 
 
 def _killed_by(mutant):
@@ -199,6 +241,23 @@ def _killed_by(mutant):
     if killed_by:
         return "other"
     return None
+
+
+def _proof_dependent(mutant):
+    status = mutant.get("status")
+    if status == "Killed":
+        return _killed_by(mutant) == PROOF_KILLED
+    if status == "Survived":
+        return True
+    if status == "NoCoverage":
+        if _killed_by(mutant) == PROOF_KILLED:
+            return True
+        reason = mutant.get("statusReason")
+        return (
+            not isinstance(reason, str)
+            or reason.strip().casefold() != "no test executes this code"
+        )
+    return False
 
 
 def filter_baseline(input_path, output_path):
@@ -215,18 +274,115 @@ def filter_baseline(input_path, output_path):
     for file_data in filtered["files"].values():
         kept = []
         for mutant in file_data["mutants"]:
-            if mutant.get("status") == "Killed" and _killed_by(mutant) == PROOF_KILLED:
+            if _proof_dependent(mutant):
                 removed += 1
             else:
                 kept.append(mutant)
         file_data["mutants"] = kept
     _write_json(destination, filtered)
-    print(f"filtered {removed} proof-killed baseline entries; original left unchanged")
+    print(f"filtered {removed} proof-dependent baseline entries; original left unchanged")
     return 0
+
+
+def _empty_result():
+    return {
+        "proofKilled": 0,
+        "proofDependent": 0,
+        "confirmed": 0,
+        "validated": 0,
+        "blocked": 0,
+        "judgements": [],
+    }
+
+
+def _selected_unit(file_name):
+    return file_name.replace("\\", "/").rsplit("/", 1)[-1]
+
+
+def _validate_evidence(path, evidence, mutant_id, file_name, created_at_ns):
+    expected_unit = _selected_unit(file_name)
+    started = evidence.get("startedAtNs")
+    if evidence.get("schemaVersion") != SCHEMA_VERSION or evidence.get("mutantId") != mutant_id:
+        raise ValueError("malformed or mismatched mutant evidence")
+    if type(started) is not int or started < created_at_ns:
+        raise ValueError("mutant evidence predates this run")
+    finished = evidence.get("finishedAtNs")
+    exit_code = evidence.get("gnatproveExitCode")
+    if (
+        path.stat().st_mtime_ns < started
+        or type(finished) is not int
+        or finished < started
+        or type(exit_code) is not int
+    ):
+        raise ValueError("mutant evidence is stale or has no GNATprove exit code")
+
+    units = evidence.get("units")
+    if not isinstance(units, list) or not units:
+        raise ValueError("mutant evidence has no selected-unit checks")
+    if any(not isinstance(unit, dict) or not isinstance(unit.get("unit"), str) for unit in units):
+        raise ValueError("mutant evidence has malformed selected-unit metadata")
+    selected = [unit for unit in units if unit["unit"] == expected_unit]
+    if len(selected) != 1:
+        raise ValueError(f"expected one fresh proof record for selected unit {expected_unit}, found {len(selected)}")
+    unit = selected[0]
+    spark_path = unit.get("spark_path")
+    if (
+        unit.get("spark_fresh") is not True
+        or type(unit.get("spark_mtime_ns")) is not int
+        or unit["spark_mtime_ns"] < started
+        or not isinstance(spark_path, str)
+        or pathlib.Path(spark_path).name != pathlib.Path(expected_unit).stem + ".spark"
+    ):
+        raise ValueError("mutant evidence has missing, malformed, or stale selected-unit .spark data")
+    issues = unit.get("issues")
+    if not isinstance(issues, list) or not all(isinstance(issue, str) for issue in issues):
+        raise ValueError("mutant evidence has malformed selected-unit issues")
+    if unit.get("final_checks_well_formed") is not True:
+        detail = "; ".join(issues) if issues else "malformed final-check entry or location metadata"
+        raise ValueError(detail)
+    if (
+        not isinstance(unit.get("checks"), list)
+        or not isinstance(unit.get("confirmed_high_checks"), list)
+    ):
+        raise ValueError("mutant evidence has malformed selected-unit final checks")
+    checks = unit["checks"]
+    if not checks:
+        raise ValueError("selected unit has no final proof checks")
+    for check in checks:
+        if (
+            not isinstance(check, dict)
+            or not isinstance(check.get("severity"), str)
+            or check["severity"] not in FINAL_CHECK_SEVERITIES
+            or check.get("location_valid") is not True
+            or not _has_location(check)
+            or not isinstance(check.get("message"), str)
+            or (
+                check.get("unproved_status") is not None
+                and not isinstance(check["unproved_status"], dict)
+            )
+        ):
+            raise ValueError("malformed final-check entry or missing location metadata")
+
+    diagnostics = evidence.get("highDiagnostics")
+    if not isinstance(diagnostics, list):
+        raise ValueError("mutant evidence has malformed high-severity diagnostics")
+    for diagnostic in diagnostics:
+        if (
+            not isinstance(diagnostic, dict)
+            or not isinstance(diagnostic.get("raw"), str)
+            or not HIGH_DIAGNOSTIC.match(diagnostic["raw"])
+            or not isinstance(diagnostic.get("message"), str)
+            or (diagnostic.get("file") is not None and not isinstance(diagnostic.get("file"), str))
+            or (diagnostic.get("line") is not None and type(diagnostic.get("line")) is not int)
+            or (diagnostic.get("column") is not None and type(diagnostic.get("column")) is not int)
+        ):
+            raise ValueError("mutant evidence has malformed high-severity diagnostics")
+    return exit_code, unit, diagnostics
 
 
 def _validate_report(report_path, evidence_dir, minimum_mtime_ns):
     failures = []
+    result = _empty_result()
     evidence_dir = pathlib.Path(evidence_dir)
     manifest_path = evidence_dir / "manifest.json"
     try:
@@ -236,7 +392,7 @@ def _validate_report(report_path, evidence_dir, minimum_mtime_ns):
         if manifest.get("schemaVersion") != SCHEMA_VERSION or type(manifest.get("createdAtNs")) is not int:
             raise ValueError("malformed evidence manifest")
     except ValueError as error:
-        return False, [str(error)], {"proofKilled": 0, "confirmed": 0, "blocked": 0}
+        return False, [str(error)], result
 
     report_path = pathlib.Path(report_path)
     try:
@@ -248,7 +404,7 @@ def _validate_report(report_path, evidence_dir, minimum_mtime_ns):
             raise ValueError("raw AdaMutant report root must be an object")
         mutants = list(_mutants(report))
     except (OSError, ValueError) as error:
-        return False, [str(error)], {"proofKilled": 0, "confirmed": 0, "blocked": 0}
+        return False, [str(error)], result
 
     by_id = {}
     for path in evidence_dir.glob("mutant-*.json"):
@@ -261,95 +417,98 @@ def _validate_report(report_path, evidence_dir, minimum_mtime_ns):
         except ValueError:
             continue
 
-    proof_killed = []
-    for mutant in mutants:
+    required = []
+    judgements = result["judgements"]
+    for file_name, mutant in mutants:
         status = mutant["status"]
         killing_method = _killed_by(mutant)
         if status == "Killed" and killing_method is None:
-            failures.append(f"mutant {mutant['id']}: missing or malformed killedBy in raw report")
-        elif status == "Killed" and killing_method == PROOF_KILLED:
-            proof_killed.append(mutant)
+            reason = "missing or malformed killedBy in raw report"
+            failures.append(f"mutant {mutant['id']} ({file_name}): {reason}")
+            judgements.append(
+                {"id": str(mutant["id"]), "file": file_name, "status": "Inconclusive", "reason": reason}
+            )
+            result["blocked"] += 1
+            continue
+        if not _proof_dependent(mutant):
+            continue
+        result["proofDependent"] += 1
+        if status == "Killed" and killing_method == PROOF_KILLED:
+            result["proofKilled"] += 1
+        required.append((file_name, mutant))
 
-    confirmed = 0
-    blocked = 0
-    for mutant in proof_killed:
+    for file_name, mutant in required:
         mutant_id = str(mutant["id"])
         records = by_id.get(mutant_id, [])
-        if len(records) != 1:
-            failures.append(f"mutant {mutant_id}: expected one fresh evidence record, found {len(records)}")
-            blocked += 1
-            continue
-        path, evidence = records[0]
-        try:
-            started = evidence["startedAtNs"]
-            if evidence.get("schemaVersion") != SCHEMA_VERSION or evidence.get("mutantId") != mutant_id:
-                raise ValueError("malformed or mismatched mutant evidence")
-            if type(started) is not int or started < manifest["createdAtNs"]:
-                raise ValueError("mutant evidence predates this run")
-            finished = evidence.get("finishedAtNs")
-            exit_code = evidence.get("gnatproveExitCode")
-            if (
-                path.stat().st_mtime_ns < started
-                or type(finished) is not int
-                or finished < started
-                or type(exit_code) is not int
-            ):
-                raise ValueError("mutant evidence is stale or has no GNATprove exit code")
-            if exit_code == 0:
-                raise ValueError("proof-killed result has a successful GNATprove exit")
-            units = evidence.get("units")
-            if not isinstance(units, list) or not units:
-                raise ValueError("mutant evidence has no selected-unit checks")
-            diagnostics = evidence.get("highDiagnostics")
-            if not isinstance(diagnostics, list):
-                raise ValueError("mutant evidence has malformed high-severity diagnostics")
-            for diagnostic in diagnostics:
-                if (
-                    not isinstance(diagnostic, dict)
-                    or not isinstance(diagnostic.get("raw"), str)
-                    or not HIGH_DIAGNOSTIC.match(diagnostic["raw"])
-                    or not isinstance(diagnostic.get("message"), str)
-                    or (diagnostic.get("file") is not None and not isinstance(diagnostic.get("file"), str))
-                    or (diagnostic.get("line") is not None and type(diagnostic.get("line")) is not int)
-                    or (diagnostic.get("column") is not None and type(diagnostic.get("column")) is not int)
-                ):
-                    raise ValueError("mutant evidence has malformed high-severity diagnostics")
-            high = False
-            for unit in units:
-                if (
-                    not isinstance(unit, dict)
-                    or unit.get("spark_fresh") is not True
-                    or type(unit.get("spark_mtime_ns")) is not int
-                    or unit["spark_mtime_ns"] < started
-                    or not isinstance(unit.get("checks"), list)
-                    or not isinstance(unit.get("confirmed_high_checks"), list)
-                    or not isinstance(unit.get("issues"), list)
-                    or not all(isinstance(issue, str) for issue in unit["issues"])
-                ):
-                    raise ValueError("mutant evidence has missing or malformed fresh .spark data")
-                for check in unit["checks"]:
-                    if not isinstance(check, dict) or not isinstance(check.get("severity"), str):
-                        raise ValueError("mutant evidence has malformed final-check statuses")
-                    if check["severity"] == "high" or (
-                        check["severity"] != "info"
-                        and any(_matches_diagnostic(check, diagnostic) for diagnostic in diagnostics)
-                    ):
-                        high = True
-            if high:
-                confirmed += 1
-                print(f"mutant {mutant_id}: confirmed high-severity counterexample; raw Killed result retained")
-            else:
-                issues = [issue for unit in units for issue in unit["issues"]]
-                if not issues and not any(unit["checks"] for unit in units):
-                    issues.append("no final proof checks")
-                detail = "; ".join(issues) if issues else "no confirmed high-severity counterexample"
-                failures.append(f"mutant {mutant_id}: proof-killed result is inconclusive ({detail})")
-                blocked += 1
-        except (KeyError, OSError, TypeError, ValueError) as error:
-            failures.append(f"mutant {mutant_id}: malformed or stale evidence ({error})")
-            blocked += 1
+        reason = None
+        if not records:
+            reason = "missing fresh selected-unit GNATprove evidence"
+        else:
+            try:
+                matching = []
+                malformed_units = False
+                expected_unit = _selected_unit(file_name)
+                for path, evidence in records:
+                    units = evidence.get("units")
+                    if not isinstance(units, list):
+                        malformed_units = True
+                        continue
+                    if any(not isinstance(unit, dict) or not isinstance(unit.get("unit"), str) for unit in units):
+                        malformed_units = True
+                        continue
+                    if any(unit["unit"] == expected_unit for unit in units):
+                        matching.append((path, evidence))
+                if malformed_units:
+                    raise ValueError("mutant evidence has malformed selected-unit metadata")
+                if len(matching) != 1:
+                    raise ValueError(
+                        f"expected one fresh evidence record for selected unit {expected_unit}, found {len(matching)}"
+                    )
+                path, evidence = matching[0]
+                exit_code, unit, diagnostics = _validate_evidence(
+                    path, evidence, mutant_id, file_name, manifest["createdAtNs"]
+                )
+                status = mutant["status"]
+                if status == "Killed":
+                    if exit_code == 0:
+                        raise ValueError("proof-killed result has a successful GNATprove exit")
+                    high = any(
+                        check["severity"] == "high"
+                        or (
+                            check["severity"] != "info"
+                            and any(_matches_diagnostic(check, diagnostic) for diagnostic in diagnostics)
+                        )
+                        for check in unit["checks"]
+                    )
+                    if not high:
+                        issues = unit["issues"]
+                        detail = "; ".join(issues) if issues else "no confirmed high-severity counterexample"
+                        raise ValueError(f"proof-killed result is inconclusive ({detail})")
+                    result["confirmed"] += 1
+                    print(f"mutant {mutant_id}: confirmed high-severity counterexample; raw Killed result retained")
+                else:
+                    if exit_code != 0:
+                        raise ValueError(f"GNATprove exited with status {exit_code}")
+                    unproved = [check for check in unit["checks"] if check["severity"] != "info"]
+                    if unproved:
+                        check = unproved[0]
+                        raise ValueError(
+                            "selected-unit final check is not proved "
+                            f"({check['severity']} at {check['file']}:{check['line']}:{check['column']})"
+                        )
+                    if unit["issues"]:
+                        raise ValueError("selected-unit proof evidence has issues: " + "; ".join(unit["issues"]))
+                    result["validated"] += 1
+            except (KeyError, OSError, TypeError, ValueError) as error:
+                reason = str(error)
 
-    result = {"proofKilled": len(proof_killed), "confirmed": confirmed, "blocked": blocked}
+        if reason is not None:
+            failures.append(f"mutant {mutant_id} ({file_name}): {reason}")
+            judgements.append(
+                {"id": mutant_id, "file": file_name, "status": "Inconclusive", "reason": reason}
+            )
+            result["blocked"] += 1
+
     return not failures, failures, result
 
 

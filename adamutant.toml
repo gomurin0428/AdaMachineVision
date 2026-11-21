@@ -11,14 +11,14 @@ mutate = ["src/*.adb"]
 # (the 1076 mutants of the QR Code finder) these passes take the
 # compiler 16 minutes instead of 3; a build of more than 10 minutes
 # (build_timeout_ms) ends the run.
-build = "gprbuild -q -p -j2 -P amv_tests.gpr test_suite.adb -cargs -fno-tree-fre -fno-tree-pta -fno-var-tracking"
+build = "gprbuild -q -p -j2 -P amv_tests.gpr test_suite.adb test_max_pixels_limit.adb -cargs -fno-tree-fre -fno-tree-pta -fno-var-tracking"
 # The proof of the unit of the mutated body, for a mutant that the tests
 # do not detect (tools/mutant_prove.sh).
 prove = "sh tools/mutant_prove.sh"
 # A mutant that neither detects is compiled again with optimisation and
 # without debug information: where its object code is that of the
 # unchanged project, it is an equivalent mutant.
-equivalence_build = "gprbuild -q -p -c -j2 -P amv_tests.gpr test_suite.adb -cargs -O2 -g0"
+equivalence_build = "gprbuild -q -p -c -j2 -P amv_tests.gpr test_suite.adb test_max_pixels_limit.adb -cargs -O2 -g0"
 # The time of a test of a mutant, at most: 1.5 times the time of the
 # test on the unchanged project, measured at the start, and five
 # minutes. The proofs of the mutants that pass their tests run beside
@@ -30,7 +30,8 @@ timeout_ms = 300000
 # The time of the proof of a mutant, at most. The runs of the unchanged
 # project prove the bodies mutated together, from the cache, and no
 # mutant alone (tools/mutant_prove.sh): their time is no measure. A
-# proof cut short leaves its mutant Survived.
+# proof cut short can appear as raw Survived; the AMV gate marks it
+# Inconclusive unless fresh evidence confirms successful proof.
 prove_timeout_ms = 900000
 # A mutant of a size or of a loop bound can allocate without limit.
 test_memory_limit_mb = 2048
@@ -43,7 +44,7 @@ break = 0
 
 # The areas of test_suite, each a test of its own, the quickest first:
 # a mutant runs with the areas that execute its place, in this order,
-# up to the first that detects it.
+# up to the first that detects it. The bounded Max_Pixels probe follows.
 [tests]
 Test_Code_Reader_QR_Patterns = "./build/bin/test_suite Test_Code_Reader_QR_Patterns"
 Test_Code_Reader_QR_Placing = "./build/bin/test_suite Test_Code_Reader_QR_Placing"
@@ -79,3 +80,4 @@ Test_NCC_Search = "./build/bin/test_suite Test_NCC_Search"
 Test_Code_Reader = "./build/bin/test_suite Test_Code_Reader"
 Test_Code_Reader_Data_Matrix = "./build/bin/test_suite Test_Code_Reader_Data_Matrix"
 Test_Code_Reader_QR_Code = "./build/bin/test_suite Test_Code_Reader_QR_Code"
+Test_Max_Pixels_Limit = "python3 tests/run_bounded_max_pixels_probe.py ./build/bin/test_max_pixels_limit"

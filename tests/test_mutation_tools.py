@@ -14,6 +14,7 @@ PROOF_HELPER = ROOT / "tools/mutant_prove.sh"
 PLANNER = ROOT / "tools/mutation_plan.py"
 SHARD_HELPER = ROOT / "tools/mutant_shard.sh"
 PROOF_GATE = ROOT / "tools/mutation_proof_gate.py"
+MAX_PIXELS_LAUNCHER = ROOT / "tests/run_bounded_max_pixels_probe.py"
 SHARDS = (
     "logical",
     "arithmetic",
@@ -290,7 +291,7 @@ class MutationProofGateTests(unittest.TestCase):
         self.evidence.mkdir()
         self.manifest_time = time.time_ns() - 10_000_000_000
         (self.evidence / "manifest.json").write_text(
-            json.dumps({"schemaVersion": 1, "createdAtNs": self.manifest_time}),
+            json.dumps({"schemaVersion": 2, "createdAtNs": self.manifest_time}),
             encoding="utf-8",
         )
         self.report = self.root / "mutation-report.json"
@@ -324,7 +325,9 @@ class MutationProofGateTests(unittest.TestCase):
             capture_output=True,
         )
 
-    def record_spark(self, spark, log="", started_ns=None, mutant_id="1", exit_code=1):
+    def record_spark(
+        self, spark, log="", started_ns=None, mutant_id="1", exit_code=1, units="unit.adb"
+    ):
         started_ns = started_ns if started_ns is not None else time.time_ns() - 5_000_000_000
         spark_root = self.root / "build/obj/gnatprove"
         spark_root.mkdir(parents=True, exist_ok=True)
@@ -350,7 +353,7 @@ class MutationProofGateTests(unittest.TestCase):
                 "--log",
                 str(log_path),
                 "--units",
-                "unit.adb",
+                units,
             ],
             text=True,
             capture_output=True,
@@ -363,7 +366,7 @@ class MutationProofGateTests(unittest.TestCase):
                 self.evidence.mkdir()
                 self.manifest_time = time.time_ns() - 10_000_000_000
                 (self.evidence / "manifest.json").write_text(
-                    json.dumps({"schemaVersion": 1, "createdAtNs": self.manifest_time}),
+                    json.dumps({"schemaVersion": 2, "createdAtNs": self.manifest_time}),
                     encoding="utf-8",
                 )
                 self.report = self.root / f"report-{status}.json"
@@ -452,7 +455,7 @@ class MutationProofGateTests(unittest.TestCase):
         self.evidence = self.root / "unmatched"
         self.evidence.mkdir()
         (self.evidence / "manifest.json").write_text(
-            json.dumps({"schemaVersion": 1, "createdAtNs": self.manifest_time}),
+            json.dumps({"schemaVersion": 2, "createdAtNs": self.manifest_time}),
             encoding="utf-8",
         )
         unmatched = self.record_spark(
@@ -512,6 +515,168 @@ class MutationProofGateTests(unittest.TestCase):
         gate = self.run_gate()
         self.assertEqual(gate.returncode, 0, gate.stdout + gate.stderr)
 
+    def test_survived_requires_fresh_completed_selected_unit_proof(self):
+        self.write_report(
+            [{"id": "1", "status": "Survived", "statusReason": "the tests and the proof passed"}]
+        )
+        missing = self.run_gate()
+        self.assertNotEqual(missing.returncode, 0)
+        payload = json.loads(missing.stdout.splitlines()[-1])
+        judgement = payload["judgements"][0]
+        self.assertEqual(judgement["id"], "1")
+        self.assertEqual(judgement["file"], "src/unit.adb")
+        self.assertEqual(judgement["status"], "Inconclusive")
+        self.assertIn("missing fresh selected-unit", judgement["reason"])
+
+        spark = {
+            "proof": [
+                {
+                    "severity": "info",
+                    "check_file": "unit.adb",
+                    "check_line": 12,
+                    "check_col": 5,
+                    "message": {"text": "range check proved"},
+                    "check_tree": [
+                        {"proof_attempts": {"Altergo": {"result": "Timeout", "time": 120}}}
+                    ],
+                    "unproved_status": {"status": "unknown"},
+                }
+            ]
+        }
+        result = self.record_spark(spark, exit_code=0)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        gate = self.run_gate()
+        self.assertEqual(gate.returncode, 0, gate.stdout + gate.stderr)
+
+        self.evidence = self.root / "wrong-unit"
+        self.evidence.mkdir()
+        (self.evidence / "manifest.json").write_text(
+            json.dumps({"schemaVersion": 2, "createdAtNs": self.manifest_time}),
+            encoding="utf-8",
+        )
+        result = self.record_spark(spark, exit_code=0, units="other.adb")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        wrong_unit = self.run_gate()
+        self.assertNotEqual(wrong_unit.returncode, 0)
+        self.assertIn("selected unit unit.adb", wrong_unit.stdout)
+
+    def test_survived_with_nonzero_gnatprove_exit_is_inconclusive(self):
+        self.write_report(
+            [{"id": "1", "status": "Survived", "statusReason": "the tests and the proof passed"}]
+        )
+        result = self.record_spark(
+            {
+                "proof": [
+                    {
+                        "severity": "info",
+                        "check_file": "unit.adb",
+                        "check_line": 12,
+                        "check_col": 5,
+                        "message": {"text": "range check proved"},
+                    }
+                ]
+            },
+            exit_code=1,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        gate = self.run_gate()
+        self.assertNotEqual(gate.returncode, 0)
+        self.assertIn("GNATprove exited with status 1", gate.stdout)
+
+    def test_proof_dependent_nocoverage_requires_fresh_evidence(self):
+        self.write_report(
+            [
+                {
+                    "id": "1",
+                    "status": "NoCoverage",
+                    "statusReason": "no test executes this code, and the proof did not finish",
+                }
+            ]
+        )
+        gate = self.run_gate()
+        self.assertNotEqual(gate.returncode, 0)
+        payload = json.loads(gate.stdout.splitlines()[-1])
+        self.assertEqual(payload["judgements"][0]["status"], "Inconclusive")
+        self.assertIn("missing fresh selected-unit", payload["judgements"][0]["reason"])
+
+    def test_nocoverage_with_unknown_reason_requires_fresh_evidence(self):
+        self.write_report(
+            [{"id": "1", "status": "NoCoverage", "statusReason": "analysis interrupted"}]
+        )
+        gate = self.run_gate()
+        self.assertNotEqual(gate.returncode, 0)
+        payload = json.loads(gate.stdout.splitlines()[-1])
+        self.assertEqual(payload["judgements"][0]["status"], "Inconclusive")
+        self.assertEqual(payload["proofDependent"], 1)
+        self.assertIn("missing fresh selected-unit", payload["judgements"][0]["reason"])
+
+    def test_high_check_does_not_override_malformed_or_unlocated_final_check(self):
+        self.write_report(
+            [{"id": "1", "status": "Killed", "killedBy": ["proof: assertion"]}]
+        )
+        spark = {
+            "proof": [
+                {
+                    "severity": "high",
+                    "check_file": "unit.adb",
+                    "check_line": 20,
+                    "check_col": 7,
+                    "message": {"text": "assertion might fail"},
+                },
+                "malformed final check",
+            ]
+        }
+        result = self.record_spark(spark, "unit.adb:20:7: high: assertion might fail\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        malformed = self.run_gate()
+        self.assertNotEqual(malformed.returncode, 0)
+        self.assertIn("malformed", malformed.stdout)
+        self.assertIn("Inconclusive", malformed.stdout)
+
+        self.evidence = self.root / "missing-location"
+        self.evidence.mkdir()
+        (self.evidence / "manifest.json").write_text(
+            json.dumps({"schemaVersion": 2, "createdAtNs": self.manifest_time}),
+            encoding="utf-8",
+        )
+        missing_location_spark = {
+            "proof": [
+                spark["proof"][0],
+                {"severity": "medium", "message": {"text": "another unresolved check"}},
+            ]
+        }
+        result = self.record_spark(
+            missing_location_spark,
+            "unit.adb:20:7: high: assertion might fail\n",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        missing_location = self.run_gate()
+        self.assertNotEqual(missing_location.returncode, 0)
+        self.assertIn("missing valid location metadata", missing_location.stdout)
+        self.assertIn("Inconclusive", missing_location.stdout)
+
+    def test_stale_high_counterexample_is_inconclusive(self):
+        spark = {
+            "proof": [
+                {
+                    "severity": "high",
+                    "check_file": "unit.adb",
+                    "check_line": 20,
+                    "check_col": 7,
+                    "message": {"text": "assertion might fail"},
+                }
+            ]
+        }
+        result = self.record_spark(
+            spark,
+            "unit.adb:20:7: high: assertion might fail\n",
+            started_ns=time.time_ns() + 10_000_000_000,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        gate = self.run_gate()
+        self.assertNotEqual(gate.returncode, 0)
+        self.assertIn("stale", gate.stdout)
+
     def test_missing_malformed_and_stale_evidence_fail_closed(self):
         missing = self.run_gate()
         self.assertNotEqual(missing.returncode, 0)
@@ -540,7 +705,7 @@ class MutationProofGateTests(unittest.TestCase):
         self.evidence = self.root / "stale"
         self.evidence.mkdir()
         (self.evidence / "manifest.json").write_text(
-            json.dumps({"schemaVersion": 1, "createdAtNs": self.manifest_time}),
+            json.dumps({"schemaVersion": 2, "createdAtNs": self.manifest_time}),
             encoding="utf-8",
         )
         stale = self.record_spark(
@@ -550,7 +715,7 @@ class MutationProofGateTests(unittest.TestCase):
         self.assertEqual(stale.returncode, 0, stale.stderr)
         self.assertNotEqual(self.run_gate().returncode, 0)
 
-    def test_baseline_filter_removes_only_proof_killed_entries(self):
+    def test_baseline_filter_removes_proof_dependent_entries_only(self):
         baseline = self.root / "baseline.json"
         original = {
             "schemaVersion": 1,
@@ -558,6 +723,11 @@ class MutationProofGateTests(unittest.TestCase):
                 "src/unit.adb": {
                     "mutants": [
                         {"id": "p", "status": "Killed", "killedBy": ["proof: assertion"]},
+                        {"id": "s", "status": "Survived", "statusReason": "the tests and the proof passed"},
+                        {"id": "np", "status": "NoCoverage", "statusReason": "no test executes this code, and the proof passed"},
+                        {"id": "nu", "status": "NoCoverage"},
+                        {"id": "na", "status": "NoCoverage", "statusReason": "analysis interrupted"},
+                        {"id": "nt", "status": "NoCoverage", "statusReason": "no test executes this code"},
                         {"id": "t", "status": "Killed", "killedBy": ["Test_Unit"]},
                         {"id": "c", "status": "CompileError"},
                         {"id": "r", "status": "RuntimeError"},
@@ -585,9 +755,21 @@ class MutationProofGateTests(unittest.TestCase):
         self.assertEqual(baseline.read_bytes(), original_bytes)
         kept = filtered.read_text(encoding="utf-8")
         self.assertNotIn('"id": "p"', kept)
+        self.assertNotIn('"id": "s"', kept)
+        self.assertNotIn('"id": "np"', kept)
+        self.assertNotIn('"id": "nu"', kept)
+        self.assertNotIn('"id": "na"', kept)
+        self.assertIn('"id": "nt"', kept)
         self.assertIn('"id": "t"', kept)
         self.assertIn('"id": "c"', kept)
         self.assertIn('"id": "r"', kept)
+
+    def test_nocoverage_without_proof_does_not_require_proof_evidence(self):
+        self.write_report(
+            [{"id": "1", "status": "NoCoverage", "statusReason": "  No Test Executes This Code  "}]
+        )
+        gate = self.run_gate()
+        self.assertEqual(gate.returncode, 0, gate.stdout + gate.stderr)
 
     def test_empty_fresh_report_and_evidence_pass(self):
         self.report = self.root / "empty-report.json"
@@ -629,6 +811,10 @@ class MutationProofGateTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertFalse(cache.exists())
         self.assertTrue(report.exists())
+        gate_result = json.loads((evidence / "gate-result.json").read_text(encoding="utf-8"))
+        self.assertEqual(gate_result["judgements"][0]["status"], "Inconclusive")
+        self.assertEqual(gate_result["judgements"][0]["id"], "1")
+        self.assertEqual(gate_result["judgements"][0]["file"], "src/unit.adb")
 
     def test_missing_baseline_is_allowed_for_a_cold_cache(self):
         report = self.root / "cold-cache-report.json"
@@ -692,6 +878,28 @@ class MutationProofGateTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertFalse(report.exists())
+
+
+@unittest.skipUnless(sys.platform.startswith("linux"), "RLIMIT_AS probe runs on Linux")
+class BoundedMaxPixelsLauncherTests(unittest.TestCase):
+    def test_launcher_sets_and_verifies_both_address_space_limits(self):
+        child = (
+            "import os,resource; "
+            "expected=(268435456,268435456); "
+            "assert resource.getrlimit(resource.RLIMIT_AS)==expected; "
+            "assert os.environ['AMV_BOUNDED_PROBE_RLIMIT_AS']=='268435456'; "
+            "print('PASS: verified 256 MiB RLIMIT_AS')"
+        )
+        environment = os.environ.copy()
+        environment.pop("AMV_BOUNDED_PROBE_RLIMIT_AS", None)
+        result = subprocess.run(
+            [sys.executable, str(MAX_PIXELS_LAUNCHER), sys.executable, "-c", child],
+            text=True,
+            capture_output=True,
+            env=environment,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS: verified 256 MiB RLIMIT_AS", result.stdout)
 
 
 if __name__ == "__main__":
