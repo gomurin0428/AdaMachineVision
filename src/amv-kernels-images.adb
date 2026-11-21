@@ -209,6 +209,9 @@ package body AMV.Kernels.Images with SPARK_Mode is
       Status        : out Ks_Status)
    with Post => Valid (Status)
                 and then Status.Failure in Failure_None | Failure_Bad_Parameter
+                and then (Succeeded (Status) =
+                  (Width >= 1 and then Height >= 1
+                   and then Int64 (Width) * Int64 (Height) <= Max_Pixels))
                 and then (if Succeeded (Status)
                           then Width >= 1 and then Height >= 1
                                and then Int64 (Width) * Int64 (Height)

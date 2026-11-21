@@ -1,8 +1,9 @@
 pragma SPARK_Mode (Off);
 
 with Ada.Finalization;
+with AMV.GigE_Vision_Native;
+with AMV.GigE_Vision_Types;
 with AMV.Images;
-with System;
 
 package AMV.GigE_Vision is
 
@@ -15,7 +16,7 @@ package AMV.GigE_Vision is
    --  directly; other identifiers are resolved by Aravis when Open is called.
 
    procedure Close (Camera : in out Ks_GigE_Camera);
-   --  Stops acquisition and closes the device. It is safe to call repeatedly.
+   --  Releases local camera resources; repeated calls are safe.
 
    function Is_Open (Camera : Ks_GigE_Camera) return Boolean;
 
@@ -36,7 +37,10 @@ package AMV.GigE_Vision is
 
 private
    type Ks_GigE_Camera is new Ada.Finalization.Limited_Controlled with record
-      Handle : System.Address := System.Null_Address;
+      Handle : AMV.GigE_Vision_Native.Camera_Handle :=
+        AMV.GigE_Vision_Native.Null_Handle;
+      State : AMV.GigE_Vision_Types.Camera_State :=
+        AMV.GigE_Vision_Types.Closed;
    end record;
 
    overriding procedure Finalize (Camera : in out Ks_GigE_Camera);
