@@ -715,7 +715,7 @@ class MutationProofGateTests(unittest.TestCase):
         self.assertEqual(stale.returncode, 0, stale.stderr)
         self.assertNotEqual(self.run_gate().returncode, 0)
 
-    def test_baseline_filter_removes_proof_dependent_entries_only(self):
+    def test_baseline_filter_removes_proof_dependent_and_timed_out_entries(self):
         baseline = self.root / "baseline.json"
         original = {
             "schemaVersion": 1,
@@ -727,6 +727,7 @@ class MutationProofGateTests(unittest.TestCase):
                         {"id": "np", "status": "NoCoverage", "statusReason": "no test executes this code, and the proof passed"},
                         {"id": "nu", "status": "NoCoverage"},
                         {"id": "na", "status": "NoCoverage", "statusReason": "analysis interrupted"},
+                        {"id": "to", "status": "Timeout", "statusReason": "resource time limit"},
                         {"id": "nt", "status": "NoCoverage", "statusReason": "no test executes this code"},
                         {"id": "t", "status": "Killed", "killedBy": ["Test_Unit"]},
                         {"id": "c", "status": "CompileError"},
@@ -759,6 +760,7 @@ class MutationProofGateTests(unittest.TestCase):
         self.assertNotIn('"id": "np"', kept)
         self.assertNotIn('"id": "nu"', kept)
         self.assertNotIn('"id": "na"', kept)
+        self.assertNotIn('"id": "to"', kept)
         self.assertIn('"id": "nt"', kept)
         self.assertIn('"id": "t"', kept)
         self.assertIn('"id": "c"', kept)
@@ -770,6 +772,19 @@ class MutationProofGateTests(unittest.TestCase):
         )
         gate = self.run_gate()
         self.assertEqual(gate.returncode, 0, gate.stdout + gate.stderr)
+
+    def test_raw_timeout_is_inconclusive_and_fails_gate(self):
+        self.write_report(
+            [{"id": "timeout-1", "status": "Timeout", "statusReason": "resource time limit"}]
+        )
+        gate = self.run_gate()
+        self.assertNotEqual(gate.returncode, 0)
+        payload = json.loads(gate.stdout.splitlines()[-1])
+        self.assertEqual(payload["blocked"], 1)
+        self.assertEqual(payload["proofDependent"], 0)
+        self.assertEqual(payload["judgements"][0]["id"], "timeout-1")
+        self.assertEqual(payload["judgements"][0]["status"], "Inconclusive")
+        self.assertIn("time limit does not confirm a defect", payload["judgements"][0]["reason"])
 
     def test_empty_fresh_report_and_evidence_pass(self):
         self.report = self.root / "empty-report.json"
@@ -815,6 +830,45 @@ class MutationProofGateTests(unittest.TestCase):
         self.assertEqual(gate_result["judgements"][0]["status"], "Inconclusive")
         self.assertEqual(gate_result["judgements"][0]["id"], "1")
         self.assertEqual(gate_result["judgements"][0]["file"], "src/unit.adb")
+
+    def test_raw_timeout_prevents_report_cache(self):
+        report = self.root / "timeout-report.json"
+        cache = self.root / "cached-timeout" / "mutation-report.json"
+        evidence = self.root / "timeout-evidence"
+        code = (
+            "import json,pathlib,sys; "
+            "p=pathlib.Path(sys.argv[1]); p.parent.mkdir(parents=True,exist_ok=True); "
+            "p.write_text(json.dumps({'schemaVersion':1,'files':{'src/unit.adb':"
+            "{'mutants':[{'id':'timeout-1','status':'Timeout','statusReason':'resource time limit'}]}}}))"
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(PROOF_GATE),
+                "run",
+                "--report",
+                str(report),
+                "--evidence-dir",
+                str(evidence),
+                "--report-cache-path",
+                str(cache),
+                "--",
+                sys.executable,
+                "-c",
+                code,
+                str(report),
+            ],
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertFalse(cache.exists())
+        raw = json.loads(report.read_text(encoding="utf-8"))
+        self.assertEqual(raw["files"]["src/unit.adb"]["mutants"][0]["status"], "Timeout")
+        gate_result = json.loads((evidence / "gate-result.json").read_text(encoding="utf-8"))
+        self.assertFalse(gate_result["passed"])
+        self.assertEqual(gate_result["judgements"][0]["status"], "Inconclusive")
+        self.assertEqual(gate_result["judgements"][0]["id"], "timeout-1")
 
     def test_missing_baseline_is_allowed_for_a_cold_cache(self):
         report = self.root / "cold-cache-report.json"

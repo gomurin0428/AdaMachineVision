@@ -41,7 +41,11 @@ AMV_PROVE_TIMEOUT sets GNATprove's per-prover time limit in seconds
 (120 by default) for both the baseline and mutant proofs; the step limit
 remains 200,000. A prover timeout is incomplete proof evidence and fails
 the proof. It is not a confirmed semantic defect. AdaMutant's separate
-five-minute test and 15-minute mutant-proof limits are unchanged.
+five-minute test and 15-minute mutant-proof limits are unchanged. AdaMutant
+may count a raw Timeout as detected in its score, but the AMV gate treats
+every raw Timeout as Inconclusive and blocks the job and report cache. A
+resource-only timeout does not confirm a defect, and the raw report remains
+unchanged.
 
 The mutation wrapper records each proof invocation's real exit code and
 fresh per-unit .spark final-check evidence under a run-specific directory.
@@ -58,7 +62,8 @@ Inconclusive and fails the job; the gate stays closed for every resource-only
 outcome. A timeout in one prover attempt does not invalidate a final check
 marked proved. Proof-killed, Survived, and proof-dependent NoCoverage entries
 are removed from a filtered copy of a baseline report so they are rerun;
-ordinary test, compile, and runtime results are reused. The last report is
+raw Timeout entries are also removed and rerun. Ordinary test, compile, and
+runtime results are reused. The last report is
 cached only after the gate succeeds, while raw reports and evidence remain
 available as artifacts on failure.
 

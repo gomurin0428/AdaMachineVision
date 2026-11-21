@@ -260,6 +260,10 @@ def _proof_dependent(mutant):
     return False
 
 
+def _baseline_must_rerun(mutant):
+    return mutant.get("status") == "Timeout" or _proof_dependent(mutant)
+
+
 def filter_baseline(input_path, output_path):
     source = pathlib.Path(input_path).resolve()
     destination = pathlib.Path(output_path).resolve()
@@ -274,13 +278,13 @@ def filter_baseline(input_path, output_path):
     for file_data in filtered["files"].values():
         kept = []
         for mutant in file_data["mutants"]:
-            if _proof_dependent(mutant):
+            if _baseline_must_rerun(mutant):
                 removed += 1
             else:
                 kept.append(mutant)
         file_data["mutants"] = kept
     _write_json(destination, filtered)
-    print(f"filtered {removed} proof-dependent baseline entries; original left unchanged")
+    print(f"filtered {removed} proof-dependent or timed-out baseline entries; original left unchanged")
     return 0
 
 
@@ -422,6 +426,14 @@ def _validate_report(report_path, evidence_dir, minimum_mtime_ns):
     for file_name, mutant in mutants:
         status = mutant["status"]
         killing_method = _killed_by(mutant)
+        if status == "Timeout":
+            reason = "raw AdaMutant Timeout is inconclusive; a time limit does not confirm a defect"
+            failures.append(f"mutant {mutant['id']} ({file_name}): {reason}")
+            judgements.append(
+                {"id": str(mutant["id"]), "file": file_name, "status": "Inconclusive", "reason": reason}
+            )
+            result["blocked"] += 1
+            continue
         if status == "Killed" and killing_method is None:
             reason = "missing or malformed killedBy in raw report"
             failures.append(f"mutant {mutant['id']} ({file_name}): {reason}")

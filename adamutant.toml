@@ -25,7 +25,8 @@ equivalence_build = "gprbuild -q -p -c -j2 -P amv_tests.gpr test_suite.adb test_
 # the tests of others and load the machine more than the tests alone
 # did at the start: with a minute, on a runner of the workflow Mutation,
 # tests of mutants that change nothing ran out of time, and a Timeout
-# counts as detected.
+# counts as detected in AdaMutant's raw score. The AMV gate blocks every
+# raw Timeout as Inconclusive; resource limits alone do not confirm a mutant.
 timeout_ms = 300000
 # The time of the proof of a mutant, at most. The runs of the unchanged
 # project prove the bodies mutated together, from the cache, and no
