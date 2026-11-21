@@ -43,6 +43,19 @@ remains 200,000. A prover timeout is incomplete proof evidence and fails
 the proof. It is not a confirmed semantic defect. AdaMutant's separate
 five-minute test and 15-minute mutant-proof limits are unchanged.
 
+The mutation wrapper records each proof invocation's real exit code and
+fresh per-unit .spark final-check evidence under a run-specific directory.
+AdaMutant's raw report remains unchanged. A proof-killed result passes the
+gate only with a fresh .spark high-severity final check or a high-severity
+diagnostic matched to a fresh unproved check. One confirmed counterexample is
+sufficient even when other checks are inconclusive; without confirmation,
+resource-limited or unknown checks and missing, stale, or malformed evidence
+fail closed. A timeout in one prover attempt does not invalidate a final
+check marked proved. Proof-killed entries are removed from a filtered copy
+of a baseline report so they are rerun; other baseline classifications are
+reused. The last report is cached only after the gate succeeds, while raw
+reports and evidence remain available as artifacts on failure.
+
 Changed bodies with more than 30 added lines use the same seven mutator
 shards; 30 or fewer use the default set together. Whole-file requests use
 the file's line count for this decision. The workflow records processor

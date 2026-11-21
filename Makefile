@@ -27,12 +27,19 @@ MUTATION_BASELINE ?=
 MUTATION_CACHE ?= $(or $(PROVE_CACHE),build/prove-cache)
 MUTATION_PROVE_JOBS ?= 2
 MUTATION_CONFIG ?= adamutant.toml
+MUTATION_EVIDENCE_DIR ?=
+MUTATION_REPORT_CACHE_PATH ?=
 MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
   AMV_PROVE_CACHE=$(abspath $(MUTATION_CACHE)) \
   AMV_PROVE_JOBS=$(MUTATION_PROVE_JOBS) \
-  AMV_PROVE_UNITS='$(notdir $(wildcard $(MUTATE)))' $(ADAMUTANT) run \
-  --config $(MUTATION_CONFIG) --concurrency $(MUTATION_JOBS) \
-  $(if $(MUTATION_BASELINE),--baseline $(MUTATION_BASELINE)) \
+  AMV_PROVE_UNITS='$(notdir $(wildcard $(MUTATE)))' \
+  python3 tools/mutation_proof_gate.py run \
+  --report .adamutant/reports/mutation-report.json \
+  $(if $(MUTATION_BASELINE),--baseline-report '$(MUTATION_BASELINE)') \
+  $(if $(MUTATION_EVIDENCE_DIR),--evidence-dir '$(MUTATION_EVIDENCE_DIR)') \
+  $(if $(MUTATION_REPORT_CACHE_PATH),--report-cache-path '$(MUTATION_REPORT_CACHE_PATH)') \
+  -- $(ADAMUTANT) run --config $(MUTATION_CONFIG) \
+  --concurrency $(MUTATION_JOBS) \
   $(foreach m,$(MUTATE),--mutate '$(m)')
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \

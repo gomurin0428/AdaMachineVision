@@ -36,6 +36,11 @@ cache="${AMV_PROVE_CACHE:-${ADAMUTANT_PROVE_CACHE:-}}"
 args=""
 for u in $units; do
   args="$args -u $u"
+  spark_unit=${u##*/}
+  spark_unit=${spark_unit%.*}
+  if [ -d build/obj/gnatprove ]; then
+    rm -f "build/obj/gnatprove/$spark_unit.spark"
+  fi
 done
 # The why3 sessions of earlier proofs in this copy (build/obj/gnatprove,
 # the files why3session.xml and why3shapes). gnatwhy3 can answer a goal
@@ -48,8 +53,34 @@ if [ -d build/obj/gnatprove ]; then
   find build/obj/gnatprove \( -name 'why3session.xml*' -o -name 'why3shapes*' \) \
     -type f -delete
 fi
-exec gnatprove -P amv.gpr -j"${AMV_PROVE_JOBS:-1}" \
+set -- gnatprove -P amv.gpr -j"${AMV_PROVE_JOBS:-1}" \
   --steps="${AMV_PROVE_STEPS:-200000}" \
   --timeout="${AMV_PROVE_TIMEOUT:-120}" --checks-as-errors=on \
   --report=fail --counterexamples=on \
   ${cache:+--memcached-server=file:$cache} $args
+evidence_dir="${AMV_PROVE_EVIDENCE_DIR:-}"
+mutant_id="${ADAMUTANT_MUTANT_ID:-}"
+if [ -n "$evidence_dir" ] && [ -n "$mutant_id" ] && \
+   mkdir -p "$evidence_dir" 2>/dev/null; then
+  log_file=$(mktemp "$evidence_dir/.gnatprove.XXXXXX" 2>/dev/null || true)
+else
+  log_file=""
+fi
+if [ -z "$log_file" ]; then
+  exec "$@"
+fi
+started_ns=$(python3 -c 'import time; print(time.time_ns())')
+if "$@" >"$log_file" 2>&1; then
+  prove_status=0
+else
+  prove_status=$?
+fi
+cat "$log_file"
+script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+python3 "$script_dir/mutation_proof_gate.py" record \
+  --evidence-dir "$evidence_dir" --mutant-id "$mutant_id" \
+  --started-ns "$started_ns" --exit-code "$prove_status" \
+  --spark-root build/obj/gnatprove --log "$log_file" --units "$units" ||
+  echo "GNATprove evidence recording failed; the mutation gate will fail closed" >&2
+rm -f "$log_file" || true
+exit "$prove_status"

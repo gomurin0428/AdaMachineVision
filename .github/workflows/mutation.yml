@@ -26,6 +26,8 @@ on:
       - 'tools/mutant_prove.sh'
       - 'tools/mutant_shard.sh'
       - 'tools/mutation_plan.py'
+      - 'tools/mutation_proof_gate.py'
+      - 'Makefile'
       - 'tests/test_mutation_tools.py'
       - '.github/workflows/mutation.yml'
   workflow_dispatch:
@@ -65,7 +67,7 @@ env:
   # Part of the key of the last reports: a new value runs every mutant
   # again (after a change of AdaMutant, of the tests or of the proof of
   # the mutants, which the reports do not see).
-  REPORT_TAG: r5
+  REPORT_TAG: r6
 
 jobs:
   plan:
@@ -303,6 +305,7 @@ jobs:
           echo "MUTATION_CACHE=$RUNNER_TEMP/mutation-cache" >> "$GITHUB_ENV"
           echo "MUTATION_CACHE_TAR=$RUNNER_TEMP/mutation-cache.tar" >> "$GITHUB_ENV"
           echo "LAST_REPORT_DIR=$RUNNER_TEMP/last-report" >> "$GITHUB_ENV"
+          echo "MUTATION_EVIDENCE_DIR=$RUNNER_TEMP/mutation-evidence" >> "$GITHUB_ENV"
 
       # The prover results of the proofs of the mutants of this unit (their
       # switches are not those of make prove), kept as one tar file as in
@@ -369,7 +372,9 @@ jobs:
             make "$target" MUTATE="$FILE" MUTATION_BASE="$BASE" \
               MUTATION_CONFIG="$config" MUTATION_JOBS=4 \
               MUTATION_PROVE_JOBS=1 MUTATION_CACHE="$MUTATION_CACHE" \
-              MUTATION_BASELINE="$LAST_REPORT_DIR/mutation-report.json" 2>&1 |
+              MUTATION_BASELINE="$LAST_REPORT_DIR/mutation-report.json" \
+              MUTATION_EVIDENCE_DIR="$MUTATION_EVIDENCE_DIR" \
+              MUTATION_REPORT_CACHE_PATH="$LAST_REPORT_DIR/mutation-report.json" 2>&1 |
             tee "$RUNNER_TEMP/adamutant.log"
 
       - name: Summary
@@ -390,18 +395,15 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Keep the report and pack the prover cache
+      - name: Pack the prover cache
         if: always()
         run: |
-          if [ -f .adamutant/reports/mutation-report.json ]; then
-            cp .adamutant/reports/mutation-report.json "$LAST_REPORT_DIR/"
-          fi
           if [ -d "$MUTATION_CACHE" ]; then
             tar -cf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE" .
           fi
 
       - name: Save the last report
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: ${{ env.LAST_REPORT_DIR }}
@@ -421,7 +423,9 @@ jobs:
           name: mutation-${{ env.UNIT }}-${{ env.PART }}
           path: |
             .adamutant/reports
+            ${{ runner.temp }}/mutation-evidence
             ${{ runner.temp }}/adamutant.log
             ${{ runner.temp }}/mutation-time.txt
             ${{ runner.temp }}/mutation-resources.txt
           if-no-files-found: warn
+          include-hidden-files: true
