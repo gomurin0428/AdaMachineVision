@@ -31,6 +31,23 @@ on the bodies that a pull request changes and keeps the report of each
 as an artifact of its job. `make mutation MUTATE=src/<file>.adb` runs it
 on a whole body here.
 
+Each changed body gets one full-unit baseline proof, independently of
+the AdaMutant build. Its successful prover cache is overlaid on the
+restored cache in every mutation shard for that body. The baseline job is
+limited to 40 minutes, with its proof step stopped after 30 minutes so
+failure diagnostics can be uploaded; the mutation job retains its
+existing limits.
+AMV_PROVE_TIMEOUT sets GNATprove's per-prover time limit in seconds
+(120 by default) for both the baseline and mutant proofs; the step limit
+remains 200,000. A prover timeout is incomplete proof evidence and fails
+the proof. It is not a confirmed semantic defect. AdaMutant's separate
+five-minute test and 15-minute mutant-proof limits are unchanged.
+
+Changed bodies with more than 30 added lines use the same seven mutator
+shards; 30 or fewer use the default set together. Whole-file requests use
+the file's line count for this decision. The workflow records processor
+and memory availability and per-stage elapsed/resource statistics.
+
 A test that checks how long a run takes (against a limit, or against
 another run) skips that check while a mutant is active
 (`AMV_Test_Support.Check_Timing`): the tests of the mutants run beside
