@@ -1210,6 +1210,9 @@ procedure Test_Kernels is
       KI.Create (0, 5, 0, Other, Status);
       Check (Status.Failure = K.Failure_Bad_Parameter and then Other = null,
              "Create with Width 0");
+      KI.Create (1, 0, 0, Other, Status);
+      Check (Status.Failure = K.Failure_Bad_Parameter and then Other = null,
+             "Create with Height 0");
       KI.Create (65_536, 32_768, 0, Other, Status);
       Check (Failed (K.Failure_Bad_Parameter,
                      "Create: the image size 65536 x 32768 is too large")

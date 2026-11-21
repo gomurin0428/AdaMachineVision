@@ -1749,6 +1749,15 @@ package body AMV.Kernels.Blob with SPARK_Mode is
       Set_Success (Status);
    end Create_Blob_Image;
 
+   procedure Stretched_Zero (Full, Stretch : Int32)
+     with Ghost,
+          Pre  => Full in 1 .. 255,
+          Post => Stretched (0, Full, Stretch) = 0
+   is
+   begin
+      null;
+   end Stretched_Zero;
+
    procedure Make_Segmented
      (M             : access constant U8_Matrix;
       Width, Height : Int32;
@@ -1784,7 +1793,11 @@ package body AMV.Kernels.Blob with SPARK_Mode is
       Image         : out KI.Ks_Image_8_Grey;
       Status        : out Ks_Status)
    is
+      --  Only the background zero needs the nonlinear mapping here.
+      pragma Annotate
+        (GNATprove, Hide_Info, "Expression_Function_Body", Stretched);
    begin
+      Stretched_Zero (Full, Stretch);
       KI.Create (Width, Height, 0, Image, Status);
       if not Succeeded (Status) then
          return;
@@ -1800,14 +1813,25 @@ package body AMV.Kernels.Blob with SPARK_Mode is
                   and then Image.Height = Height);
                pragma Loop_Invariant
                  (for all YY in Image.Pixels'Range (1) =>
+                    (YY in M'Range (1)
+                     or else
+                       (for all XX in Image.Pixels'Range (2) =>
+                          Image.Pixels (YY, XX) = 0)));
+               pragma Loop_Invariant
+                 (for all YY in M'Range (1) =>
                     (for all XX in Image.Pixels'Range (2) =>
+                       (XX in M'Range (2)
+                        or else Image.Pixels (YY, XX) = 0)));
+               pragma Loop_Invariant
+                 (for all YY in M'First (1) .. Y - 1 =>
+                    (for all XX in M'Range (2) =>
                        Image.Pixels (YY, XX)
-                         = (if YY in M'Range (1) and then XX in M'Range (2)
-                              and then (YY < Y
-                                        or else (YY = Y and then XX <= X))
-                            then Stretched (Level_At (M, XX, YY), Full,
-                                            Stretch)
-                            else 0)));
+                         = Stretched
+                             (Int32 (M (YY, XX)), Full, Stretch)));
+               pragma Loop_Invariant
+                 (for all XX in M'First (2) .. X =>
+                    Image.Pixels (Y, XX)
+                      = Stretched (Int32 (M (Y, XX)), Full, Stretch));
             end loop;
             pragma Loop_Invariant
               (KI.Valid_Image (Image)
@@ -1815,13 +1839,21 @@ package body AMV.Kernels.Blob with SPARK_Mode is
                and then Image.Height = Height);
             pragma Loop_Invariant
               (for all YY in Image.Pixels'Range (1) =>
+                 (YY in M'Range (1)
+                  or else
+                    (for all XX in Image.Pixels'Range (2) =>
+                       Image.Pixels (YY, XX) = 0)));
+            pragma Loop_Invariant
+              (for all YY in M'Range (1) =>
                  (for all XX in Image.Pixels'Range (2) =>
+                    (XX in M'Range (2)
+                     or else Image.Pixels (YY, XX) = 0)));
+            pragma Loop_Invariant
+              (for all YY in M'First (1) .. Y =>
+                 (for all XX in M'Range (2) =>
                     Image.Pixels (YY, XX)
-                      = (if YY in M'First (1) .. Y
-                           and then XX in M'Range (2)
-                         then Stretched (Level_At (M, XX, YY), Full,
-                                         Stretch)
-                         else 0)));
+                      = Stretched
+                          (Int32 (M (YY, XX)), Full, Stretch)));
          end loop;
       end if;
    end Make_Segmented;

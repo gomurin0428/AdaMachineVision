@@ -31,6 +31,56 @@ on the bodies that a pull request changes and keeps the report of each
 as an artifact of its job. `make mutation MUTATE=src/<file>.adb` runs it
 on a whole body here.
 
+Each changed body gets one full-unit baseline proof, independently of
+the AdaMutant build. Its successful prover cache is overlaid on the
+restored cache in every mutation shard for that body. The baseline job is
+limited to 40 minutes, with its proof step stopped after 30 minutes so
+failure diagnostics can be uploaded; the mutation job retains its
+existing limits.
+AMV_PROVE_TIMEOUT sets GNATprove's per-prover time limit in seconds
+(120 by default) for both the baseline and mutant proofs; the step limit
+remains 200,000. A prover timeout is incomplete proof evidence and fails
+the proof. It is not a confirmed semantic defect. AdaMutant's separate
+five-minute test and 15-minute mutant-proof limits are unchanged. AdaMutant
+may count a raw Timeout as detected in its score, but the AMV gate treats
+every raw Timeout as Inconclusive and blocks the job and report cache. A
+resource-only timeout does not confirm a defect, and the raw report remains
+unchanged.
+
+The mutation wrapper records each proof invocation's real exit code and
+fresh per-unit .spark final-check evidence under a run-specific directory.
+AdaMutant's raw report remains unchanged. A proof-killed result passes the
+gate only with a fresh selected-unit .spark high-severity final check or a
+high-severity diagnostic matched to a fresh unproved check. Every final-check
+entry must be well-formed and carry location metadata; one confirmed
+counterexample is sufficient despite other well-formed inconclusive checks.
+Malformed or unlocated checks block confirmation. Raw Survived results and
+NoCoverage results whose reason depends on proof require fresh selected-unit
+evidence, GNATprove exit 0, and all final checks proved. Missing, stale,
+incomplete, resource-limited, unknown, or timed-out proof evidence is explicitly
+Inconclusive and fails the job; the gate stays closed for every resource-only
+outcome. A timeout in one prover attempt does not invalidate a final check
+marked proved. Proof-killed, Survived, and proof-dependent NoCoverage entries
+are removed from a filtered copy of a baseline report so they are rerun;
+raw Timeout entries are also removed and rerun. Ordinary test, compile, and
+runtime results are reused. The last report is
+cached only after the gate succeeds, while raw reports and evidence remain
+available as artifacts on failure.
+
+The mutation tests include a separate `Test_Max_Pixels_Limit` executable for
+the exact `Max_Pixels` boundary. It is not part of the normal `test_suite`.
+Its Python launcher sets and verifies both soft and hard `RLIMIT_AS` at
+256 MiB on Linux before replacing itself with the Ada test; the Ada test also
+refuses to run without the launcher's marker. The unchanged kernel must return
+`Out_Of_Memory` with a null image under that cap. The cap keeps this regression
+from attempting an unbounded multi-gigabyte allocation, and the launcher fails
+closed if it cannot enforce the limit.
+
+Changed bodies with more than 30 added lines use the same seven mutator
+shards; 30 or fewer use the default set together. Whole-file requests use
+the file's line count for this decision. The workflow records processor
+and memory availability and per-stage elapsed/resource statistics.
+
 A test that checks how long a run takes (against a limit, or against
 another run) skips that check while a mutant is active
 (`AMV_Test_Support.Check_Timing`): the tests of the mutants run beside

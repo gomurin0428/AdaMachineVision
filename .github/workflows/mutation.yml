@@ -25,6 +25,10 @@ on:
       - 'adamutant.toml'
       - 'tools/mutant_prove.sh'
       - 'tools/mutant_shard.sh'
+      - 'tools/mutation_plan.py'
+      - 'tools/mutation_proof_gate.py'
+      - 'Makefile'
+      - 'tests/test_mutation_tools.py'
       - '.github/workflows/mutation.yml'
   workflow_dispatch:
     inputs:
@@ -63,7 +67,7 @@ env:
   # Part of the key of the last reports: a new value runs every mutant
   # again (after a change of AdaMutant, of the tests or of the proof of
   # the mutants, which the reports do not see).
-  REPORT_TAG: r4
+  REPORT_TAG: r7
 
 jobs:
   plan:
@@ -71,16 +75,19 @@ jobs:
     timeout-minutes: 10
     outputs:
       jobs: ${{ steps.files.outputs.jobs }}
+      bodies: ${{ steps.files.outputs.bodies }}
       whole: ${{ steps.files.outputs.whole }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # A body with more than 300 lines to mutate gets seven jobs, one for
-      # each part of the mutators; another one job with all of them. A
-      # body whose changes only take lines out has no line to mutate and
-      # gets none.
+      - name: Test mutation planner and proof helper
+        run: python3 -m unittest discover -s tests -p 'test_mutation_tools.py'
+
+      # A body with more than 30 added lines gets seven jobs, one for each
+      # part of the mutators. A body changed only by deletions has no line
+      # to mutate and gets none.
       - name: The bodies to mutate, and their parts
         id: files
         env:
@@ -89,23 +96,16 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${FILES:-}" ]; then
-            whole=true
-            list=$(for f in $FILES; do echo "$f $(wc -l < "$f")"; done)
+            for file in $FILES; do
+              printf '%s\t0\t%s\n' "$(wc -l < "$file")" "$file"
+            done | python3 tools/mutation_plan.py --whole
           else
-            whole=false
-            list=$(git diff --numstat --diff-filter=AM \
-                     "$(git merge-base "$BASE" HEAD)" HEAD -- 'src/*.adb' |
-                   awk '{print $3, $1}')
-          fi
-          jobs=$(echo "$list" | awk 'NF == 2 && $2 > 0 {
-                   if ($2 > 300) {
-                     n = split("logical arithmetic conditions numbers statements conjuncts assertions", p, " ")
-                     for (i = 1; i <= n; i++) print $1, p[i]
-                   } else print $1, "all"
-                 }' | jq -R 'split(" ") | {file: .[0], part: .[1]}' | jq -cs .)
-          echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
-          echo "whole=$whole" >> "$GITHUB_OUTPUT"
-          echo "jobs: $jobs (whole files: $whole)"
+            git diff --numstat --diff-filter=AM \
+              "$(git merge-base "$BASE" HEAD)" HEAD -- 'src/*.adb' |
+              python3 tools/mutation_plan.py
+          fi > "$RUNNER_TEMP/mutation-plan"
+          cat "$RUNNER_TEMP/mutation-plan" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/mutation-plan"
 
   # AdaMutant, built once for the run (about 20 minutes with Libadalang)
   # or taken from the cache of its commit, for the jobs mutate.
@@ -156,8 +156,117 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  baseline:
+    needs: plan
+    if: needs.plan.outputs.bodies != '[]'
+    name: baseline (${{ matrix.file }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.bodies) }}
+    env:
+      FILE: ${{ matrix.file }}
+      UNIT: ${{ matrix.unit }}
+      BODY_KEY: ${{ matrix.body_key }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/toolchain
+
+      - name: Choose the directories
+        run: |
+          echo "MUTATION_CACHE=$RUNNER_TEMP/mutation-cache" >> "$GITHUB_ENV"
+          echo "MUTATION_CACHE_TAR=$RUNNER_TEMP/mutation-cache.tar" >> "$GITHUB_ENV"
+
+      - name: Restore the mutation prover cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.MUTATION_CACHE_TAR }}
+          key: mutation-prove-${{ env.UNIT }}-${{ env.GNATPROVE_RELEASE }}-baseline-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            mutation-prove-${{ env.UNIT }}-${{ env.GNATPROVE_RELEASE }}-
+
+      - name: Capture proof runner resources
+        run: |
+          {
+            echo "nproc=$(nproc)"
+            free -h
+          } | tee "$RUNNER_TEMP/baseline-resources.txt"
+
+      - name: Prove the full unit into the cache
+        run: |
+          set -euo pipefail
+          mkdir -p "$MUTATION_CACHE"
+          if [ -f "$MUTATION_CACHE_TAR" ]; then
+            tar -xf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE"
+          fi
+          echo "prover cache: $(find "$MUTATION_CACHE" -type f | wc -l) files"
+          time_format=$'elapsed_seconds=%e\nuser_seconds=%U\nsystem_seconds=%S\ncpu_percent=%P\nmax_rss_kb=%M\nexit_status=%x'
+          /usr/bin/time -f "$time_format" -o "$RUNNER_TEMP/baseline-time.txt" \
+            timeout --signal=TERM --kill-after=30s 30m \
+            env AMV_PROVE_CACHE="$MUTATION_CACHE" AMV_PROVE_JOBS=4 \
+              AMV_PROVE_UNITS="$UNIT.adb" sh tools/mutant_prove.sh 2>&1 |
+            tee "$RUNNER_TEMP/baseline.log"
+
+      - name: Baseline proof summary
+        if: always()
+        run: |
+          {
+            echo "### Full-unit baseline: $FILE"
+            if [ -f "$RUNNER_TEMP/baseline.log" ]; then
+              tail -n 100 "$RUNNER_TEMP/baseline.log"
+            fi
+            echo '#### Runner resources'
+            cat "$RUNNER_TEMP/baseline-resources.txt" 2>/dev/null || true
+            echo '#### Stage timing and resources'
+            cat "$RUNNER_TEMP/baseline-time.txt" 2>/dev/null || true
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Pack the mutation prover cache
+        if: always()
+        run: |
+          mkdir -p "$MUTATION_CACHE"
+          tar -cf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE" .
+
+      - name: Save the mutation prover cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.MUTATION_CACHE_TAR }}
+          key: mutation-prove-${{ env.UNIT }}-${{ env.GNATPROVE_RELEASE }}-baseline-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Share the successful baseline cache
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-cache-${{ env.BODY_KEY }}
+          path: ${{ env.MUTATION_CACHE_TAR }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload baseline diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-baseline-${{ env.BODY_KEY }}
+          path: |
+            ${{ runner.temp }}/baseline.log
+            ${{ runner.temp }}/baseline-time.txt
+            ${{ runner.temp }}/baseline-resources.txt
+            build/obj/gnatprove/gnatprove.out
+            build/obj/gnatprove/*.spark
+            build/obj/gnatprove/**/why3session.xml*
+            build/obj/gnatprove/**/why3shapes*
+          retention-days: 7
+          if-no-files-found: warn
+          include-hidden-files: true
+
   mutate:
-    needs: [plan, adamutant]
+    needs: [plan, adamutant, baseline]
     if: needs.plan.outputs.jobs != '[]'
     name: mutate (${{ matrix.file }}, ${{ matrix.part }})
     runs-on: ubuntu-24.04
@@ -169,6 +278,8 @@ jobs:
     env:
       FILE: ${{ matrix.file }}
       PART: ${{ matrix.part }}
+      UNIT: ${{ matrix.unit }}
+      BODY_KEY: ${{ matrix.body_key }}
       BASE: origin/${{ github.base_ref || 'main' }}
       WHOLE: ${{ needs.plan.outputs.whole }}
     steps:
@@ -191,11 +302,10 @@ jobs:
 
       - name: Choose the directories
         run: |
-          unit=$(basename "$FILE" .adb)
-          echo "UNIT=$unit" >> "$GITHUB_ENV"
           echo "MUTATION_CACHE=$RUNNER_TEMP/mutation-cache" >> "$GITHUB_ENV"
           echo "MUTATION_CACHE_TAR=$RUNNER_TEMP/mutation-cache.tar" >> "$GITHUB_ENV"
           echo "LAST_REPORT_DIR=$RUNNER_TEMP/last-report" >> "$GITHUB_ENV"
+          echo "MUTATION_EVIDENCE_DIR=$RUNNER_TEMP/mutation-evidence" >> "$GITHUB_ENV"
 
       # The prover results of the proofs of the mutants of this unit (their
       # switches are not those of make prove), kept as one tar file as in
@@ -219,19 +329,30 @@ jobs:
           restore-keys: |
             mutation-report-${{ env.REPORT_TAG }}-${{ env.UNIT }}-${{ env.PART }}-${{ github.head_ref || github.ref_name }}-
 
-      # The unit proved once with the switches of the mutants, so that the
-      # proofs of the unchanged project and of every mutant take the goals
-      # they share from the cache.
-      - name: Prove the unit into the cache
+      - name: Download the successful baseline cache
+        uses: actions/download-artifact@v4
+        with:
+          name: mutation-cache-${{ env.BODY_KEY }}
+          path: ${{ runner.temp }}/baseline-cache
+
+      # Restore the ordinary shard cache first, then overlay the fresh
+      # full-unit proof results before any mutant is built or proved.
+      - name: Overlay the baseline cache
         run: |
           set -euo pipefail
           mkdir -p "$MUTATION_CACHE" "$LAST_REPORT_DIR"
           if [ -f "$MUTATION_CACHE_TAR" ]; then
             tar -xf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE"
           fi
+          tar -xf "$RUNNER_TEMP/baseline-cache/mutation-cache.tar" -C "$MUTATION_CACHE"
           echo "prover cache: $(find "$MUTATION_CACHE" -type f | wc -l) files"
-          AMV_PROVE_CACHE="$MUTATION_CACHE" AMV_PROVE_JOBS=4 \
-            AMV_PROVE_UNITS="$UNIT.adb" sh tools/mutant_prove.sh
+
+      - name: Capture mutation runner resources
+        run: |
+          {
+            echo "nproc=$(nproc)"
+            free -h
+          } | tee "$RUNNER_TEMP/mutation-resources.txt"
 
       # Four sandboxes on the four processors of a runner, each proof with
       # one prover. The tests that run beside the proofs still take longer
@@ -246,11 +367,15 @@ jobs:
           else
             target=mutation-diff
           fi
-          make "$target" MUTATE="$FILE" MUTATION_BASE="$BASE" \
-            MUTATION_CONFIG="$config" MUTATION_JOBS=4 \
-            MUTATION_PROVE_JOBS=1 MUTATION_CACHE="$MUTATION_CACHE" \
-            MUTATION_BASELINE="$LAST_REPORT_DIR/mutation-report.json" \
-            2>&1 | tee "$RUNNER_TEMP/adamutant.log"
+          time_format=$'elapsed_seconds=%e\nuser_seconds=%U\nsystem_seconds=%S\ncpu_percent=%P\nmax_rss_kb=%M\nexit_status=%x'
+          /usr/bin/time -f "$time_format" -o "$RUNNER_TEMP/mutation-time.txt" \
+            make "$target" MUTATE="$FILE" MUTATION_BASE="$BASE" \
+              MUTATION_CONFIG="$config" MUTATION_JOBS=4 \
+              MUTATION_PROVE_JOBS=1 MUTATION_CACHE="$MUTATION_CACHE" \
+              MUTATION_BASELINE="$LAST_REPORT_DIR/mutation-report.json" \
+              MUTATION_EVIDENCE_DIR="$MUTATION_EVIDENCE_DIR" \
+              MUTATION_REPORT_CACHE_PATH="$LAST_REPORT_DIR/mutation-report.json" 2>&1 |
+            tee "$RUNNER_TEMP/adamutant.log"
 
       - name: Summary
         if: always()
@@ -260,20 +385,25 @@ jobs:
             echo '```'
             grep -v '^\[[0-9]*/[0-9]*\]' "$RUNNER_TEMP/adamutant.log" | tail -n 200 || true
             echo '```'
+            echo '#### Runner resources'
+            echo '```'
+            cat "$RUNNER_TEMP/mutation-resources.txt" 2>/dev/null || true
+            echo '```'
+            echo '#### Stage timing and resources'
+            echo '```'
+            cat "$RUNNER_TEMP/mutation-time.txt" 2>/dev/null || true
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Keep the report and pack the prover cache
+      - name: Pack the prover cache
         if: always()
         run: |
-          if [ -f .adamutant/reports/mutation-report.json ]; then
-            cp .adamutant/reports/mutation-report.json "$LAST_REPORT_DIR/"
-          fi
           if [ -d "$MUTATION_CACHE" ]; then
             tar -cf "$MUTATION_CACHE_TAR" -C "$MUTATION_CACHE" .
           fi
 
       - name: Save the last report
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: ${{ env.LAST_REPORT_DIR }}
@@ -293,5 +423,9 @@ jobs:
           name: mutation-${{ env.UNIT }}-${{ env.PART }}
           path: |
             .adamutant/reports
+            ${{ runner.temp }}/mutation-evidence
             ${{ runner.temp }}/adamutant.log
+            ${{ runner.temp }}/mutation-time.txt
+            ${{ runner.temp }}/mutation-resources.txt
           if-no-files-found: warn
+          include-hidden-files: true
