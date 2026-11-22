@@ -985,16 +985,6 @@ def infer_type(expression: Expr, environment: dict[str, str], origin: str) -> st
     raise ExtractionError("unsupported AST node")
 
 
-def validate_call_arguments(expression: Expr, origin: str) -> None:
-    environment = CURRENT_ENVIRONMENTS[origin]
-    infer_type(expression, environment, origin)
-    validate_call_paths(expression, origin)
-    validate_device_id_usage(expression)
-
-
-CURRENT_ENVIRONMENTS: dict[str, dict[str, str]] = {}
-
-
 def lean_constructor(name: Name) -> str:
     enum_type = enum_literal_type(name)
     if enum_type is None:
@@ -1006,6 +996,8 @@ def lean_constructor(name: Name) -> str:
 def translate(
     expression: Expr,
     variables: dict[str, str],
+    environment: dict[str, str],
+    origin: str,
     function_names: dict[str, str] | None = None,
 ) -> str:
     function_names = function_names or FUNCTION_LEAN_NAMES
@@ -1028,7 +1020,10 @@ def translate(
         raise ExtractionError(f"cannot translate identifier {'.'.join(expression.parts)}")
     if isinstance(expression, Call):
         name = expression.name[-1]
-        arguments = [translate(argument, variables, function_names) for argument in expression.arguments]
+        arguments = [
+            translate(argument, variables, environment, origin, function_names)
+            for argument in expression.arguments
+        ]
         if name == "valid_selector":
             if arguments != ["selectorValid"]:
                 raise ExtractionError("Valid_Selector must receive the abstract selectorValid input")
@@ -1037,32 +1032,32 @@ def translate(
             raise ExtractionError(f"cannot translate helper call {name}")
         return function_names[name] + " " + " ".join(f"({argument})" for argument in arguments)
     if isinstance(expression, Negation):
-        return f"(!({translate(expression.value, variables, function_names)}))"
+        return f"(!({translate(expression.value, variables, environment, origin, function_names)}))"
     if isinstance(expression, Binary):
         operators = {"and": "&&", "or": "||", "=": "==", "/=": "!="}
         operator = operators.get(expression.operator)
         if operator is None:
             raise ExtractionError(f"cannot translate operator {expression.operator}")
-        left = translate(expression.left, variables, function_names)
-        right = translate(expression.right, variables, function_names)
+        left = translate(expression.left, variables, environment, origin, function_names)
+        right = translate(expression.right, variables, environment, origin, function_names)
         return f"(({left}) {operator} ({right}))"
     if isinstance(expression, IfExpression):
         otherwise = (
-            translate(expression.otherwise, variables, function_names)
+            translate(expression.otherwise, variables, environment, origin, function_names)
             if expression.otherwise is not None
             else "true"
         )
         for condition, value in reversed(expression.branches):
             otherwise = (
-                f"(if {translate(condition, variables, function_names)} then "
-                f"{translate(value, variables, function_names)} else {otherwise})"
+                f"(if {translate(condition, variables, environment, origin, function_names)} then "
+                f"{translate(value, variables, environment, origin, function_names)} else {otherwise})"
             )
         return otherwise
     if isinstance(expression, CaseExpression):
         selector_type = infer_type(
             expression.selector,
-            CURRENT_ENVIRONMENTS["ghost"],
-            "ghost",
+            environment,
+            origin,
         )
         branches_by_choice: dict[str, Expr] = {}
         for choices, value in expression.branches:
@@ -1071,9 +1066,16 @@ def translate(
         arms = []
         for choice in EXPECTED_ENUMS[selector_type]:
             constructor = ENUM_CONSTRUCTORS[choice]
-            value = translate(branches_by_choice[choice], variables, function_names)
+            value = translate(
+                branches_by_choice[choice],
+                variables,
+                environment,
+                origin,
+                function_names,
+            )
             arms.append(f"  | .{constructor} => {value}")
-        return "match " + translate(expression.selector, variables, function_names) + " with\n" + "\n".join(arms)
+        selector = translate(expression.selector, variables, environment, origin, function_names)
+        return "match " + selector + " with\n" + "\n".join(arms)
     raise ExtractionError("cannot translate unsupported AST node")
 
 
@@ -1424,11 +1426,6 @@ def generate(spec_source: str, kernel_source: str, types_source: str) -> str:
         for name, operation in operations.items()
     }
 
-    global CURRENT_ENVIRONMENTS
-    CURRENT_ENVIRONMENTS = {
-        "ghost": expression_environment("camera_result"),
-        "kernel": {},
-    }
     lines = [
         "import CameraLifecycle.Model",
         "",
@@ -1454,13 +1451,13 @@ def generate(spec_source: str, kernel_source: str, types_source: str) -> str:
         env = expression_environment(name)
         variables = variable_names(name)
         result_type = LEAN_TYPES[FUNCTION_TYPES[name][1]]
-        body = translate(function.body, variables)
+        body = translate(function.body, variables, env, "ghost")
         lines.append(
             emit_definition(FUNCTION_LEAN_NAMES[name], ghost_arguments[name], result_type, body)
         )
         if name == "camera_result":
             pre = parse_expression(function.aspects["pre"], "Camera_Result Pre")
-            pre_body = translate(pre, variables)
+            pre_body = translate(pre, variables, env, "ghost")
             lines.append(emit_definition("cameraResultPre", ghost_arguments[name], "Bool", pre_body))
         lines.append("")
 
@@ -1488,7 +1485,7 @@ def generate(spec_source: str, kernel_source: str, types_source: str) -> str:
                 guard_name,
                 guard_specs[name],
                 "Bool",
-                translate(guard, variables),
+                translate(guard, variables, env, "ghost"),
             )
         )
         lines.append("")
@@ -1499,7 +1496,12 @@ def generate(spec_source: str, kernel_source: str, types_source: str) -> str:
         if "pre" in operation_aspects:
             env = expression_environment(name, "pre")
             pre_expression = operation_aspects["pre"]
-            pre_body = translate(pre_expression, variable_names(name, "pre"))
+            pre_body = translate(
+                pre_expression,
+                variable_names(name, "pre"),
+                env,
+                "kernel",
+            )
             lines.append(
                 emit_definition(
                     lean_name + "Pre",
@@ -1510,7 +1512,13 @@ def generate(spec_source: str, kernel_source: str, types_source: str) -> str:
             )
             lines.append("")
         post_expression = operation_aspects["post"]
-        post_body = translate(post_expression, variable_names(name, "post"))
+        env = expression_environment(name, "post")
+        post_body = translate(
+            post_expression,
+            variable_names(name, "post"),
+            env,
+            "kernel",
+        )
         lines.append(
             emit_definition(
                 lean_name + "Post",

@@ -398,9 +398,9 @@ class ExtractorTests(unittest.TestCase):
 
 
 class SourceConnectionTests(unittest.TestCase):
-    def assert_ada_change_breaks_lean_agreement(
+    def build_after_ada_change(
         self, filename: str, old: str, new: str
-    ) -> None:
+    ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source_dir = root / "src"
@@ -426,12 +426,52 @@ class SourceConnectionTests(unittest.TestCase):
                 timeout=180,
                 check=False,
             )
-            self.assertNotEqual(
-                build.returncode,
-                0,
-                "Ada source mutation unexpectedly agreed with the independent Lean model",
-            )
-            self.assertIn("CameraLifecycle/Proofs.lean:", build.stdout, build.stdout)
+            return build
+
+    def assert_ada_change_breaks_lean_agreement(
+        self, filename: str, old: str, new: str
+    ) -> None:
+        build = self.build_after_ada_change(filename, old, new)
+        self.assertNotEqual(
+            build.returncode,
+            0,
+            "Ada source mutation unexpectedly agreed with the independent Lean model",
+        )
+        self.assertIn("CameraLifecycle/Proofs.lean:", build.stdout, build.stdout)
+
+    def assert_ada_change_preserves_lean_agreement(
+        self, filename: str, old: str, new: str
+    ) -> None:
+        build = self.build_after_ada_change(filename, old, new)
+        self.assertEqual(build.returncode, 0, build.stdout)
+
+    def test_equivalent_start_state_case_expression_builds(self) -> None:
+        original = (
+            "function Start_State\n"
+            "     (State  : T.Camera_State;\n"
+            "      Result : T.Native_Result) return T.Camera_State\n"
+            "   is\n"
+            "     (if State = T.Open_Stopped and then Result = T.Native_Success then\n"
+            "         T.Streaming\n"
+            "      else State);"
+        )
+        replacement = (
+            "function Start_State\n"
+            "     (State  : T.Camera_State;\n"
+            "      Result : T.Native_Result) return T.Camera_State\n"
+            "   is\n"
+            "     (case State is\n"
+            "        when T.Closed => T.Closed,\n"
+            "        when T.Open_Stopped =>\n"
+            "          (if Result = T.Native_Success then T.Streaming else T.Open_Stopped),\n"
+            "        when T.Streaming => T.Streaming);"
+        )
+        self.assert_ada_change_preserves_lean_agreement(
+            "amv-spec-gige_vision.ads",
+            original,
+            replacement,
+        )
+
 
     def test_wrong_state_mapping_breaks_proof(self) -> None:
         self.assert_ada_change_breaks_lean_agreement(
