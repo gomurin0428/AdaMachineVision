@@ -472,6 +472,76 @@ class SourceConnectionTests(unittest.TestCase):
             replacement,
         )
 
+    def start_status_elsif_call_rewrite(self, call_before_not_called: bool) -> tuple[str, str]:
+        original = (
+            "function Start_Status\n"
+            "     (State  : T.Camera_State;\n"
+            "      Result : T.Native_Result) return T.Camera_Status\n"
+            "   is\n"
+            "     (if State = T.Closed then\n"
+            "         T.Camera_Bad_Parameter\n"
+            "      elsif State = T.Streaming then\n"
+            "         T.Camera_Success\n"
+            "      elsif Result = T.Native_Not_Called then\n"
+            "         T.Camera_Error\n"
+            "      else\n"
+            "         Camera_Result (Result));"
+        )
+        not_called_branch = (
+            "      elsif Result = T.Native_Not_Called then\n"
+            "         T.Camera_Error\n"
+        )
+        call_branch = (
+            "      elsif Camera_Result (Result) = T.Camera_Success then\n"
+            "         T.Camera_Success\n"
+        )
+        case_fallback = (
+            "      else\n"
+            "         (case Result is\n"
+            "            when T.Native_Success => T.Camera_Success,\n"
+            "            when T.Native_Bad_Parameter => T.Camera_Bad_Parameter,\n"
+            "            when T.Native_Unsupported => T.Camera_Unsupported,\n"
+            "            when T.Native_Out_Of_Memory => T.Camera_Out_Of_Memory,\n"
+            "            when T.Native_Error | T.Native_Timeout => T.Camera_Error,\n"
+            "            when T.Native_Not_Called => T.Camera_Bad_Parameter));"
+        )
+        replacement = original.replace(
+            not_called_branch + "      else\n         Camera_Result (Result));",
+            (call_branch + not_called_branch if call_before_not_called else not_called_branch + call_branch)
+            + case_fallback,
+        )
+        if replacement == original:
+            raise AssertionError("Start_Status rewrite anchor did not match")
+        return original, replacement
+
+    def test_safe_elsif_camera_result_call_proves_precondition(self) -> None:
+        original, replacement = self.start_status_elsif_call_rewrite(False)
+        self.assert_ada_change_preserves_lean_agreement(
+            "amv-spec-gige_vision.ads",
+            original,
+            replacement,
+        )
+
+    def test_unsafe_elsif_camera_result_call_fails_precondition_proof(self) -> None:
+        original, replacement = self.start_status_elsif_call_rewrite(True)
+        build = self.build_after_ada_change(
+            "amv-spec-gige_vision.ads",
+            original,
+            replacement,
+        )
+        self.assertNotEqual(build.returncode, 0, build.stdout)
+        proof_source = (PROJECT_DIR / "CameraLifecycle" / "Proofs.lean").read_text(
+            encoding="utf-8"
+        )
+        proof_start = proof_source.index(
+            "theorem start_status_camera_result_calls_respect_pre :"
+        )
+        tactic_offset = proof_source.index(
+            "cases state <;> cases result <;> decide",
+            proof_start,
+        )
+        proof_line = proof_source[:tactic_offset].count("\n") + 1
+        self.assertIn(f"Proofs.lean:{proof_line}:", build.stdout, build.stdout)
 
     def test_wrong_state_mapping_breaks_proof(self) -> None:
         self.assert_ada_change_breaks_lean_agreement(

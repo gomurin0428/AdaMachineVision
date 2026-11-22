@@ -1123,11 +1123,9 @@ def collect_camera_result_call_guards(expression: Expr) -> list[tuple[Call, Expr
         elif isinstance(node, IfExpression):
             prior: Expr = BoolLiteral(False)
             for condition, value in node.branches:
-                visit(condition, context)
-                branch_context = conjunction(
-                    context,
-                    conjunction(negate(prior), condition),
-                )
+                condition_context = conjunction(context, negate(prior))
+                visit(condition, condition_context)
+                branch_context = conjunction(condition_context, condition)
                 visit(value, branch_context)
                 prior = disjunction(prior, condition)
             if node.otherwise is not None:
