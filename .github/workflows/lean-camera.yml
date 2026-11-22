@@ -1,0 +1,49 @@
+name: Lean camera lifecycle agreement
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'verification/lean-camera/**'
+      - 'optional/aravis/src/amv-gige_vision_types.ads'
+      - 'optional/aravis/src/amv-spec-gige_vision.ads'
+      - 'optional/aravis/src/amv-kernels-gige_vision.ads'
+      - '.github/workflows/lean-camera.yml'
+  pull_request:
+    paths:
+      - 'verification/lean-camera/**'
+      - 'optional/aravis/src/amv-gige_vision_types.ads'
+      - 'optional/aravis/src/amv-spec-gige_vision.ads'
+      - 'optional/aravis/src/amv-kernels-gige_vision.ads'
+      - '.github/workflows/lean-camera.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lean-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: verification/lean-camera
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Elan and the pinned Lean toolchain
+        run: |
+          curl https://elan.lean-lang.org/elan-init.sh -sSf -o "$RUNNER_TEMP/elan-init.sh"
+          sh "$RUNNER_TEMP/elan-init.sh" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" toolchain install leanprover/lean4:v4.19.0
+
+      - name: Check generated contracts and parser integration tests
+        run: |
+          python3 tools/extract_contracts.py --check
+          python3 -m unittest discover -s tests -v
+
+      - name: Build kernel-checked Lean proofs
+        run: lake build CameraLifecycle
+
+      - name: Audit proof assumptions
+        run: python3 tools/check_axioms.py

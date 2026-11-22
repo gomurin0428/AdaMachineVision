@@ -1,0 +1,21 @@
+import CameraLifecycle.Proofs
+
+#print axioms CameraLifecycle.camera_result_agrees
+#print axioms CameraLifecycle.camera_result_pre_agrees
+#print axioms CameraLifecycle.open_status_agrees
+#print axioms CameraLifecycle.open_state_agrees
+#print axioms CameraLifecycle.start_status_agrees
+#print axioms CameraLifecycle.start_state_agrees
+#print axioms CameraLifecycle.stop_status_agrees
+#print axioms CameraLifecycle.stop_state_agrees
+#print axioms CameraLifecycle.is_open_agrees
+#print axioms CameraLifecycle.is_streaming_agrees
+#print axioms CameraLifecycle.open_relation_agrees
+#print axioms CameraLifecycle.start_relation_agrees
+#print axioms CameraLifecycle.stop_relation_agrees
+#print axioms CameraLifecycle.close_relation_agrees
+#print axioms CameraLifecycle.is_open_relation_agrees
+#print axioms CameraLifecycle.is_streaming_relation_agrees
+#print axioms CameraLifecycle.open_status_camera_result_calls_respect_pre
+#print axioms CameraLifecycle.start_status_camera_result_calls_respect_pre
+#print axioms CameraLifecycle.stop_status_camera_result_calls_respect_pre
