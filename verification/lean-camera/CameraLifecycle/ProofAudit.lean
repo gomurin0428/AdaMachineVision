@@ -1,4 +1,5 @@
 import CameraLifecycle.Proofs
+import CameraLifecycle.Grab.Proofs
 
 #print axioms CameraLifecycle.camera_result_agrees
 #print axioms CameraLifecycle.camera_result_pre_agrees
@@ -19,3 +20,39 @@ import CameraLifecycle.Proofs
 #print axioms CameraLifecycle.open_status_camera_result_calls_respect_pre
 #print axioms CameraLifecycle.start_status_camera_result_calls_respect_pre
 #print axioms CameraLifecycle.stop_status_camera_result_calls_respect_pre
+#print axioms CameraLifecycle.Grab.valid_observation_agrees
+#print axioms CameraLifecycle.Grab.positive_int_to_nat
+#print axioms CameraLifecycle.Grab.int_ofNat_lt_toNat
+#print axioms CameraLifecycle.Grab.int_ofNat_le_toNat
+#print axioms CameraLifecycle.Grab.int_ofNat_lt_decide_ge_false
+#print axioms CameraLifecycle.Grab.nat_sub_zero_of_le
+#print axioms CameraLifecycle.Grab.int_ofNat_le_ofNat
+#print axioms CameraLifecycle.Grab.bool_eq_false_of_not_true
+#print axioms CameraLifecycle.Grab.bool_and_eq_true_components
+#print axioms CameraLifecycle.Grab.bool_or_eq_false_components
+#print axioms CameraLifecycle.Grab.int_beq_true_eq
+#print axioms CameraLifecycle.Grab.nat_bne_false_eq
+#print axioms CameraLifecycle.Grab.nat_bne_eq_false_of_eq
+#print axioms CameraLifecycle.Grab.int_bne_false_eq
+#print axioms CameraLifecycle.Grab.grab_status_success_guards
+#print axioms CameraLifecycle.Grab.grab_status_success_bytes
+#print axioms CameraLifecycle.Grab.one_sub_succ_zero
+#print axioms CameraLifecycle.Grab.int_ofNat_succ_sub_one
+#print axioms CameraLifecycle.Grab.byte_last_from_length
+#print axioms CameraLifecycle.Grab.valid_image_range_bounds
+#print axioms CameraLifecycle.Grab.valid_image_agrees
+#print axioms CameraLifecycle.Grab.grab_status_agrees
+#print axioms CameraLifecycle.Grab.pixel_at_agrees
+#print axioms CameraLifecycle.Grab.grab_pre_agrees
+#print axioms CameraLifecycle.Grab.grab_post_agrees
+#print axioms CameraLifecycle.Grab.build_frame_post_agrees
+#print axioms CameraLifecycle.Grab.grab_relation_agrees
+#print axioms CameraLifecycle.Grab.build_frame_relation_agrees
+#print axioms CameraLifecycle.Grab.empty_observation_validity_matches_nullness
+#print axioms CameraLifecycle.Grab.pixel_at_null_bytes_returns_zero
+#print axioms CameraLifecycle.Grab.pixel_at_reads_byte_content
+#print axioms CameraLifecycle.Grab.successful_pixel_reads_byte
+#print axioms CameraLifecycle.Grab.grab_success_pixel_reads_row_major_byte
+#print axioms CameraLifecycle.Grab.build_frame_success_pixel_reads_row_major_byte
+#print axioms CameraLifecycle.Grab.grab_failure_returns_null
+#print axioms CameraLifecycle.Grab.build_frame_failure_returns_null
