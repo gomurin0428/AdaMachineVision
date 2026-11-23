@@ -867,7 +867,7 @@ theorem frame_size_long_byte_view_is_invalid_length :
   decide
 
 theorem frame_size_zero_byte_view_is_invalid_length :
-    frameSizeSuffix (productBoundaryFrame 1 1 0 0 1 0 true) = .invalidLength := by
+    frameSizeSuffix (productBoundaryFrame 1 1 1 1 1 0 true) = .invalidLength := by
   decide
 
 theorem frame_size_absent_byte_view_is_invalid_length :
@@ -879,7 +879,7 @@ theorem frame_size_non_one_first_bound_is_invalid_length :
   decide
 
 theorem frame_size_reversed_byte_bounds_are_invalid_length :
-    frameSizeSuffix (productBoundaryFrame 1 1 0 0 2 1 true) = .invalidLength := by
+    frameSizeSuffix (productBoundaryFrame 1 1 1 1 1 (-1) true) = .invalidLength := by
   decide
 
 theorem frame_size_inconsistent_source_count_is_invalid_length :
@@ -1451,7 +1451,7 @@ theorem compiler_frame_size_long_byte_view_is_invalid_length :
 
 theorem compiler_frame_size_zero_byte_view_is_invalid_length :
     runFrameSizeProgram compilerFrameSizeProgram compilerFrameSizeBounds
-      (productBoundaryFrame 1 1 0 0 1 0 true) = .returned .invalidLength := by
+      (productBoundaryFrame 1 1 1 1 1 0 true) = .returned .invalidLength := by
   rw [compiler_frame_size_suffix_agrees _
     (by dsimp [observationDomain, productBoundaryFrame, int32Domain]; decide),
     frame_size_zero_byte_view_is_invalid_length]
@@ -1472,7 +1472,7 @@ theorem compiler_frame_size_non_one_first_bound_is_invalid_length :
 
 theorem compiler_frame_size_reversed_byte_bounds_are_invalid_length :
     runFrameSizeProgram compilerFrameSizeProgram compilerFrameSizeBounds
-      (productBoundaryFrame 1 1 0 0 2 1 true) = .returned .invalidLength := by
+      (productBoundaryFrame 1 1 1 1 1 (-1) true) = .returned .invalidLength := by
   rw [compiler_frame_size_suffix_agrees _
     (by dsimp [observationDomain, productBoundaryFrame, int32Domain]; decide),
     frame_size_reversed_byte_bounds_are_invalid_length]
