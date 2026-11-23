@@ -75,6 +75,9 @@ jobs:
           gcc -dumpmachine
           python3 tools/extract_pixel_compiler.py --check
 
+      - name: Check GNAT-generated Grab_Status frame-size semantics
+        run: python3 tools/extract_frame_size_compiler.py --check
+
       - name: Check generated contracts and parser integration tests
         run: |
           python3 tools/extract_contracts.py --check
