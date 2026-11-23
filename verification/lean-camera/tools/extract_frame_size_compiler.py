@@ -107,8 +107,10 @@ def walk_nodes(nodes: dict[int, dict[str, str]], root: int) -> list[int]:
     return result
 
 
-def control_conditions(nodes: dict[int, dict[str, str]], root: int) -> list[int]:
+def control_conditions(nodes: dict[int, dict[str, str]], root: int,
+                       scan_predicate_calls: bool = False) -> tuple[list[int], set[int]]:
     result: list[int] = []
+    check_calls: set[int] = set()
 
     def visit(node_id: int) -> None:
         node_kind = kind(nodes, node_id)
@@ -116,10 +118,22 @@ def control_conditions(nodes: dict[int, dict[str, str]], root: int) -> list[int]
         if node_kind == "return_expr":
             return
         if node_kind == "cond_expr":
+            condition_id = ref(nodes, node_id, "op 0")
+            if scan_predicate_calls:
+                for child in walk_nodes(nodes, condition_id):
+                    if kind(nodes, child) != "call_expr":
+                        continue
+                    fn_name = compiler_ir.check_name(nodes, child)
+                    if not fn_name.startswith("__gnat_rcheck_CE_"):
+                        raise ExtractionError(f"unassociated compiler call in suffix predicate @{child}: {fn_name}")
+                    check_call_name(nodes, child)
+                    check_calls.add(child)
             true_id = ref(nodes, node_id, "op 1")
             if kind(nodes, true_id) == "call_expr":
                 name = check_call_name(nodes, true_id)
                 if name in {"Range_Check", "Overflow_Check", "Invalid_Data", "Access_Check", "Index_Check"}:
+                    compiler_ir.check_branch(nodes, node_id, name)
+                    check_calls.add(true_id)
                     return
                 raise ExtractionError(f"unknown compiler control call @{true_id}: {name}")
             result.append(node_id)
@@ -144,7 +158,7 @@ def control_conditions(nodes: dict[int, dict[str, str]], root: int) -> list[int]
         raise ExtractionError(f"unknown compiler control statement @{node_id}: {node_kind}")
 
     visit(root)
-    return result
+    return result, check_calls
 
 
 def return_codes(nodes: dict[int, dict[str, str]], root: int) -> list[int]:
@@ -489,18 +503,38 @@ def check_call_name(nodes: dict[int, dict[str, str]], node_id: int) -> str:
     return name.removeprefix("__gnat_rcheck_CE_")
 
 
-def check_nodes(tree: FrameTree, condition_ids: list[int]) -> list[tuple[int, str, object]]:
-    associated: set[int] = set()
+def check_nodes(tree: FrameTree, condition_ids: list[int], suffix_root: int,
+                control_check_calls: set[int]) -> list[tuple[int, str, object]]:
+    predicate_calls: set[int] = set()
     for condition_id in condition_ids:
         for node_id in walk_nodes(tree.nodes, ref(tree.nodes, condition_id, "op 0")):
             if kind(tree.nodes, node_id) != "call_expr":
                 continue
             fn_name = compiler_ir.check_name(tree.nodes, node_id)
             if fn_name.startswith("__gnat_rcheck_CE_"):
-                associated.add(node_id)
-    if associated != tree.consumed_checks:
-        missing = sorted(associated - tree.consumed_checks)
-        extra = sorted(tree.consumed_checks - associated)
+                predicate_calls.add(node_id)
+
+    suffix_calls: set[int] = set()
+    for node_id in walk_nodes(tree.nodes, suffix_root):
+        if kind(tree.nodes, node_id) != "call_expr":
+            continue
+        fn_name = compiler_ir.check_name(tree.nodes, node_id)
+        if not fn_name.startswith("__gnat_rcheck_CE_"):
+            raise ExtractionError(f"unassociated compiler call in selected suffix @{node_id}: {fn_name}")
+        check_call_name(tree.nodes, node_id)
+        suffix_calls.add(node_id)
+
+    if suffix_calls != control_check_calls:
+        missing = sorted(suffix_calls - control_check_calls)
+        extra = sorted(control_check_calls - suffix_calls)
+        raise ExtractionError(f"runtime checks are missing from selected control traversal; missing={missing} extra={extra}")
+    if suffix_calls != predicate_calls:
+        missing = sorted(suffix_calls - predicate_calls)
+        extra = sorted(predicate_calls - suffix_calls)
+        raise ExtractionError(f"compiler checks in frame-size suffix are not all associated with suffix predicates; missing={missing} extra={extra}")
+    if suffix_calls != tree.consumed_checks:
+        missing = sorted(suffix_calls - tree.consumed_checks)
+        extra = sorted(tree.consumed_checks - suffix_calls)
         raise ExtractionError(f"compiler checks lack exact expression associations; missing={missing} extra={extra}")
     return tree.checks
 
@@ -604,20 +638,49 @@ def generate(raw: str, standard: str, expanded: str, source: Path, types: Path,
     length_id = lengths[0]
     products = [node_id for node_id in cond_ids
                 if direct_return(ref(nodes, node_id, "op 1")) == ["tooLarge"]
-                and control_conditions(nodes, ref(nodes, node_id, "op 2")) == [length_id]]
+                and control_conditions(nodes, ref(nodes, node_id, "op 2"))[0] == [length_id]]
     if len(products) != 1:
         raise ExtractionError(f"expected one Too_Large branch preceding length, found {len(products)}")
     product_id = products[0]
     dimensions = [node_id for node_id in cond_ids
                   if direct_return(ref(nodes, node_id, "op 1")) == ["invalidDimensions"]
-                  and control_conditions(nodes, ref(nodes, node_id, "op 2")) == [product_id, length_id]]
+                  and control_conditions(nodes, ref(nodes, node_id, "op 2"))[0] == [product_id, length_id]]
     if len(dimensions) != 1:
         raise ExtractionError(f"expected one ordered frame-size suffix, found {len(dimensions)}")
     dimension_id = dimensions[0]
     if [dimension_id, product_id, length_id] != [
-            node_id for node_id in control_conditions(nodes, ref(nodes, function_id, "body"))
+            node_id for node_id in control_conditions(nodes, ref(nodes, function_id, "body"))[0]
             if node_id in {dimension_id, product_id, length_id}]:
         raise ExtractionError("selected frame-size status paths are not ordered in Grab_Status")
+
+    suffix_conditions, suffix_check_calls = control_conditions(nodes, dimension_id, scan_predicate_calls=True)
+    if suffix_conditions != [dimension_id, product_id, length_id]:
+        raise ExtractionError("selected frame-size suffix has extra or reordered control statements")
+
+    def validate_direct_status_return(branch_id: int, expected_name: str) -> None:
+        statements = raw_children(nodes, branch_id) if kind(nodes, branch_id) == "statement_list" else []
+        if len(statements) != 1 or kind(nodes, statements[0]) != "return_expr":
+            raise ExtractionError(f"{expected_name} branch is not a single direct status return")
+        return_id = statements[0]
+        result_id = ref(nodes, return_id, "expr")
+        if kind(nodes, result_id) != "init_expr":
+            raise ExtractionError(f"{expected_name} branch has a noncanonical status return")
+        target_id, value_id = ref(nodes, result_id, "op 0"), ref(nodes, result_id, "op 1")
+        if kind(nodes, target_id) != "result_decl" or kind(nodes, value_id) != "integer_cst":
+            raise ExtractionError(f"{expected_name} branch has a noncanonical status initializer")
+        actual_name = enum_return_name(compiler_ir.integer_constant(nodes, value_id), members)
+        if actual_name != expected_name:
+            raise ExtractionError(f"{expected_name} branch returns {actual_name}")
+        expected_nodes = {branch_id, return_id, result_id, target_id, value_id}
+        if set(walk_nodes(nodes, branch_id)) != expected_nodes:
+            raise ExtractionError(f"{expected_name} branch contains extra statements or effects")
+
+    for branch_id, expected_name in (
+            (ref(nodes, dimension_id, "op 1"), "invalidDimensions"),
+            (ref(nodes, product_id, "op 1"), "tooLarge"),
+            (ref(nodes, length_id, "op 1"), "invalidLength"),
+            (ref(nodes, length_id, "op 2"), "success")):
+        validate_direct_status_return(branch_id, expected_name)
 
     tree = FrameTree(nodes, function_id, frame_parameter_id, source.name)
     dimension_program = tree.ast(ref(nodes, dimension_id, "op 0"))
@@ -669,7 +732,7 @@ def generate(raw: str, standard: str, expanded: str, source: Path, types: Path,
         raise ExtractionError("byte-array length expression/conversions differ from compiler nodes")
     array_length_expr = length_parts[4][1]
 
-    checks = check_nodes(tree, [dimension_id, product_id, length_id])
+    checks = check_nodes(tree, [dimension_id, product_id, length_id], dimension_id, suffix_check_calls)
     check_counts = Counter(name for _, name, _ in checks)
     if check_counts != Counter({"Range_Check": 1, "Invalid_Data": 2, "Access_Check": 2}):
         raise ExtractionError(f"unknown, extra, or missing compiler checks in frame-size suffix: {check_counts}")

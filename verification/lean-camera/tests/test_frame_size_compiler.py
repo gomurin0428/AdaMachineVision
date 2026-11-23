@@ -43,6 +43,48 @@ class FrameSizeCompilerExtractorTests(unittest.TestCase):
             if expected:
                 self.assertIn(expected, message)
 
+    def assertReturnBranchAccessCheckRejected(self, status: str) -> None:
+        with tempfile.TemporaryDirectory(prefix="frame-size-status-branch-") as temp:
+            directory = Path(temp)
+            baseline_diagnostics = directory / "baseline"
+            frame_size.extract(SPEC, baseline_diagnostics)
+            source = copy_input(directory)
+            substitute_once(
+                source,
+                rf"T\.{status}",
+                f"(declare Probe : constant Positive := Frame.Bytes.all'First; begin T.{status})",
+            )
+            diagnostics = directory / "branch-probe"
+            with self.assertRaises(frame_size.ExtractionError) as raised:
+                frame_size.extract(source, diagnostics)
+            self.assertNotIn("command failed", str(raised.exception).lower())
+
+            def access_checks(path: Path) -> int:
+                raw = (path / "amv-spec-gige_vision.ads.006t.original").read_text(encoding="utf-8")
+                _, nodes = frame_size.compiler_ir.parse_function_tree_named(raw, "grab_status", "Grab_Status")
+                function_ids = [node_id for node_id, node in nodes.items()
+                                if node["kind"] == "function_decl"
+                                and frame_size.compiler_ir.identifier(
+                                    nodes, frame_size.ref(nodes, node_id, "name"))
+                                == "amv__spec__gige_vision__grab_status"]
+                self.assertEqual(len(function_ids), 1)
+                body = frame_size.ref(nodes, function_ids[0], "body")
+                return sum(
+                    node["kind"] == "call_expr"
+                    and frame_size.compiler_ir.check_name(nodes, node_id)
+                    == "__gnat_rcheck_CE_Access_Check"
+                    for node_id in frame_size.walk_nodes(nodes, body)
+                    for node in (nodes[node_id],)
+                )
+
+            self.assertGreater(access_checks(diagnostics), access_checks(baseline_diagnostics))
+
+    def test_access_check_in_invalid_dimensions_return_branch_rejected(self) -> None:
+        self.assertReturnBranchAccessCheckRejected("Frame_Invalid_Dimensions")
+
+    def test_access_check_in_too_large_return_branch_rejected(self) -> None:
+        self.assertReturnBranchAccessCheckRejected("Frame_Too_Large")
+
     def test_compiler_ir_freshness(self) -> None:
         generated = frame_size.OUTPUT.read_text(encoding="utf-8")
         self.assertEqual(frame_size.extract(SPEC, None), generated)
