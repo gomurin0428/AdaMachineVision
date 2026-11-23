@@ -75,8 +75,7 @@ def replace_all(path: Path, old: str, new: str, count: int, *, exact: bool = Fal
             if not piece:
                 continue
             if piece.isspace():
-                line_breaks = piece.count("\n")
-                pieces.append(r"[ \t]*" + r"(?:\r?\n[ \t]*)" * line_breaks)
+                pieces.append(r"\s*")
             else:
                 pieces.append(re.escape(piece))
         pattern = re.compile("".join(pieces))
@@ -335,9 +334,11 @@ class PixelCompilerExtractorTests(unittest.TestCase):
         def mutate(source: Path) -> None:
             text = source.read_text(encoding="utf-8")
             pattern = re.compile(
-                r"(T\.Int64\s*\(\s*Y\s*\)\s*\*\s*T\.Int64)\s*\(\s*Frame\.Width\s*\)"
+                r"(T\.Int64\s*\(\s*Y\s*\)\s*\*)\s*T\.Int64\s*\(\s*Frame\.Width\s*\)"
             )
-            formatted, count = pattern.subn(r"\1  (Frame.Width)", text)
+            formatted, count = pattern.subn(
+                lambda match: f"{match.group(1)}\n         T.Int64  (Frame.Width)", text
+            )
             if count != 2:
                 raise AssertionError(f"expected two compiler-source width conversions, got {count}")
             source.write_text(formatted, encoding="utf-8")
