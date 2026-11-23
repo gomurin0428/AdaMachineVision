@@ -1,0 +1,9 @@
+pragma Assertion_Level (Tested);
+
+pragma Assertion_Policy
+  (Pre => Check, Post => Check, Ghost => Check,
+   Loop_Invariant => Check, Loop_Variant => Check, Assert => Check,
+   Assert_And_Cut => Check, Contract_Cases => Check,
+   Subprogram_Variant => Check, Dynamic_Predicate => Check,
+   Type_Invariant => Check, Default_Initial_Condition => Check,
+   Tested => Check);
