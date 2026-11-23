@@ -64,11 +64,26 @@ def make_source_copy(directory: Path) -> Path:
     return source
 
 
-def replace_all(path: Path, old: str, new: str, count: int) -> None:
+def replace_all(path: Path, old: str, new: str, count: int, *, exact: bool = False) -> None:
     text = path.read_text(encoding="utf-8")
-    if text.count(old) != count:
-        raise AssertionError(f"expected {count} occurrences of {old!r}, got {text.count(old)}")
-    path.write_text(text.replace(old, new), encoding="utf-8")
+    if exact:
+        actual = text.count(old)
+        changed = text.replace(old, new)
+    else:
+        pieces = []
+        for piece in re.split(r"(\s+)", old):
+            if not piece:
+                continue
+            if piece.isspace():
+                line_breaks = piece.count("\n")
+                pieces.append(r"[ \t]*" + r"(?:\r?\n[ \t]*)" * line_breaks)
+            else:
+                pieces.append(re.escape(piece))
+        pattern = re.compile("".join(pieces))
+        changed, actual = pattern.subn(lambda _: new, text)
+    if actual != count:
+        raise AssertionError(f"expected {count} occurrences of {old!r}, got {actual}")
+    path.write_text(changed, encoding="utf-8")
 
 
 class PixelCompilerExtractorTests(unittest.TestCase):
@@ -316,6 +331,25 @@ class PixelCompilerExtractorTests(unittest.TestCase):
             r"^def compiler(RowExpr[01]|CheckRoutines|RawCheckCalls)",
         )
 
+    def test_formatted_source_mutation_still_disagrees_with_lean(self) -> None:
+        def mutate(source: Path) -> None:
+            text = source.read_text(encoding="utf-8")
+            pattern = re.compile(
+                r"(T\.Int64\s*\(\s*Y\s*\)\s*\*\s*T\.Int64)\s*\(\s*Frame\.Width\s*\)"
+            )
+            formatted, count = pattern.subn(r"\1  (Frame.Width)", text)
+            if count != 2:
+                raise AssertionError(f"expected two compiler-source width conversions, got {count}")
+            source.write_text(formatted, encoding="utf-8")
+            replace_all(
+                source,
+                "T.Int64 (Y) * T.Int64 (Frame.Width)",
+                "T.Int64 (Y) * T.Int64 (Frame.Height)",
+                2,
+            )
+
+        self.assert_semantic_mutation_disagrees_with_lean(mutate)
+
     def test_return_index_plus_two_is_not_silently_accepted(self) -> None:
         self.assert_mutation_rejected_or_breaks_lean(
             lambda source: replace_all(source, "T.Int64 (X)) + 1", "T.Int64 (X)) + 2", 1),
@@ -342,7 +376,7 @@ class PixelCompilerExtractorTests(unittest.TestCase):
         self.assert_mutation_rejected_or_breaks_lean(
             lambda source: replace_all(
                 source, "      else\n         Frame.Bytes.all",
-                "      elsif X = 17 then\n         0\n      else\n         Frame.Bytes.all", 1,
+                "      elsif X = 17 then\n         0\n      else\n         Frame.Bytes.all", 1, exact=True,
             ),
             r"^def compiler(SelectedNodeIds|CheckRoutines|RowExpr[01])",
         )
