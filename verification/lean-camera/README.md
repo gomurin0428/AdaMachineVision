@@ -14,9 +14,30 @@ elan toolchain install leanprover/lean4:v4.19.0
 
 The `lean-toolchain` file pins Lean and Lake to `leanprover/lean4:v4.19.0`. The Lake project has no external package dependencies and uses only Lean core/Std; it does not require Mathlib.
 
+The compiler-backed `Pixel_At` tests and freshness check also require GNAT-FSF 16.1.0-1 for Linux x86_64 (`x86_64-pc-linux-gnu`). Install the pinned upstream archive and verify its published SHA-256 before extraction:
+
+```sh
+toolchain="$HOME/.local/share/amv-toolchain"
+release="gnat-16.1.0-1"
+asset="gnat-x86_64-linux-16.1.0-1.tar.gz"
+base="https://github.com/alire-project/GNAT-FSF-builds/releases/download"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$toolchain"
+curl --retry 3 -fsSL -o "$tmp/$asset" "$base/$release/$asset"
+curl --retry 3 -fsSL -o "$tmp/$asset.sha256" "$base/$release/$asset.sha256"
+expected="$(cut -c1-64 "$tmp/$asset.sha256")"
+(cd "$tmp" && printf '%s  %s\n' "$expected" "$asset" | sha256sum -c -)
+tar -xzf "$tmp/$asset" -C "$toolchain"
+export PATH="$toolchain/gnat-x86_64-linux-16.1.0-1/bin:$PATH"
+test "$(gcc --version | sed -n '1p')" = "gcc (GNAT-FSF-builds) 16.1.0"
+test "$(gcc -dumpmachine)" = "x86_64-pc-linux-gnu"
+```
+
 From this directory:
 
 ```sh
+export PATH="$HOME/.local/share/amv-toolchain/gnat-x86_64-linux-16.1.0-1/bin:$HOME/.elan/bin:$PATH"
 python3 tools/extract_contracts.py --check
 python3 tools/extract_grab_contracts.py --check
 python3 -m unittest discover -s tests -v
