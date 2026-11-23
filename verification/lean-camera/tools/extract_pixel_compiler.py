@@ -63,11 +63,13 @@ def parse_standard_types(text: str) -> tuple[int, int, int, int]:
     return -(1 << bits), (1 << bits) - 1, 0, (1 << bits) - 1
 
 
-def parse_function_tree(text: str) -> tuple[str, dict[int, dict[str, str]]]:
+def parse_function_tree_named(text: str, function_name: str,
+                              display_name: str) -> tuple[str, dict[int, dict[str, str]]]:
     lines = text.splitlines()
-    starts = [i for i, line in enumerate(lines) if "amv.spec.gige_vision.pixel_at (" in line]
+    selected = f"amv.spec.gige_vision.{function_name} ("
+    starts = [i for i, line in enumerate(lines) if selected in line]
     if len(starts) != 1:
-        raise ExtractionError(f"expected one compiler Pixel_At tree, found {len(starts)}")
+        raise ExtractionError(f"expected one compiler {display_name} tree, found {len(starts)}")
     start = starts[0]
     end = next((i for i in range(start + 1, len(lines))
                 if lines[i] and not lines[i][0].isspace() and not lines[i].startswith("@")), len(lines))
@@ -82,8 +84,12 @@ def parse_function_tree(text: str) -> tuple[str, dict[int, dict[str, str]]]:
         elif current is not None:
             nodes[current]["text"] += " " + line.strip()
     if not nodes:
-        raise ExtractionError("selected Pixel_At tree has no GCC nodes")
+        raise ExtractionError(f"selected {display_name} tree has no GCC nodes")
     return block[0], nodes
+
+
+def parse_function_tree(text: str) -> tuple[str, dict[int, dict[str, str]]]:
+    return parse_function_tree_named(text, "pixel_at", "Pixel_At")
 
 
 def fields(node: dict[str, str]) -> dict[str, str]:
