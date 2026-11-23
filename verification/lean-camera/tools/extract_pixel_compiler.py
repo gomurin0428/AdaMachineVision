@@ -924,6 +924,7 @@ end CameraLifecycle.Grab
 
 
 def extract(source: Path, diagnostics: Path | None) -> str:
+    source = source.resolve()
     cc, compiler_version, compiler_target = compiler()
     with tempfile.TemporaryDirectory(prefix="gnat-pixel-ir-") as tmp:
         out = Path(tmp)

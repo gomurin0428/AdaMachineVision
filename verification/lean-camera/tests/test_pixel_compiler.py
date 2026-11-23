@@ -209,6 +209,15 @@ class PixelCompilerExtractorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("compiler-derived Pixel_At IR is fresh", result.stdout)
 
+    def test_relative_source_path_resolves_from_project_working_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "CompilerGenerated.lean"
+            result = run_extractor(
+                Path("../../optional/aravis/src/amv-spec-gige_vision.ads"), output
+            )
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertTrue(output.is_file())
+
     def assert_semantic_mutation_disagrees_with_lean(self, mutate) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
