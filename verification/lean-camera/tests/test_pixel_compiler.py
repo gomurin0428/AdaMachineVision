@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -225,12 +226,24 @@ class PixelCompilerExtractorTests(unittest.TestCase):
 
     def test_relative_source_path_resolves_from_project_working_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "CompilerGenerated.lean"
-            result = run_extractor(
-                Path("../../optional/aravis/src/amv-spec-gige_vision.ads"), output
-            )
+            root = Path(directory)
+            source = make_source_copy(root)
+            source.write_text("\n" + source.read_text(encoding="utf-8"), encoding="utf-8")
+            relative_source = Path(os.path.relpath(source, PROJECT_DIR))
+            output = root / "CompilerGenerated.lean"
+            result = run_extractor(relative_source, output)
             self.assertEqual(result.returncode, 0, result.stdout)
             self.assertTrue(output.is_file())
+            generated = output.read_text(encoding="utf-8")
+            baseline = GENERATED.read_text(encoding="utf-8")
+            self.assertNotEqual(
+                re.findall(r"^def compilerPixelAtSource.*$", generated, re.M),
+                re.findall(r"^def compilerPixelAtSource.*$", baseline, re.M),
+            )
+            self.assertEqual(
+                re.findall(r"^def compilerRowExpr[01].*$", generated, re.M),
+                re.findall(r"^def compilerRowExpr[01].*$", baseline, re.M),
+            )
 
     def assert_semantic_mutation_disagrees_with_lean(self, mutate) -> None:
         with tempfile.TemporaryDirectory() as directory:
