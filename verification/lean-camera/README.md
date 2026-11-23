@@ -17,6 +17,7 @@ The `lean-toolchain` file pins Lean and Lake to `leanprover/lean4:v4.19.0`. The 
 The compiler-backed `Pixel_At` tests and freshness check also require GNAT-FSF 16.1.0-1 for Linux x86_64 (`x86_64-pc-linux-gnu`). Install the pinned upstream archive and verify its published SHA-256 before extraction:
 
 ```sh
+set -eu
 toolchain="$HOME/.local/share/amv-toolchain"
 release="gnat-16.1.0-1"
 asset="gnat-x86_64-linux-16.1.0-1.tar.gz"
