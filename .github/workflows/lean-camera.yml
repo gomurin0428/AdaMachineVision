@@ -8,6 +8,8 @@ on:
       - 'optional/aravis/src/amv-gige_vision_types.ads'
       - 'optional/aravis/src/amv-spec-gige_vision.ads'
       - 'optional/aravis/src/amv-kernels-gige_vision.ads'
+      - 'src/amv-kernels-images.ads'
+      - 'src/amv-kernels.ads'
       - '.github/workflows/lean-camera.yml'
   pull_request:
     paths:
@@ -15,6 +17,8 @@ on:
       - 'optional/aravis/src/amv-gige_vision_types.ads'
       - 'optional/aravis/src/amv-spec-gige_vision.ads'
       - 'optional/aravis/src/amv-kernels-gige_vision.ads'
+      - 'src/amv-kernels-images.ads'
+      - 'src/amv-kernels.ads'
       - '.github/workflows/lean-camera.yml'
 
 permissions:
@@ -40,6 +44,7 @@ jobs:
       - name: Check generated contracts and parser integration tests
         run: |
           python3 tools/extract_contracts.py --check
+          python3 tools/extract_grab_contracts.py --check
           python3 -m unittest discover -s tests -v
 
       - name: Build kernel-checked Lean proofs
