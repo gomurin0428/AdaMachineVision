@@ -1032,6 +1032,56 @@ procedure Test_Flow is
    end Test_Log;
 
    ---------------------------------------------------------------------
+   --  A text that is not a flow, a run that cannot start
+   ---------------------------------------------------------------------
+
+   procedure Test_Kept is
+      Flow : AMV.Flow.Graphs.Ks_Flow;
+
+      procedure Bad_Text is
+      begin
+         Flow.From_JSON ("{""format"": 1, ""nodes"": [{""id"": 1, "
+                         & """kind"": ""NoSuchKind""}]}");
+      end Bad_Text;
+   begin
+      Flow.Add_Input ("Image", Image_8_Grey_Type);
+      Flow.Add_Output ("Count", Integer_Type);
+      Check (Flow.Add_Node ("Blob") = 1, "kept: node 1");
+      Flow.Link ("input.Image", "1.Image");
+      Flow.Link ("1.Count", "output.Count");
+      Flow.Set_Input ("Image", From_Image
+        (AMV.Images.Create (40, 30, Value => 200)));
+      Flow.Run;
+      Check (Flow.Result = AMV.Tools.Accept_Result
+             and then Flow.Get_Output ("Count").Has_Value,
+             "kept: a first run");
+
+      Expect_Flow_Error ("kept: an unknown kind", Bad_Text'Access,
+                         "NoSuchKind");
+      Check (Flow.Node_Count = 1 and then Flow.Link_Count = 2
+             and then Flow.Input_Count = 1,
+             "kept: a text that is not a flow leaves the flow as it was");
+
+      --  A run that cannot start does not leave the last one's results.
+      Flow.Unlink ("1.Image");
+      declare
+         procedure Run_It is
+         begin
+            Flow.Run;
+         end Run_It;
+      begin
+         Expect_Flow_Error ("kept: a run of a flow with a problem",
+                            Run_It'Access, "not linked");
+      end;
+      Check (Flow.Result = AMV.Tools.Error
+             and then Contains (Flow.Message, "not linked")
+             and then not Flow.Get_Output ("Count").Has_Value
+             and then Flow.Node (1).State = AMV.Flow.Nodes.Not_Run,
+             "kept: a run that cannot start clears the last results ("
+             & Flow.Message & ")");
+   end Test_Kept;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -1094,6 +1144,7 @@ begin
    Test_Circularity;
    Test_Cut;
    Test_Log;
+   Test_Kept;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

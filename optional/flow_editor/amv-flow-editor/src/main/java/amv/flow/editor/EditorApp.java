@@ -485,9 +485,34 @@ public final class EditorApp extends Application {
             return;
         }
         Path path = file.toPath().toAbsolutePath();
+        Path oldDir = flowFile != null ? flowFile.getParent() : Path.of(System.getProperty("user.dir"));
         act(f -> {
+            Path newDir = path.getParent();
+            if (!newDir.equals(oldDir)) {
+                // Relative file parameters are taken from the flow file's folder:
+                // rewrite them so that they name the same files from the new one.
+                Map<Long, Map<String, String>> moved = new java.util.LinkedHashMap<>();
+                for (NodeInfo node : FlowInfo.parse(f.toJson()).nodes().values()) {
+                    node.params().forEach((name, value) -> {
+                        if ((name.endsWith("Image") || name.endsWith("Path")) && value instanceof String v
+                                && !v.isEmpty() && !Path.of(v).isAbsolute()) {
+                            Path target = oldDir.resolve(v).normalize();
+                            String rewritten;
+                            try {
+                                rewritten = newDir.relativize(target).toString().replace('\\', '/');
+                            } catch (IllegalArgumentException e) {
+                                rewritten = target.toString();  // another drive
+                            }
+                            moved.computeIfAbsent(node.id(), k -> new java.util.LinkedHashMap<>())
+                                    .put(name, rewritten);
+                        }
+                    });
+                }
+                f.setBaseDirectory(newDir);
+                moved.forEach((id, params) -> params.forEach((name, value) ->
+                        f.setParamJson(id, name, Json.quote(value))));
+            }
             f.save(path);
-            f.setBaseDirectory(path.getParent());
             flowFile = path;
             return null;
         }, false);

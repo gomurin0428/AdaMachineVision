@@ -257,6 +257,13 @@ package body AMV.Flow.Nodes.Logging is
          Set_Result (Node, AMV.Tools.Error,
                      "cannot write " & Full & ": "
                      & Ada.Exceptions.Exception_Message (E));
+      when others =>
+         --  A full disk, a time zone that cannot be read: the file must not
+         --  stay open (Run reports the error).
+         if Is_Open (File) then
+            Close (File);
+         end if;
+         raise;
    end Execute;
 
    overriding function Get_Output

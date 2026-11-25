@@ -620,21 +620,8 @@ package body AMV.Flow.Graphs is
          end if;
       end Note;
    begin
-      Check (Flow);
-      for I in 1 .. Natural (Flow.Inputs.Length) loop
-         if not Flow.Inputs (I).Value.Has_Value then
-            for L of Flow.Links loop
-               if L.From.Node = 0 and then L.From.Port = Flow.Inputs (I).Name
-               then
-                  raise Ks_Flow_Exception with
-                    "the flow input " & To_String (Flow.Inputs (I).Name)
-                    & " has no value";
-               end if;
-            end loop;
-         end if;
-      end loop;
-
-      Order (Flow, Ordered, Complete);
+      --  Forget the last run first, so that a run that cannot start does
+      --  not leave its results looking current.
       for C in Flow.Nodes.Iterate loop
          Node_Maps.Element (C).Clear_Inputs;
          Reset_Status (Node_Maps.Element (C).all);
@@ -644,6 +631,29 @@ package body AMV.Flow.Graphs is
       end loop;
       Flow.Outcome := AMV.Tools.Accept_Result;
       Flow.Why := Null_Unbounded_String;
+      begin
+         Check (Flow);
+         for I in 1 .. Natural (Flow.Inputs.Length) loop
+            if not Flow.Inputs (I).Value.Has_Value then
+               for L of Flow.Links loop
+                  if L.From.Node = 0
+                    and then L.From.Port = Flow.Inputs (I).Name
+                  then
+                     raise Ks_Flow_Exception with
+                       "the flow input " & To_String (Flow.Inputs (I).Name)
+                       & " has no value";
+                  end if;
+               end loop;
+            end if;
+         end loop;
+      exception
+         when E : Ks_Flow_Exception =>
+            Flow.Outcome := AMV.Tools.Error;
+            Flow.Why := U (Ada.Exceptions.Exception_Message (E));
+            raise;
+      end;
+
+      Order (Flow, Ordered, Complete);
 
       for Id of Ordered loop
          declare
@@ -906,9 +916,11 @@ package body AMV.Flow.Graphs is
            & Ada.Exceptions.Exception_Message (E);
    end Set_Param_JSON;
 
-   procedure From_JSON (Flow           : in out Ks_Flow;
+   --  Reads the flow in Text into Flow, which is emptied first and again
+   --  when Text is not a valid flow.
+   procedure Read_JSON (Flow           : in out Ks_Flow;
                         Text           : String;
-                        Base_Directory : String := "")
+                        Base_Directory : String)
    is
       use AMV.Flow.JSON;
       Doc : Document;
@@ -1132,6 +1144,24 @@ package body AMV.Flow.Graphs is
              | AMV.Ks_Image_File_Exception | Constraint_Error =>
          Clear (Flow);
          raise Ks_Flow_Exception with Ada.Exceptions.Exception_Message (E);
+   end Read_JSON;
+
+   procedure From_JSON (Flow           : in out Ks_Flow;
+                        Text           : String;
+                        Base_Directory : String := "")
+   is
+      --  Read into a new flow, so that a text that is not a valid flow
+      --  leaves Flow as it was (an editor's flow, a camera that is open).
+      Fresh : Ks_Flow;
+   begin
+      Read_JSON (Fresh, Text, Base_Directory);
+      Clear (Flow);
+      Flow.Flow_Name := Fresh.Flow_Name;
+      Flow.Base_Dir := Fresh.Base_Dir;
+      Flow.Nodes.Move (Source => Fresh.Nodes);
+      Flow.Links.Move (Source => Fresh.Links);
+      Flow.Inputs.Move (Source => Fresh.Inputs);
+      Flow.Outputs.Move (Source => Fresh.Outputs);
    end From_JSON;
 
    procedure Save (Flow : Ks_Flow; Path : String) is

@@ -144,6 +144,12 @@ public final class Flow implements AutoCloseable {
 
     /** Sets an Image_8_Grey input from grey pixels (one byte each, rows {@code stride} bytes apart). */
     public void setInputImage8(String input, int width, int height, int stride, byte[] pixels) {
+        // The engine reads stride * (height - 1) + width bytes: the array must hold them.
+        if (width < 1 || height < 1 || stride < width
+                || pixels.length < (long) stride * (height - 1) + width) {
+            throw new IllegalArgumentException("the pixels do not hold a " + width + " x " + height
+                    + " image with rows " + stride + " bytes apart");
+        }
         call((arena, status) -> AmvFlowNative.FLOW_SET_INPUT_IMAGE_8.invoke(handle(), str(arena, input), width,
                 height, stride, arena.allocateFrom(JAVA_BYTE, pixels), status));
     }

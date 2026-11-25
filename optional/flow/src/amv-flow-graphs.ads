@@ -146,8 +146,9 @@ package AMV.Flow.Graphs is
    procedure Run (Flow : in out Ks_Flow);
    --  Check, then runs the nodes (see the top of this package).
    --  Ks_Flow_Exception for a flow that does not pass Check or a linked
-   --  flow input without a value. Node failures are not exceptions: they
-   --  are in the nodes' statuses, Result and Message.
+   --  flow input without a value; the last run's results are then gone,
+   --  Result is Error and Message says why. Node failures are not
+   --  exceptions: they are in the nodes' statuses, Result and Message.
 
    function Result (Flow : Ks_Flow) return AMV.Tools.Ks_Tool_Result_Constants;
    function Message (Flow : Ks_Flow) return String;
@@ -180,7 +181,7 @@ package AMV.Flow.Graphs is
                         Base_Directory : String := "");
    --  Replaces the flow with the one in Text and prepares its nodes.
    --  Ks_Flow_Exception for anything that is not a valid flow (the message
-   --  says where); the flow is then empty.
+   --  says where); the flow is then left as it was.
 
    procedure Save (Flow : Ks_Flow; Path : String);
    procedure Load (Flow : in out Ks_Flow; Path : String);

@@ -403,6 +403,10 @@ package body AMV.Flow.C_API is
          raise Bad_Argument with "the image size must be 1 .. 100000 a side";
       elsif Stride < Width then
          raise Bad_Argument with "the stride is less than the width";
+      elsif Integer_64 (Stride) * Integer_64 (Height - 1) + Integer_64 (Width)
+              > Integer_64 (Integer'Last)
+      then
+         raise Bad_Argument with "the stride is too large for the height";
       elsif Pixels = System.Null_Address then
          raise Bad_Argument with "the pixels are NULL";
       end if;
