@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	build-aravis test-aravis example-aravis prove prove-aravis mutation mutation-diff clean
+	build-aravis test-aravis example-aravis build-live-circularity prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -92,6 +92,12 @@ else
 	  exit 1; \
 	fi
 endif
+
+# Windows only: the live circularity window (optional/aravis/examples/
+# live_circularity).
+build-live-circularity: build-aravis
+	$(GPRBUILD) -p -P optional/aravis/examples/live_circularity/live_circularity.gpr \
+	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
 
 example-aravis: build-aravis
 	@test -n "$(CAMERA_ID)" || { \

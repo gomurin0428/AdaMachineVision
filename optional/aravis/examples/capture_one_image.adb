@@ -33,6 +33,6 @@ begin
          raise;
    end;
    Camera.Close;
-   Ada.Text_IO.Put_Line ("Captured one Mono8 image to " &
+   Ada.Text_IO.Put_Line ("Captured one grey image to " &
                          Ada.Command_Line.Argument (2));
 end Capture_One_Image;

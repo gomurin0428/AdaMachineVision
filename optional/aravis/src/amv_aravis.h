@@ -28,6 +28,21 @@ int amv_aravis_grab(void *camera, uint64_t timeout_ms,
 			    char *error, size_t error_size);
 void amv_aravis_free_pixels(void *pixels);
 
+/* Exposure (microseconds) and gain of an open camera, through Aravis's
+ * standard features. Not part of the SPARK proof. */
+int amv_aravis_set_exposure_time(void *camera, double exposure_us,
+				 char *error, size_t error_size);
+int amv_aravis_get_exposure_time(void *camera, double *exposure_us,
+				 double *minimum, double *maximum,
+				 char *error, size_t error_size);
+int amv_aravis_set_exposure_auto(void *camera, int enabled,
+				 char *error, size_t error_size);
+int amv_aravis_set_gain(void *camera, double gain,
+			char *error, size_t error_size);
+int amv_aravis_get_gain(void *camera, double *gain,
+			double *minimum, double *maximum,
+			char *error, size_t error_size);
+
 #ifdef AMV_ARAVIS_TESTING
 void amv_aravis_test_reset_stop_attempts(void);
 void amv_aravis_test_fail_next_stop(void);

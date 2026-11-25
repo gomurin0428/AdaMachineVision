@@ -2,6 +2,7 @@ pragma Assertion_Policy (Ghost => Check);
 
 with Ada.Unchecked_Deallocation;
 with System;
+with AMV.GigE_Vision_Bayer;
 with AMV.GigE_Vision_Native;
 with AMV.GigE_Vision_Types;
 with AMV.Kernels;
@@ -374,10 +375,113 @@ package body Test_GigE_Vision_Fixtures is
       Check (Image = null, "fixture image handle is released");
    end Run_Pixel_And_Ownership_Example;
 
+   procedure Run_Bayer_Examples is
+      package B renames AMV.GigE_Vision_Bayer;
+
+      Square : aliased T.Byte_Array := [10, 20, 30, 40];
+      Wide   : aliased T.Byte_Array := [10, 20, 30, 40, 50, 60];
+      Image  : KI.Ks_Image_8_Grey := null;
+      Status : T.Frame_Status;
+      Image_Status : AMV.Kernels.Ks_Status;
+
+      function Bayer_Observation
+        (Pixel_Format  : T.Unsigned_32;
+         Bytes         : T.Byte_Array_Access;
+         Width, Height : T.Int32) return T.Frame_Observation is
+        ((Acquisition_Status => T.Native_Success,
+          Byte_Count => Bytes.all'Length,
+          Bytes => Bytes,
+          Buffer_Status => T.Arv_Buffer_Status_Success,
+          Payload_Type => T.Arv_Payload_Image,
+          Pixel_Format => Pixel_Format,
+          Width => Width,
+          Height => Height,
+          Source_Size => T.Unsigned_64 (Bytes.all'Length)));
+
+      procedure Check_Uniform
+        (Pixel_Format : T.Unsigned_32; Expected : T.Pixel; Name : String) is
+      begin
+         B.Build_Grey
+           (Bayer_Observation (Pixel_Format, Square'Unchecked_Access, 2, 2),
+            Image, Status);
+         Check (Status = T.Frame_Success, Name & " 2x2 frame succeeds");
+         for Y in 0 .. 1 loop
+            for X in 0 .. 1 loop
+               Check (Image.Pixels.all (Y, X) = Expected,
+                      Name & " 2x2 window luma");
+            end loop;
+         end loop;
+         KI.Destroy (Image, Image_Status);
+      end Check_Uniform;
+
+      procedure Check_Status
+        (Frame : T.Frame_Observation; Expected : T.Frame_Status;
+         Message : String) is
+      begin
+         Check (B.Frame_Status (Frame) = Expected, Message & ": status");
+         B.Build_Grey (Frame, Image, Status);
+         Check (Status = Expected and then Image = null,
+                Message & ": no image");
+      end Check_Status;
+
+      Frame : T.Frame_Observation;
+      --  R G R / G B G (RGGB, 3x2): the last column reuses the window of
+      --  column 1 and both rows the window of row 0.
+      Wide_Expected : constant Pixel_Matrix (0 .. 1, 0 .. 2) :=
+        [[26, 38, 38], [26, 38, 38]];
+   begin
+      --  The window 10 20 / 30 40 read as each layout:
+      --  (77 R + 75 (G1 + G2) + 29 B + 128) / 256.
+      Check_Uniform (B.Arv_Pixel_Format_Bayer_RG_8, 22, "BayerRG8");
+      Check_Uniform (B.Arv_Pixel_Format_Bayer_GR_8, 24, "BayerGR8");
+      Check_Uniform (B.Arv_Pixel_Format_Bayer_GB_8, 26, "BayerGB8");
+      Check_Uniform (B.Arv_Pixel_Format_Bayer_BG_8, 28, "BayerBG8");
+
+      B.Build_Grey
+        (Bayer_Observation
+           (B.Arv_Pixel_Format_Bayer_RG_8, Wide'Unchecked_Access, 3, 2),
+         Image, Status);
+      Check (Status = T.Frame_Success, "BayerRG8 3x2 frame succeeds");
+      Check (Image.Width = 3 and Image.Height = 2, "Bayer image is 3x2");
+      for Y in Wide_Expected'Range (1) loop
+         for X in Wide_Expected'Range (2) loop
+            Check (Image.Pixels.all (Y, X) = Wide_Expected (Y, X),
+                   "Bayer edge windows move inwards");
+         end loop;
+      end loop;
+      KI.Destroy (Image, Image_Status);
+
+      Check (B.Is_Bayer_8 (B.Arv_Pixel_Format_Bayer_GB_8)
+             and then not B.Is_Bayer_8 (T.Arv_Pixel_Format_Mono_8),
+             "Bayer8 format recognition");
+
+      Frame := Bayer_Observation
+        (T.Arv_Pixel_Format_Mono_8, Wide'Unchecked_Access, 3, 2);
+      Check_Status (Frame, T.Frame_Unsupported_Format, "Mono8 is not Bayer8");
+
+      Frame := Bayer_Observation
+        (B.Arv_Pixel_Format_Bayer_GB_8, Wide'Unchecked_Access, 6, 1);
+      Check_Status (Frame, T.Frame_Invalid_Dimensions, "Bayer8 one row");
+
+      Frame := Bayer_Observation
+        (B.Arv_Pixel_Format_Bayer_GB_8, Wide'Unchecked_Access, 3, 2);
+      Frame.Payload_Type := T.Arv_Payload_Image_Extended_Chunk;
+      Check_Status (Frame, T.Frame_Unsupported_Payload, "Bayer8 chunk data");
+
+      Frame := Bayer_Observation
+        (B.Arv_Pixel_Format_Bayer_GB_8, Wide'Unchecked_Access, 2, 2);
+      Check_Status (Frame, T.Frame_Invalid_Length, "Bayer8 excess bytes");
+
+      Frame := Bayer_Observation
+        (B.Arv_Pixel_Format_Bayer_GB_8, Wide'Unchecked_Access, 46_341, 46_341);
+      Check_Status (Frame, T.Frame_Too_Large, "Bayer8 too large");
+   end Run_Bayer_Examples;
+
    procedure Run is
    begin
       Run_Spec_And_Lifecycle_Examples;
       Run_Status_Examples;
       Run_Pixel_And_Ownership_Example;
+      Run_Bayer_Examples;
    end Run;
 end Test_GigE_Vision_Fixtures;

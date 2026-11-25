@@ -4,10 +4,12 @@
 cameras. Its implementation and C shim live outside `src/`; it does not
 change the default `amv.gpr` build, the SPARK kernels, or `include/amv.h`.
 The adapter targets Linux and Windows. Aravis 0.8.20 is the minimum tested
-Linux version; Windows CI pins Aravis 0.8.33. Its first implementation accepts
-packed Mono8 payloads only and rejects other pixel formats instead of
-converting them.
-Exposure and gain controls are not included.
+Linux version; Windows CI pins Aravis 0.8.33. It accepts packed Mono8
+payloads and the four packed 8-bit Bayer formats (BayerGR8, BayerRG8,
+BayerGB8, BayerBG8), which it converts to grey; other pixel formats are
+rejected. Exposure and gain can be set through `AMV.GigE_Vision.Settings`;
+there is no pixel-format control: set the camera's pixel format with its own
+tools before `Open`.
 
 ## Dependency and build
 
@@ -99,8 +101,10 @@ gprbuild -p -P my_camera_app.gpr \
   -largs $(pkg-config --libs aravis-0.8)
 ```
 
-The capture example and loopback tests are separate consumer GPR projects;
-neither is part of the adapter library's sources.
+The capture example, the Windows live circularity window
+(`examples/live_circularity`, `make build-live-circularity`) and the
+loopback tests are separate consumer GPR projects; none is part of the
+adapter library's sources.
 
 The example opens one explicitly supplied device, captures one image, and
 writes a PGM file. `CAMERA_ID` may be an IPv4 address or an Aravis device
@@ -133,8 +137,10 @@ be retried. `Close` always clears the local handle and state. If native stop
 fails during `Close`, local resources are still released; this does not claim
 that the physical camera stopped.
 
-The native setup path preserves the existing early Mono8 check during
-`Open`. Independently, every acquired frame is validated by the Ada engine.
+During `Open`, the native setup path checks that the camera's current pixel
+format is Mono8 or one of the four Bayer8 formats; it never changes the
+camera's settings. Independently, every acquired frame is validated by the
+Ada engine.
 It accepts only successful image buffers with the Mono8 format, positive
 dimensions no larger than `2**31 - 1` pixels, and an exact packed byte count
 of `width * height`. Extended-chunk payloads, padding, truncated data,
@@ -146,6 +152,37 @@ timeout; `Native_Not_Called`/`Native_Bad_Parameter` as bad parameter,
 unsupported payload; unsupported format; invalid dimensions; too many pixels;
 invalid byte length; success. For zero-based `x` and `y`, the output pixel at
 `(y, x)` equals `bytes(1 + y * width + x)`.
+
+### Exposure and gain
+
+`AMV.GigE_Vision.Settings` sets and reads an open camera's exposure time
+(microseconds), automatic exposure and gain through Aravis's standard
+features (`ExposureTime` or `ExposureTimeAbs`, `ExposureAuto`, `Gain` or
+`GainRaw`), also while it streams. A closed camera or a value that is not
+finite raises `AMV.Ks_Bad_Parameter_Exception`; a camera that refuses or
+lacks the feature raises `AMV.Ks_Exception` with Aravis's message. These
+calls are not part of the SPARK proof.
+
+### Bayer8 frames
+
+The proved engine accepts Mono8 only. When it rejects a frame for its pixel
+format alone and that format is BayerGR8, BayerRG8, BayerGB8 or BayerBG8,
+the façade passes the same snapshot to `AMV.GigE_Vision_Bayer.Build_Grey`.
+It checks the frame like the engine (successful image payload, at least 2x2,
+at most `2**31 - 1` pixels, exactly `width * height` packed bytes) and
+returns a grey image of the same size. The grey pixel at `(x, y)` is the
+BT.601 luma of the 2x2 window whose top-left sample is `(x, y)`, moved one
+sample left at the last column and one up at the last row:
+`(77 R + 75 (G1 + G2) + 29 B + 128) / 256`. Every 2x2 window of a Bayer
+mosaic holds one red, two green and one blue sample, so the weights always
+sum to 256. The camera's own white balance, if any, is kept; no other
+colour correction is applied. This conversion is tested (worked examples in
+the fixtures and every layout through the loopback camera) but it is not
+part of the SPARK proof or the Lean comparison.
+
+A camera that only offers Bayer formats may still accept Mono8 written to
+its `PixelFormat` register and label its frames Mono8 while sending the raw
+mosaic; set such a camera to its Bayer format instead.
 
 On `Grab`, the C shim obtains Aravis status and metadata and copies the raw
 buffer to a temporary snapshot. The native Ada bridge copies that snapshot
@@ -162,6 +199,13 @@ timeouts or frame errors; increase the timeout only when appropriate and
 check the camera/network configuration rather than expecting video-style
 recovery.
 
+On Windows, the camera's image stream arrives as unsolicited UDP from the
+camera's stream source port, which Windows Defender Firewall blocks unless a
+rule allows it (a direct link to a camera is often a Public network). If
+`Open` and `Start` succeed but every `Grab` times out, add an inbound UDP
+allow rule for the program, or for the camera's address and stream source
+port (Aravis logs it with `ARV_DEBUG=stream:3` as "Source stream port").
+
 ## Tests and verification scope
 
 `make test-aravis` builds the optional project and uses an in-process fake
@@ -172,18 +216,22 @@ namespace and then `sudo -n unshare --net`; it refuses to run if neither is
 available. Windows runs the `.exe` directly, with both endpoints restricted
 to loopback. The Ada fixtures exercise the ghost specification and production
 engine, including status precedence, worked 3x2 pixel mapping, snapshot
-mutation/free, lifecycle receipts, timeout handling, and unsupported or
+mutation/free, lifecycle receipts, timeout handling, Bayer8 worked examples
+(each layout, edge windows and statuses), and unsupported or
 malformed observations. The loopback test covers lifecycle behavior, distinct
-frames, copy lifetime, and the Open-time unsupported-format rejection. No
-physical camera discovery or connection is performed.
+frames, copy lifetime, the Open-time unsupported-format rejection, a frame
+in each Bayer8 layout converted to grey, and exposure and gain set while
+streaming. No physical camera discovery
+or connection is performed.
 
 `make prove-aravis` proves only `AMV.Spec.GigE_Vision` and the production
 `AMV.Kernels.GigE_Vision` engine against their local contracts. It proves the
 logical state/status results, frame-status precedence, packed-size checks,
 and each output pixel's equality to the independent row-major specification.
 The image-allocation out-of-memory result is allowed when frame validation
-otherwise succeeds. The public controlled façade, `AMV.Images` adoption,
-Aravis, C, raw pointer validity/lifetime, and physical camera or network
-behavior are outside this proof. This is not a GigE Vision standard
+otherwise succeeds. The public controlled façade, the Bayer8 conversion
+(`AMV.GigE_Vision_Bayer`), `AMV.Images` adoption, Aravis, C, raw pointer
+validity/lifetime, and physical camera or network behavior are outside this
+proof. This is not a GigE Vision standard
 conformance or whole-module Platinum claim; the native bridge contracts are
 trusted boundaries.

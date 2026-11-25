@@ -1,0 +1,20 @@
+with "../../amv_gige_vision.gpr";
+
+--  Windows only: a GUI program (no console window).
+project Live_Circularity is
+   for Source_Dirs use (".");
+   for Object_Dir use "../../../../build/live-circularity-obj";
+   for Exec_Dir use "../../../../build/bin";
+   for Main use ("live_circularity.adb");
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatwe", "-O2", "-gnatn");
+   end Compiler;
+
+   package Linker is
+      for Default_Switches ("Ada") use ("-mwindows");
+   end Linker;
+end Live_Circularity;
