@@ -35,7 +35,29 @@ final class AmvFlowNative {
             MemoryLayout.sequenceLayout(MAX_MESSAGE_LENGTH + 1, JAVA_BYTE).withName("message"));
 
     private static final Linker LINKER = Linker.nativeLinker();
-    private static final SymbolLookup LOOKUP = SymbolLookup.libraryLookup(libraryPath(), Arena.global());
+    private static final SymbolLookup LOOKUP = load(libraryPath());
+
+    /**
+     * Loads the library. On Windows the library's own directory is added to
+     * the DLL search path first, so that the DLLs it needs (Aravis and GLib
+     * for the camera build) are found next to it.
+     */
+    private static SymbolLookup load(Path library) {
+        Path dir = library.toAbsolutePath().getParent();
+        if (System.getProperty("os.name").toLowerCase().contains("win") && dir != null) {
+            try (Arena arena = Arena.ofConfined()) {
+                MethodHandle setDllDirectory = LINKER.downcallHandle(
+                        SymbolLookup.libraryLookup("kernel32", Arena.global()).find("SetDllDirectoryW")
+                                .orElseThrow(() -> new UnsatisfiedLinkError("no SetDllDirectoryW")),
+                        FunctionDescriptor.of(JAVA_INT, ADDRESS));
+                setDllDirectory.invoke(
+                        arena.allocateFrom(dir.toString(), java.nio.charset.StandardCharsets.UTF_16LE));
+            } catch (Throwable t) {
+                throw new UnsatisfiedLinkError("cannot set the DLL directory " + dir + ": " + t);
+            }
+        }
+        return SymbolLookup.libraryLookup(library, Arena.global());
+    }
 
     // Text out: (buffer, capacity, needed*, status*)
     private static final FunctionDescriptor TEXT = FunctionDescriptor.ofVoid(ADDRESS, JAVA_LONG, ADDRESS, ADDRESS);

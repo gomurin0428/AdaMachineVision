@@ -18,9 +18,14 @@ and Gradle 9; JavaFX 25.0.5 and JUnit come from Maven Central. Build the
 engine library first, from the repository's root:
 
 ```sh
-make test-flow          # also writes the example flow and images into build/flow-test
-make build-flow-c       # build/flow-c-lib/libamvflow.dll (.so, .dylib)
+make test-flow            # also writes the example flow and images into build/flow-test
+make build-flow-c         # build/flow-c-lib/libamvflow.dll (.so, .dylib)
+make build-flow-c-camera  # or with the Camera node: build/flow-c-camera-lib (needs Aravis)
 ```
+
+The Gradle build uses the camera library when it has been built, else the
+plain one. On Windows the binding adds the library's own directory to the
+DLL search path, so the Aravis and GLib DLLs next to it are found.
 
 Then, in `optional/flow_editor`:
 
@@ -54,15 +59,19 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
   remove it, or a node and Delete to remove the node. A box's border shows
   its last result: green accept, orange reject, red error, grey skipped.
 * **Image** (centre, bottom): the selected node's input image from the
-  last run, with its regions (green) and what it found (red cross).
+  last run (a camera's own frame), with its regions in green and what it
+  found in orange (an outline, such as the edge Circularity measured) and
+  red (a point).
 * **Properties** (right): the node's name and parameters, with an editor
   for each (a number, a check box, a choice, a path with a file chooser,
   a shape as JSON); and the outputs of its last run. With no node
   selected: the flow's inputs, outputs and result.
 * **Toolbar**: new, open, save; Open image sets the flow's image input and
   runs it; every change after that runs the flow again (F5 runs it too);
+  **Live** (F6) runs it again and again, so that a flow starting with a
+  Camera node shows each new frame (edits made meanwhile apply at once);
   add flow inputs and outputs.
 
 Not yet: dragging regions on the image (they are edited as JSON), undo,
-zoom, a camera node, playing a folder of images, the C API's image
-transfer without a copy (`PixelBuffer`).
+zoom, playing a folder of images, the C API's image transfer without a
+copy (`PixelBuffer`).

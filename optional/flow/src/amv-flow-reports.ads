@@ -32,7 +32,8 @@ package AMV.Flow.Reports is
    function Node_Image (Flow : AMV.Flow.Graphs.Ks_Flow;
                         Id   : Positive) return AMV.Flow.Values.Ks_Flow_Value;
    --  The image that went into the node's input port "Image" in the last
-   --  run (No_Value when there is none, or the node has no such port).
+   --  run, or for a node with no such input (a camera) the image its
+   --  output "Image" gave; No_Value when there is none.
 
    function Graphics_JSON (Flow : AMV.Flow.Graphs.Ks_Flow;
                            Id   : Positive) return String;

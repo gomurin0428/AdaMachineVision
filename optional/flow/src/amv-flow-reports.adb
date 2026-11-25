@@ -195,12 +195,18 @@ package body AMV.Flow.Reports is
    is
       Value : Ks_Flow_Value;
    begin
-      if not Flow.Contains (Id)
-        or else Find_Port (Flow.Node (Id).all, "Image", Input) = 0
+      if not Flow.Contains (Id) then
+         return No_Value;
+      elsif Find_Port (Flow.Node (Id).all, "Image", Input) /= 0 then
+         Value := Flow.Value_Into (Id, "Image");
+      elsif Find_Port (Flow.Node (Id).all, "Image", Output) /= 0
+        and then Flow.Node (Id).State = Ran
       then
+         --  A source of images (a camera): what it gave.
+         Value := Flow.Node (Id).Get_Output ("Image");
+      else
          return No_Value;
       end if;
-      Value := Flow.Value_Into (Id, "Image");
       return (if Value.Has_Value and then Value.Kind = Image_8_Grey_Type
               then Value else No_Value);
    end Node_Image;
@@ -325,6 +331,45 @@ package body AMV.Flow.Reports is
                end;
             end if;
          end loop;
+         declare
+            Marks : Mark_Vectors.Vector;
+         begin
+            if N.State = Ran then
+               N.Add_Pixel_Marks (Marks);
+            end if;
+            for M of Marks loop
+               W.Begin_Object (Inline => True);
+               W.Key ("kind");
+               if M.Polygon then
+                  W.Value ("polygon");
+                  W.Key ("role");
+                  W.Value ("found");
+                  W.Key ("points");
+                  W.Begin_Array;
+                  for I in 1 .. M.Count loop
+                     W.Begin_Array;
+                     W.Value (M.X (I));
+                     W.Value (M.Y (I));
+                     W.End_Array;
+                  end loop;
+                  W.End_Array;
+               else
+                  W.Value ("point");
+                  W.Key ("role");
+                  W.Value ("found");
+                  W.Key ("x");
+                  W.Value (M.X (1));
+                  W.Key ("y");
+                  W.Value (M.Y (1));
+               end if;
+               W.End_Object;
+            end loop;
+            if not Marks.Is_Empty then
+               W.End_Array;
+               W.End_Object;
+               return W.Text;
+            end if;
+         end;
          if N.State = Ran then
             declare
                function Output_Of (Name : String) return Ks_Flow_Value is

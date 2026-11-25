@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow build-flow-c test-flow-c prove prove-aravis mutation mutation-diff clean
+	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow build-flow-c test-flow-c build-flow-c-camera prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -113,6 +113,17 @@ test-flow:
 # read the flow file that test-flow writes).
 build-flow-c:
 	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c.gpr
+
+# amvflow with the Camera node (needs Aravis, like build-aravis), into
+# build/flow-c-camera-lib; on Windows the Aravis and GLib DLLs it needs
+# are copied next to it, where the editor finds them.
+build-flow-c-camera: build-aravis
+	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c_camera.gpr \
+	  -XARAVIS_LIBS="$(ARAVIS_LIBS)" -cargs:C $(ARAVIS_CFLAGS)
+ifeq ($(OS),Windows_NT)
+	ldd build/flow-c-camera-lib/libamvflow.dll | awk '/mingw64/ {print $$3}' \
+	  | xargs -I{} cp {} build/flow-c-camera-lib/
+endif
 
 test-flow-c: test-flow build-flow-c
 	$(GPRBUILD) -p -P optional/flow/capi/tests/amv_flow_c_tests.gpr

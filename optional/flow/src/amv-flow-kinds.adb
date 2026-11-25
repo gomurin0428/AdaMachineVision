@@ -51,5 +51,7 @@ begin
    Register ("Fixture", AMV.Flow.Nodes.Vision.Create_Fixture'Access);
    Register ("Caliper", AMV.Flow.Nodes.Vision.Create_Caliper'Access);
    Register ("Blob", AMV.Flow.Nodes.Vision.Create_Blob'Access);
+   Register ("Circularity",
+             AMV.Flow.Nodes.Vision.Create_Circularity'Access);
    Register ("RangeCheck", AMV.Flow.Nodes.Logic.Create_Range_Check'Access);
 end AMV.Flow.Kinds;

@@ -11,9 +11,13 @@ val libraryFile: String = when {
     else -> "libamvflow.so"
 }
 
+// The build with the Camera node (make build-flow-c-camera) when there is
+// one, else the plain one (make build-flow-c).
+val cameraLibrary = repoRoot.resolve("build/flow-c-camera-lib/$libraryFile")
 extra["repoRoot"] = repoRoot
 extra["amvFlowLibrary"] = (findProperty("amvFlowLibrary") as String?)
-    ?: repoRoot.resolve("build/flow-c-lib/$libraryFile").path
+    ?: (if (cameraLibrary.exists()) cameraLibrary
+        else repoRoot.resolve("build/flow-c-lib/$libraryFile")).path
 
 subprojects {
     tasks.withType<JavaCompile>().configureEach {

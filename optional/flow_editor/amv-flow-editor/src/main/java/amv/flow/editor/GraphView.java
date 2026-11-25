@@ -82,6 +82,15 @@ final class GraphView extends ScrollPane {
     private Point2D dragAnchor;
     private Point2D dragStart;
     private boolean dragMoved;
+    private Runnable pendingShow;
+
+    private void showPending() {
+        Runnable show = pendingShow;
+        pendingShow = null;
+        if (show != null) {
+            show.run();
+        }
+    }
 
     GraphView(Listener listener) {
         this.listener = listener;
@@ -114,6 +123,11 @@ final class GraphView extends ScrollPane {
 
     void show(FlowInfo flow, Map<String, KindInfo> kinds, Results results, Long selectedNode,
             String selectedLink) {
+        if (dragAnchor != null || dragLine != null) {
+            // A drag is under way (live runs keep coming): redraw after it.
+            pendingShow = () -> show(flow, kinds, results, selectedNode, selectedLink);
+            return;
+        }
         this.flow = flow;
         this.kinds = kinds;
         this.results = results;
@@ -285,8 +299,21 @@ final class GraphView extends ScrollPane {
             return "Flow outputs";
         }
         NodeInfo n = flow.nodes().get(id);
-        String text = id + "  " + (n.name().isEmpty() ? n.kind() : n.name() + " (" + n.kind() + ")");
-        return text.length() > 30 ? text.substring(0, 29) + "…" : text;
+        return id + "  " + (n.name().isEmpty() ? n.kind() : n.name() + " (" + n.kind() + ")");
+    }
+
+    /** The text, cut with an ellipsis to fit the width. */
+    private static String fit(String text, Font font, double width) {
+        if (textWidth(text, font) <= width) {
+            return text;
+        }
+        for (int n = text.length() - 1; n > 1; n--) {
+            String cut = text.substring(0, n) + "…";
+            if (textWidth(cut, font) <= width) {
+                return cut;
+            }
+        }
+        return "…";
     }
 
     private static double textWidth(String s, Font font) {
@@ -312,20 +339,23 @@ final class GraphView extends ScrollPane {
         header.setArcWidth(10);
         header.setArcHeight(10);
         header.setFill(Color.web(real ? "#3b424c" : "#30353c"));
-        Text title = new Text(8, 17, title(id));
+        NodeResult r = results.nodes().get(id);
+        String timeText = real && r != null && r.state().equals("ran") ? String.format("%.0f ms", r.timeMs())
+                : null;
+        double room = W - 16 - (timeText == null ? 0 : textWidth(timeText, PORT_FONT) + 8);
+        Text title = new Text(8, 17, fit(title(id), TITLE_FONT, room));
         title.setFont(TITLE_FONT);
         title.setFill(Color.WHITE);
         g.getChildren().addAll(body, header, title);
-
-        NodeResult r = results.nodes().get(id);
-        if (real && r != null && r.state().equals("ran")) {
-            Text time = new Text(String.format("%.0f ms", r.timeMs()));
+        if (timeText != null) {
+            Text time = new Text(timeText);
             time.setFont(PORT_FONT);
             time.setFill(Color.web("#aab"));
-            time.setX(W - 8 - textWidth(time.getText(), PORT_FONT));
+            time.setX(W - 8 - textWidth(timeText, PORT_FONT));
             time.setY(17);
             g.getChildren().add(time);
         }
+        Tooltip.install(header, new Tooltip(title(id)));
 
         List<Port> ins = inputs(id);
         for (int i = 0; i < ins.size(); i++) {
@@ -388,6 +418,7 @@ final class GraphView extends ScrollPane {
                     listener.selectNode(real ? id : null);
                 }
                 dragAnchor = null;
+                showPending();
                 e.consume();
             });
         }
@@ -475,6 +506,7 @@ final class GraphView extends ScrollPane {
         if (best != null) {
             listener.link(dragFrom, best);
         }
+        showPending();
         e.consume();
     }
 }

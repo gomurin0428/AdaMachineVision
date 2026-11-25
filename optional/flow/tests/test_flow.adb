@@ -18,6 +18,7 @@ with AMV.Flow;
 with AMV.Flow.Graphs;
 with AMV.Flow.JSON;
 with AMV.Flow.Nodes;
+with AMV.Flow.Reports;
 with AMV.Flow.Values;
 with AMV.Image_File;
 with AMV.Images;
@@ -671,6 +672,58 @@ procedure Test_Flow is
    end Test_Blob;
 
    ---------------------------------------------------------------------
+   --  Circularity, and the graphics the editor draws
+   ---------------------------------------------------------------------
+
+   procedure Test_Circularity is
+      Flow  : AMV.Flow.Graphs.Ks_Flow;
+      Image : AMV.Images.Ks_Image_8_Grey :=
+        AMV.Images.Create (640, 480, Value => 30);
+      Node  : Positive;
+   begin
+      --  An ellipse 200 x 160 (radii): roundness 0.80.
+      for Y in 0 .. 479 loop
+         for X in 0 .. 639 loop
+            if ((Real (X) - 320.3) / 200.0) ** 2
+               + ((Real (Y) - 240.7) / 160.0) ** 2 <= 1.0
+            then
+               Image.Set_Pixel (X, Y, 220);
+            end if;
+         end loop;
+      end loop;
+      Flow.Add_Input ("Image", Image_8_Grey_Type);
+      Flow.Add_Output ("Roundness", Real_Type);
+      Flow.Add_Output ("Found", Boolean_Type);
+      Node := Flow.Add_Node ("Circularity");
+      Flow.Link ("input.Image", "1.Image");
+      Flow.Link ("1.Roundness", "output.Roundness");
+      Flow.Link ("1.Found", "output.Found");
+      Flow.Set_Input ("Image", From_Image (Image));
+      Flow.Run;
+      Check (Flow.Result = AMV.Tools.Accept_Result,
+             "circularity: accepted (" & Flow.Message & ")");
+      Check_Near (Real_Output (Flow, "Roundness"), 0.80, 0.01,
+                  "circularity: the ellipse's roundness");
+      declare
+         Graphics : constant String := AMV.Flow.Reports.Graphics_JSON (Flow, Node);
+      begin
+         Check (Contains (Graphics, """role"": ""found""")
+                and then Contains (Graphics, """kind"": ""polygon""")
+                and then Contains (Graphics, """kind"": ""point"""),
+                "circularity: the editor gets the edge and the centre");
+      end;
+
+      Flow.Set_Input
+        ("Image", From_Image (AMV.Images.Create (100, 80, Value => 30)));
+      Flow.Run;
+      Check (Flow.Result = AMV.Tools.Reject
+             and then Flow.Get_Output ("Found").Has_Value
+             and then not Boolean_Output (Flow, "Found")
+             and then not Flow.Get_Output ("Roundness").Has_Value,
+             "circularity: nothing found is a reject");
+   end Test_Circularity;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -730,6 +783,7 @@ begin
    Test_Building;
    Test_Align;
    Test_Blob;
+   Test_Circularity;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

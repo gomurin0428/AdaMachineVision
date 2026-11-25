@@ -16,7 +16,7 @@ import javafx.scene.text.Font;
 /** The selected node's input image with its graphics (regions, found points) drawn over it. */
 final class ImagePane extends Pane {
 
-    private record Item(boolean polygon, double[] xs, double[] ys) {
+    private record Item(boolean polygon, boolean found, double[] xs, double[] ys) {
     }
 
     private final Canvas canvas = new Canvas();
@@ -60,9 +60,9 @@ final class ImagePane extends Pane {
                     xs[i] = Json.number(p.get(0));
                     ys[i] = Json.number(p.get(1));
                 }
-                result.add(new Item(true, xs, ys));
+                result.add(new Item(true, "found".equals(item.get("role")), xs, ys));
             } else if ("point".equals(item.get("kind"))) {
-                result.add(new Item(false, new double[] {Json.number(item.get("x"))},
+                result.add(new Item(false, true, new double[] {Json.number(item.get("x"))},
                         new double[] {Json.number(item.get("y"))}));
             }
         }
@@ -107,8 +107,9 @@ final class ImagePane extends Pane {
                     xs[i] = ox + (item.xs()[i] + 0.5) * scale;
                     ys[i] = oy + (item.ys()[i] + 0.5) * scale;
                 }
-                gc.setStroke(Color.web("#3ee05a"));
-                gc.setLineWidth(1.6);
+                // Regions green, what the node found orange.
+                gc.setStroke(Color.web(item.found() ? "#ffa726" : "#3ee05a"));
+                gc.setLineWidth(item.found() ? 2.0 : 1.6);
                 gc.strokePolygon(xs, ys, xs.length);
             } else {
                 double x = ox + (item.xs()[0] + 0.5) * scale;

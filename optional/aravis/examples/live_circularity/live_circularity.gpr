@@ -1,4 +1,5 @@
 with "../../amv_gige_vision.gpr";
+with "../../../flow/amv_flow.gpr";  --  AMV.Flow.Circularity
 
 --  Windows only: a GUI program (no console window).
 project Live_Circularity is

@@ -4,6 +4,7 @@ with Ada.Exceptions;
 with Ada.Unchecked_Conversion;
 with Ada.Unchecked_Deallocation;
 
+with AMV.Flow.C_API.Extensions;
 with AMV.Flow.Graphs;
 with AMV.Flow.Reports;
 with AMV.Flow.Values;
@@ -563,4 +564,6 @@ package body AMV.Flow.C_API is
          Fail_From (Status, E);
    end Node_Image_BGRA;
 
+begin
+   Extensions.Register;
 end AMV.Flow.C_API;

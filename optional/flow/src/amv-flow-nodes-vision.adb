@@ -5,6 +5,7 @@ with Ada.Numerics;
 
 with AMV.Blob;
 with AMV.Calib_Fix;
+with AMV.Flow.Circularity;
 with AMV.Caliper;
 with AMV.Image_File;
 with AMV.Images;
@@ -764,5 +765,177 @@ package body AMV.Flow.Nodes.Vision is
    end Get_Output;
 
    function Create_Blob return Node_Access is (new Blob_Node);
+
+   ---------------------------------------------------------------------
+   --  Circularity
+   ---------------------------------------------------------------------
+
+   package Round renames AMV.Flow.Circularity;
+   use type Round.Polarity_Kind;
+
+   type Circularity_Node is new Ks_Flow_Node with record
+      Image_In : Ks_Flow_Value;
+      Config   : Round.Settings;
+      Done     : Boolean := False;
+      Outcome  : Round.Result;
+      Boundary : Round.Point_Vectors.Vector;
+   end record;
+
+   overriding function Kind_Id (Node : Circularity_Node) return String;
+   overriding function Ports (Node : Circularity_Node) return Port_Array;
+   overriding function Params (Node : Circularity_Node) return Param_Array;
+   overriding procedure Set_Param
+     (Node : in out Circularity_Node; Name : String; Value : Ks_Flow_Value);
+   overriding function Get_Param
+     (Node : Circularity_Node; Name : String) return Ks_Flow_Value;
+   overriding procedure Set_Input
+     (Node : in out Circularity_Node; Port : String; Value : Ks_Flow_Value);
+   overriding procedure Clear_Inputs (Node : in out Circularity_Node);
+   overriding procedure Execute (Node : in out Circularity_Node);
+   overriding function Get_Output
+     (Node : Circularity_Node; Port : String) return Ks_Flow_Value;
+   overriding procedure Add_Pixel_Marks
+     (Node : Circularity_Node; Marks : in out Mark_Vectors.Vector);
+
+   overriding function Kind_Id (Node : Circularity_Node) return String is
+     ("Circularity");
+
+   overriding function Ports (Node : Circularity_Node) return Port_Array is
+     [In_Port ("Image", Image_8_Grey_Type),
+      Out_Port ("Found", Boolean_Type),
+      Out_Port ("Roundness", Real_Type,
+                "smallest / largest radius about the fitted circle"),
+      Out_Port ("Circularity", Real_Type, "4 Pi area / perimeter squared"),
+      Out_Port ("Diameter", Real_Type, "of the fitted circle, pixels"),
+      Out_Port ("Area", Real_Type, "inside the edge, square pixels"),
+      Out_Port ("Perimeter", Real_Type, "pixels"),
+      Out_Port ("CenterX", Real_Type, "of the fitted circle, pixels"),
+      Out_Port ("CenterY", Real_Type),
+      Out_Port ("Clipped", Boolean_Type, "the object touches the border")];
+
+   overriding function Params (Node : Circularity_Node) return Param_Array is
+     [Boolean_Param_Of ("AutoThreshold", "Otsu's threshold"),
+      Integer_Param_Of ("Threshold", 0.0, 255.0,
+                        "the grey level when AutoThreshold is off"),
+      Choice_Param_Of ("Polarity", "Light|Dark",
+                       "Light: the object is lighter than the background"),
+      Real_Param_Of ("MinArea", 0.0, 1.0E12, "px",
+                     "smaller blobs are not the object")];
+
+   overriding procedure Set_Param
+     (Node : in out Circularity_Node; Name : String; Value : Ks_Flow_Value) is
+   begin
+      if Name = "AutoThreshold" then
+         Node.Config.Auto_Threshold := Value.As_Boolean;
+      elsif Name = "Threshold" then
+         Node.Config.Threshold := Natural (Value.As_Integer);
+      elsif Name = "Polarity" then
+         Node.Config.Polarity :=
+           (if Value.As_String = "Dark" then Round.Dark_Object
+            else Round.Light_Object);
+      elsif Name = "MinArea" then
+         Node.Config.Min_Area := Value.As_Real;
+      else
+         Unknown ("Circularity", "parameter", Name);
+      end if;
+   end Set_Param;
+
+   overriding function Get_Param
+     (Node : Circularity_Node; Name : String) return Ks_Flow_Value is
+   begin
+      if Name = "AutoThreshold" then
+         return From_Boolean (Node.Config.Auto_Threshold);
+      elsif Name = "Threshold" then
+         return From_Integer (Long_Long_Integer (Node.Config.Threshold));
+      elsif Name = "Polarity" then
+         return From_String
+           (if Node.Config.Polarity = Round.Dark_Object then "Dark"
+            else "Light");
+      elsif Name = "MinArea" then
+         return From_Real (Node.Config.Min_Area);
+      end if;
+      Unknown ("Circularity", "parameter", Name);
+   end Get_Param;
+
+   overriding procedure Set_Input
+     (Node : in out Circularity_Node; Port : String; Value : Ks_Flow_Value) is
+   begin
+      if Port /= "Image" then
+         Unknown ("Circularity", "input", Port);
+      end if;
+      Node.Image_In := Value;
+   end Set_Input;
+
+   overriding procedure Clear_Inputs (Node : in out Circularity_Node) is
+   begin
+      Node.Image_In := No_Value;
+      Node.Done := False;
+      Node.Boundary.Clear;
+   end Clear_Inputs;
+
+   overriding procedure Execute (Node : in out Circularity_Node) is
+   begin
+      Node.Done := True;
+      Round.Measure (Node.Image_In.As_Image, Node.Config, Node.Outcome,
+                     Node.Boundary);
+      if not Node.Outcome.Found then
+         Set_Result (Node, AMV.Tools.Reject, "no object found");
+      elsif Node.Outcome.Clipped then
+         Set_Result (Node, AMV.Tools.Warning,
+                     "the object touches the image border");
+      end if;
+   end Execute;
+
+   overriding function Get_Output
+     (Node : Circularity_Node; Port : String) return Ks_Flow_Value
+   is
+      R   : Round.Result renames Node.Outcome;
+      Got : constant Boolean := Node.Done and then R.Found;
+   begin
+      if Port = "Found" then
+         return (if Node.Done then From_Boolean (R.Found) else No_Value);
+      elsif Port = "Clipped" then
+         return (if Got then From_Boolean (R.Clipped) else No_Value);
+      elsif Port = "Roundness" then
+         return Real_If (Got, R.Roundness);
+      elsif Port = "Circularity" then
+         return Real_If (Got, R.Circularity);
+      elsif Port = "Diameter" then
+         return Real_If (Got, 2.0 * R.Radius);
+      elsif Port = "Area" then
+         return Real_If (Got, R.Area);
+      elsif Port = "Perimeter" then
+         return Real_If (Got, R.Perimeter);
+      elsif Port = "CenterX" then
+         return Real_If (Got, R.Center_X);
+      elsif Port = "CenterY" then
+         return Real_If (Got, R.Center_Y);
+      end if;
+      Unknown ("Circularity", "output", Port);
+   end Get_Output;
+
+   overriding procedure Add_Pixel_Marks
+     (Node : Circularity_Node; Marks : in out Mark_Vectors.Vector)
+   is
+      N : constant Natural := Natural (Node.Boundary.Length);
+   begin
+      if not Node.Done or else not Node.Outcome.Found or else N = 0 then
+         return;
+      end if;
+      declare
+         Edge : Mark (N);
+      begin
+         for I in 1 .. N loop
+            Edge.X (I) := Node.Boundary (I).X;
+            Edge.Y (I) := Node.Boundary (I).Y;
+         end loop;
+         Marks.Append (Edge);
+      end;
+      Marks.Append (Mark'(Count => 1, Polygon => False,
+                          X => [Node.Outcome.Center_X],
+                          Y => [Node.Outcome.Center_Y]));
+   end Add_Pixel_Marks;
+
+   function Create_Circularity return Node_Access is (new Circularity_Node);
 
 end AMV.Flow.Nodes.Vision;

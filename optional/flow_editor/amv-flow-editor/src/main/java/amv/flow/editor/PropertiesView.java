@@ -40,6 +40,8 @@ final class PropertiesView extends VBox {
     }
 
     private final Listener listener;
+    private final VBox runBox = new VBox(2);
+    private String shownKey;  // the node and parameters the editors show
 
     PropertiesView(Listener listener) {
         this.listener = listener;
@@ -55,6 +57,7 @@ final class PropertiesView extends VBox {
     }
 
     void showFlow(FlowInfo flow, Results results) {
+        shownKey = null;
         getChildren().clear();
         getChildren().add(heading("Flow" + (flow.name().isEmpty() ? "" : ": " + flow.name())));
         getChildren().add(new Label("Select a node to edit it. Drag a tool from the left onto the flow; "
@@ -82,6 +85,15 @@ final class PropertiesView extends VBox {
     }
 
     void showNode(NodeInfo node, KindInfo kind, NodeResult result) {
+        // The same node with the same parameters (a live run): only the
+        // results change, and the editors stay as they are, with whatever
+        // is being typed into them.
+        String key = node.id() + "|" + node.name() + "|" + node.params();
+        if (key.equals(shownKey)) {
+            showRun(result);
+            return;
+        }
+        shownKey = key;
         getChildren().clear();
         getChildren().add(heading("Node " + node.id() + ": " + node.kind()));
 
@@ -100,18 +112,24 @@ final class PropertiesView extends VBox {
 
         getChildren().add(new Separator());
         getChildren().add(heading("Last run"));
+        getChildren().add(runBox);
+        showRun(result);
+    }
+
+    private void showRun(NodeResult result) {
+        runBox.getChildren().clear();
         if (result == null || result.state().equals("not run")) {
-            getChildren().add(new Label("not run (open an image and run)"));
+            runBox.getChildren().add(new Label("not run (open an image or add a camera, then run)"));
             return;
         }
         Label state = new Label(result.state().equals("ran")
                 ? result.result() + String.format("   %.1f ms", result.timeMs())
                 : "skipped");
-        getChildren().add(state);
+        runBox.getChildren().add(state);
         if (!result.message().isEmpty()) {
             Label m = new Label(result.message());
             m.setWrapText(true);
-            getChildren().add(m);
+            runBox.getChildren().add(m);
         }
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -122,7 +140,7 @@ final class PropertiesView extends VBox {
             grid.add(new Label(Model.text(e.getValue())), 1, r);
             r++;
         }
-        getChildren().add(grid);
+        runBox.getChildren().add(grid);
     }
 
     private HBox row(String label, javafx.scene.Node editor, String help) {

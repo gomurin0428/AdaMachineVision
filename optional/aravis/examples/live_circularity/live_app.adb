@@ -24,7 +24,7 @@ with AMV.GigE_Vision.Settings;
 with AMV.Image_File;
 with AMV.Images;
 
-with Circularity_Measure;
+with AMV.Flow.Circularity;
 with Win32_Lite;
 
 package body Live_App is
@@ -35,7 +35,7 @@ package body Live_App is
    use type Interfaces.Unsigned_64;
    use type System.Address;
 
-   package CM renames Circularity_Measure;
+   package CM renames AMV.Flow.Circularity;
    package EF renames Ada.Numerics.Long_Elementary_Functions;
    package Settings renames AMV.GigE_Vision.Settings;
 

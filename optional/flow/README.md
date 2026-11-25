@@ -29,7 +29,9 @@ that cannot be loaded or run.
 | `AMV.Flow.JSON` | the JSON reader (strict, for untrusted files) and writer |
 | `AMV.Flow.Values` | the values of ports and parameters; shapes in flow files |
 | `AMV.Flow.Nodes` | the node interface: ports, parameters, `Run`, status |
-| `AMV.Flow.Nodes.Vision` | ShapeMatch, Fixture, Caliper, Blob |
+| `AMV.Flow.Nodes.Vision` | ShapeMatch, Fixture, Caliper, Blob, Circularity |
+| `AMV.Flow.Circularity` | the cup measure (outer edge along 720 rays, roundness); also used by `examples/live_circularity` |
+| `AMV.Flow.Nodes.Camera` | Camera, in `camera/` (`amv_flow_camera.gpr`): needs Aravis |
 | `AMV.Flow.Nodes.Logic` | RangeCheck |
 | `AMV.Flow.Kinds` | the node kinds by name |
 | `AMV.Flow.Graphs` | `Ks_Flow`: nodes, links, checks, `Run`, flow files |
@@ -57,9 +59,19 @@ node kinds, problems, results and node graphics as JSON, a node's image
 as BGRA. `make test-flow-c` runs its C tests. The JavaFX editor in
 [`optional/flow_editor`](../flow_editor/README.md) uses it.
 
+`make build-flow-c-camera` builds the same library with the Camera node
+into `build/flow-c-camera-lib` (it needs Aravis, as `make build-aravis`
+does; on Windows the Aravis and GLib DLLs are copied next to it). The
+Camera node opens the camera at the first run and keeps it streaming;
+each run takes the newest complete frame. A flow that starts with a
+Camera node has no image input: it runs as it is, again and again in the
+editor's Live mode. [`examples/cup_camera.amvflow`](examples/cup_camera.amvflow)
+measures a cup's roundness this way (set the Camera node's CameraId to
+your camera's address).
+
 ## Not done yet
 
-From the first phase of the design: the FindCircle, Distance, Histogram,
-CSV Log and Circularity nodes, `Ks_Flow_Tool` (a saved flow as an AMV
-tool), saving trained patterns (ShapeMatch trains from its `TrainImage`
-when the flow loads) and the image folder playback.
+From the first phase of the design: the FindCircle, Distance, Histogram
+and CSV Log nodes, `Ks_Flow_Tool` (a saved flow as an AMV tool), saving
+trained patterns (ShapeMatch trains from its `TrainImage` when the flow
+loads), the image folder playback, and a camera build of `amv_flow`.

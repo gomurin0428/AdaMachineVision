@@ -39,6 +39,18 @@ pragma SPARK_Mode (Off);
 --     params  Threshold (0 .. 255), Polarity (Light | Dark), MinArea,
 --             Region (a region; none: the whole image)
 --     Count counts the blobs (not holes) of at least MinArea pixels.
+--
+--  Circularity (AMV.Flow.Circularity)
+--     in   Image : Image_8_Grey
+--     out  Found, Clipped : Boolean; Roundness (smallest / largest radius
+--          about the fitted circle), Circularity (4 Pi area / perimeter
+--          squared), Diameter, Area, Perimeter, CenterX, CenterY : Real
+--          (pixels)
+--     params  AutoThreshold (Otsu's), Threshold (0 .. 255), Polarity
+--             (Light | Dark), MinArea
+--     The outer edge of the largest object, found along 720 rays (the
+--     editor draws it). Nothing found: Reject; an object touching the
+--     image border: Warning.
 
 package AMV.Flow.Nodes.Vision is
 
@@ -46,5 +58,6 @@ package AMV.Flow.Nodes.Vision is
    function Create_Fixture return Node_Access;
    function Create_Caliper return Node_Access;
    function Create_Blob return Node_Access;
+   function Create_Circularity return Node_Access;
 
 end AMV.Flow.Nodes.Vision;

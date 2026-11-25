@@ -1,10 +1,12 @@
+pragma SPARK_Mode (Off);
+
 with Ada.Numerics;
 with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Unchecked_Deallocation;
 with AMV.Blob;
 with AMV.Tools;
 
-package body Circularity_Measure is
+package body AMV.Flow.Circularity is
    use Ada.Numerics.Long_Elementary_Functions;
    use AMV.Blob;
    use type AMV.Tools.Ks_Tool_Result_Constants;
@@ -406,7 +408,7 @@ package body Circularity_Measure is
                Feature   : constant Ks_Blob_Result := Features.Item (I);
                Unclipped : constant Boolean := Feature.Not_Clipped /= 0;
             begin
-               if Feature.Label = Code (Ks_Blob_Label_Constants'(Blob))
+               if Feature.Label = Code (Ks_Blob_Label_Constants'(AMV.Blob.Blob))
                  and then Feature.Area >= Config.Min_Area
                  and then
                    (Best_ID < 0
@@ -444,7 +446,7 @@ package body Circularity_Measure is
                   declare
                      Feature : constant Ks_Blob_Result := Features.Item (I);
                   begin
-                     if Feature.Label = Code (Ks_Blob_Label_Constants'(Blob))
+                     if Feature.Label = Code (Ks_Blob_Label_Constants'(AMV.Blob.Blob))
                      then
                         Kinds (Natural (Feature.ID) + 1) :=
                           (if Feature.Pixel_Aligned_Min_X <= Box_X0 + 1.0
@@ -551,4 +553,4 @@ package body Circularity_Measure is
       end;
    end Measure;
 
-end Circularity_Measure;
+end AMV.Flow.Circularity;

@@ -85,12 +85,16 @@ public final class EditorApp extends Application {
     private Map<String, KindInfo> kinds = Map.of();
     private FlowInfo model;
     private Results results = Results.NONE;
-    private Long selected;
+    private volatile Long selected;  // read by live mode on the engine thread
     private String selectedLink;
     // Set on either thread.
     private volatile Path flowFile;
     private volatile Path imageFile;
     private volatile boolean ranOnce;
+    private volatile boolean liveOn;
+    private final java.util.concurrent.atomic.AtomicBoolean uiBusy =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final javafx.scene.control.ToggleButton liveButton = new javafx.scene.control.ToggleButton("Live (F6)");
 
     private GraphView graph;
     private PropertiesView properties;
@@ -227,6 +231,7 @@ public final class EditorApp extends Application {
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN), this::save);
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN), this::open);
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F5), () -> act(null, true));
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F6), liveButton::fire);
         stage.setScene(scene);
         stage.show();
         act(null, imageFile != null);
@@ -237,6 +242,7 @@ public final class EditorApp extends Application {
 
     @Override
     public void stop() {
+        liveOn = false;
         engine.execute(() -> {
             if (flow != null) {
                 flow.close();
@@ -269,13 +275,21 @@ public final class EditorApp extends Application {
         image.setOnAction(e -> openImage());
         Button run = new Button("Run (F5)");
         run.setOnAction(e -> act(null, true));
+        liveButton.setTooltip(new javafx.scene.control.Tooltip(
+                "Run the flow again and again (a Camera node takes a new frame each time)"));
+        liveButton.setOnAction(e -> {
+            liveOn = liveButton.isSelected();
+            if (liveOn) {
+                engine.execute(this::liveStep);
+            }
+        });
         Button addInput = new Button("Add input…");
         addInput.setOnAction(e -> addPort(true));
         Button addOutput = new Button("Add output…");
         addOutput.setOnAction(e -> addPort(false));
         result.setPadding(new Insets(0, 0, 0, 16));
-        return new ToolBar(newFlow, open, save, saveAs, new Separator(), image, run, new Separator(), addInput,
-                addOutput, result);
+        return new ToolBar(newFlow, open, save, saveAs, new Separator(), image, run, liveButton, new Separator(),
+                addInput, addOutput, result);
     }
 
     private VBox palette() {
@@ -479,7 +493,7 @@ public final class EditorApp extends Application {
 
     /**
      * Runs the task on the engine thread, runs the flow again when asked
-     * (and it has an image and no problems), then shows the engine's view.
+     * (and it can run), then shows the engine's view.
      */
     private void act(EngineTask task, boolean rerun) {
         Long current = selected;
@@ -497,32 +511,97 @@ public final class EditorApp extends Application {
                 }
             }
             String problemsJson = flow.problemsJson();
-            boolean runnable = Json.array(Json.parse(problemsJson)).isEmpty();
-            if (rerun && imageFile != null && runnable && error == null) {
-                try {
-                    flow.run();
-                    ranOnce = true;
-                } catch (RuntimeException e) {
-                    error = message(e);
-                }
+            if (rerun && error == null && canRun(problemsJson)) {
+                error = runOnce();
             }
-            String flowJson = flow.toJson();
-            Flow.NodeImage image = null;
-            String graphics = null;
-            if (select != null && FlowInfo.parse(flowJson).nodes().containsKey(select)) {
-                try {
-                    image = flow.nodeImage(select);
-                    graphics = flow.graphicsJson(select);
-                } catch (RuntimeException e) {
-                    error = error == null ? message(e) : error;
-                }
-            } else {
-                select = null;
-            }
-            Snapshot snapshot = new Snapshot(flowJson, problemsJson, flow.resultsJson(), select, image, graphics,
-                    error);
+            Snapshot snapshot = snapshot(select, problemsJson, error);
             Platform.runLater(() -> apply(snapshot));
         });
+    }
+
+    /**
+     * Engine thread: whether the flow can run: no problems, and an image for
+     * its image input if it has a linked one (a flow fed by a camera node
+     * has none).
+     */
+    private boolean canRun(String problemsJson) {
+        if (!Json.array(Json.parse(problemsJson)).isEmpty()) {
+            return false;
+        }
+        return imageFile != null
+                || FlowInfo.parse(flow.toJson()).links().stream().noneMatch(l -> l.from().startsWith("input."));
+    }
+
+    /** Engine thread: runs the flow; the error, or null. */
+    private String runOnce() {
+        try {
+            flow.run();
+            ranOnce = true;
+            return null;
+        } catch (RuntimeException e) {
+            return message(e);
+        }
+    }
+
+    /** Engine thread: what the editor shows. */
+    private Snapshot snapshot(Long select, String problemsJson, String error) {
+        String flowJson = flow.toJson();
+        Flow.NodeImage image = null;
+        String graphics = null;
+        Long shown = select;
+        if (shown != null && FlowInfo.parse(flowJson).nodes().containsKey(shown)) {
+            try {
+                image = flow.nodeImage(shown);
+                graphics = flow.graphicsJson(shown);
+            } catch (RuntimeException e) {
+                error = error == null ? message(e) : error;
+            }
+        } else {
+            shown = null;
+        }
+        return new Snapshot(flowJson, problemsJson, flow.resultsJson(), shown, image, graphics, error);
+    }
+
+    /**
+     * Engine thread: one step of live mode: run (a camera node takes a new
+     * frame), show the result unless the screen is still showing the last
+     * one, and queue the next step behind any edit waiting.
+     */
+    private void liveStep() {
+        if (!liveOn) {
+            return;
+        }
+        long started = System.nanoTime();
+        String problemsJson = flow.problemsJson();
+        String error;
+        if (canRun(problemsJson)) {
+            error = runOnce();
+        } else {
+            error = "Live stopped: the flow cannot run (see the problems, or open an image)";
+        }
+        if (error != null) {
+            liveOn = false;
+            Platform.runLater(() -> liveButton.setSelected(false));
+        }
+        if (uiBusy.compareAndSet(false, true) || error != null) {
+            Snapshot snapshot = snapshot(selected, problemsJson, error);
+            Platform.runLater(() -> {
+                apply(snapshot);
+                uiBusy.set(false);
+            });
+        }
+        if (liveOn) {
+            long spare = 30 - (System.nanoTime() - started) / 1_000_000;
+            if (spare > 0) {
+                try {
+                    Thread.sleep(spare);  // at most about 30 runs a second
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            engine.execute(this::liveStep);
+        }
     }
 
     private void apply(Snapshot s) {
@@ -537,16 +616,15 @@ public final class EditorApp extends Application {
             NodeInfo node = model.nodes().get(selected);
             properties.showNode(node, kinds.get(node.kind()), results.nodes().get(selected));
             imagePane.show(s.image(), s.graphicsJson(),
-                    s.image() == null ? "Node " + selected + " has taken no image yet" : "Node " + selected
-                            + " input image");
+                    s.image() == null ? "Node " + selected + " has no image yet" : "Node " + selected
+                            + " image");
         } else {
             properties.showFlow(model, results);
-            imagePane.show(null, null, imageFile == null ? "Open an image to run the flow"
-                    : "Select a node to see the image it takes");
+            imagePane.show(null, null, "Select a node to see its image");
         }
         problems.getItems().setAll(Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList());
         if (results.result().isEmpty()) {
-            result.setText(imageFile == null ? "no image" : "not run");
+            result.setText("not run");
             result.setTextFill(Color.GRAY);
         } else {
             result.setText("Result: " + results.result().toUpperCase()
@@ -561,7 +639,8 @@ public final class EditorApp extends Application {
         if (s.error() != null) {
             showStatus(s.error(), true);
         } else {
-            showStatus(imageFile == null ? "No image: use Open image…" : "Image: " + imageFile, false);
+            showStatus((imageFile == null ? "No image file (Open image…, or a Camera node)"
+                    : "Image: " + imageFile) + (liveOn ? "   — live" : ""), false);
         }
         stage.setTitle("AMV Flow Editor — " + (flowFile == null ? "untitled"
                 : flowFile.getFileName() + (Files.exists(flowFile) ? "" : " (not saved)")));

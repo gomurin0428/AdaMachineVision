@@ -1,9 +1,11 @@
+pragma SPARK_Mode (Off);
+
 with Ada.Containers.Vectors;
 with AMV.Images;
 
 --  Finds the largest object in a grey image with the AMV blob tool and
 --  measures how round its outer boundary is.
-package Circularity_Measure is
+package AMV.Flow.Circularity is
 
    type Polarity_Kind is (Light_Object, Dark_Object);
 
@@ -65,4 +67,4 @@ package Circularity_Measure is
    --  are taken from them. Raises AMV.Ks_Exception when the blob tool
    --  fails.
 
-end Circularity_Measure;
+end AMV.Flow.Circularity;

@@ -1,5 +1,6 @@
 pragma SPARK_Mode (Off);
 
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 
 with AMV.Flow.Values;
@@ -120,6 +121,23 @@ package AMV.Flow.Nodes is
    function Problem (Node : Ks_Flow_Node) return String is ("");
    --  What keeps the node from running ("the pattern is not trained"), or
    --  "".
+
+   type Real_List is array (Positive range <>) of Real;
+
+   type Mark (Count : Natural) is record
+      Polygon : Boolean := True;  --  a closed polygon, or a point (Count 1)
+      X, Y    : Real_List (1 .. Count);
+   end record;
+
+   package Mark_Vectors is new Ada.Containers.Indefinite_Vectors
+     (Positive, Mark);
+
+   procedure Add_Pixel_Marks (Node  : Ks_Flow_Node;
+                              Marks : in out Mark_Vectors.Vector) is null;
+   --  What the node found in its last run, in its input image's pixel
+   --  coordinates (the centre of pixel (i, j) at (i, j)), for an editor to
+   --  draw: an outline, a centre. A node that adds none gets its X, Y (or
+   --  CenterX, CenterY) outputs drawn instead (AMV.Flow.Reports).
 
    --  Class-wide operations
 
