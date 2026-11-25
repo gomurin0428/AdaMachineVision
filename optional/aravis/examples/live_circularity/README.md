@@ -20,10 +20,13 @@ once. Windows Defender Firewall must let the camera's image stream through
 
 * **Camera / Connect**: the camera's IPv4 address or Aravis device ID.
 * **Exposure**: the slider (log scale) or a value in milliseconds typed
-  in the box and applied with **Set** or Enter; the camera's own value
-  (it may round) is read back and shown. **Gain** and **Auto exposure**
-  set the camera's Gain and ExposureAuto. All go through
-  `AMV.GigE_Vision.Settings`, also while the view is live.
+  in the box and applied with **Set** or Enter. **Gain** and **Auto
+  exposure** set the camera's Gain and ExposureAuto. All go through
+  `AMV.GigE_Vision.Settings`, also while the view is live. Values are
+  kept within the range the camera reports, and what the camera then
+  holds (it may round) is read back, shown and logged; a setting the
+  camera refuses leaves the last one in place, and **Auto exposure**
+  unticks itself again.
 * **Threshold**: Otsu's threshold (**Automatic threshold**) or a fixed
   grey level. **Object lighter / darker than background** picks which
   side of the threshold the object is on; blobs smaller than **Min. area**
@@ -32,37 +35,42 @@ once. Windows Defender Firewall must let the camera's image stream through
   circle fitted to it (red). The panel shows the roundness, diameter,
   area, perimeter and centre.
 * **Ref. dia (mm) / Calibrate**: with the reference cup fully in view,
-  **Calibrate** sets the scale so that the measured diameter equals the
-  reference diameter; lengths and areas are then shown in millimetres.
-  The scale is saved in `calibration.txt` in the working directory and
-  read at start. See "Calibration" below.
-* **Capture** works while the view is live: it takes the newest complete
-  frame, measures it and saves, in `captures` under the working directory,
-  the frame (`cup_YYYYMMDD_HHMMSS_cc.bmp`, 8-bit grey), the picture with
-  the measurement drawn on it (`..._result.bmp`, 24-bit) and one line of
-  `circularity_log.csv`: time, image, found, the measures (with the
+  **Calibrate** takes a new frame from the connected camera and sets the
+  scale so that the measured diameter equals the reference diameter; lengths
+  and areas are then shown in millimetres. The scale is saved in
+  `calibration.txt` in the working directory and read at start. See
+  "Calibration" below.
+* **Capture** (or F2) works while the view is live: it takes the newest
+  complete frame, measures it and saves, in `captures` under the working
+  directory, the frame (`cup_YYYYMMDD_HHMMSS_cc.bmp`, 8-bit grey), the
+  picture with the measurement drawn on it (`..._result.bmp`, 24-bit) and one
+  line of `circularity_log.csv`: time, image, found, the measures (with the
   circularity, which the window does not show), the radii, clipped, the
-  exposure (µs), the gain, the threshold, the scale and the diameter,
-  area and perimeter in millimetres (empty before calibration). An older
-  log's header is rewritten to the new columns. The live view goes on.
+  exposure (µs) and gain read back from the camera (empty when it could not
+  be read), the threshold, the scale and the diameter, area and perimeter in
+  millimetres (empty before calibration). An older log's header is rewritten
+  to the new columns. The live view goes on. In a short window the results
+  give up height so that **Capture** stays in view.
 
 ## Measures
 
 `Circularity_Measure` thresholds the frame (Otsu's threshold, or the fixed
-one) and runs the AMV blob tool only to find the object: the largest blob
-of at least the minimum area, preferring one that does not touch the
-image border. The outer edge is then found along 720 rays from the
-object's centre: each ray takes the radius where it first enters the
-object coming in from outside, with the threshold crossing interpolated
-between grey values. So what lies inside the edge does not matter: the
-inside of a cup, its shadows, or a seam in the rim that breaks the blob
-in two. A ray whose radius is more than 3 % (at least 4 px) off the median
-of its 15 neighbours, as where a seam lets it run past the rim, takes that
-median, and the radii are averaged over 5 rays (2.5 degrees). The rays
-start from the centre of the blob's box and again from the centre of the
-circle fitted to that first edge. The object must be star-shaped from its
-centre, and features narrower than about 3 degrees of the rim are not
-seen.
+one) and runs the AMV blob tool only to find the object: the largest blob of
+at least the minimum area, preferring one that does not touch the image
+border. The outer edge is then found along 720 rays from the object's
+centre: each ray takes the radius where it first enters the object coming in
+from outside, with the threshold crossing interpolated between grey values.
+So what lies inside the edge does not matter: the inside of a cup, its
+shadows, or a seam in the rim that breaks the blob in two. Only the chosen
+blob, or a blob whose box encloses its box (a rim that a dark line parts
+from the inside), is the object: a ray that meets another object first, such
+as a part lying next to the cup, goes on through it. A ray whose radius is
+more than 3 % (at least 4 px) off the median of its 15 neighbours, as where
+a seam lets it run past the rim, takes that median, and the radii are
+averaged over 5 rays (2.5 degrees). The rays start from the centre of the
+blob's box and again from the centre of the circle fitted to that first
+edge. The object must be star-shaped from its centre, and features narrower
+than about 3 degrees of the rim are not seen.
 
 | Value | Meaning |
 |---|---|
@@ -80,6 +88,7 @@ On synthetic images, circularity / roundness (exact in brackets):
 | ellipse 200 x 160 px | 0.9800 (0.9817) | 0.798 (0.80) |
 | ellipse 280 x 100 px | 0.693 (0.694) | 0.357 (0.357) |
 | cup ring with a dark half inside and a seam, 200 x 180 px | 0.994 | 0.898 (0.90) |
+| circle, r = 200 px, a disc of r = 25 px 10 px away | 0.9987 (1) | 0.997 (1) |
 
 The circle's diameter comes out at 400.01 px for 400. The circularity
 hardly moves for slightly oval shapes, which is why the window shows the
@@ -103,4 +112,6 @@ distortion is not corrected), is measured with a small error.
 The camera and the measurement run on the window's thread: each frame is
 measured before the next is taken (about 150 ms for 1280 x 1024 pixels), so
 the view updates a few times a second. Frames queued in the meantime are
-skipped, so the view always shows the newest one.
+skipped, up to eight per update (twice the adapter's four stream buffers),
+so the view shows the newest frame that has arrived unless the camera
+sends them faster than they can be taken off the queue.

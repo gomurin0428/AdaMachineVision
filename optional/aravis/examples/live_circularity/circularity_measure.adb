@@ -22,6 +22,14 @@ package body Circularity_Measure is
 
    type Radius_Array is array (0 .. Ray_Count - 1) of Long_Float;
 
+   --  What a feature of the blob tool is to the edge search: part of the
+   --  object (the chosen blob, or a blob around its box such as a rim
+   --  that a dark line separates from the cup's inside), another object,
+   --  or neither (a hole).
+   type Feature_Kind is (Neutral, Own, Foreign);
+   package Kind_Vectors is new Ada.Containers.Vectors
+     (Natural, Feature_Kind);
+
    type Matrix_Access is access AMV.Images.Grey_8_Matrix;
    procedure Free is new Ada.Unchecked_Deallocation
      (AMV.Images.Grey_8_Matrix, Matrix_Access);
@@ -166,6 +174,9 @@ package body Circularity_Measure is
       Best_Unclipped : Boolean := False;
       Box_X0, Box_X1, Box_Y0, Box_Y1 : Long_Float := 0.0;
       Touches        : Boolean := False;
+      Kinds          : Kind_Vectors.Vector;  --  by blob ID + 1
+      IDs            : AMV.Images.Ks_Image_16_Grey;
+      Use_IDs        : Boolean := False;
 
       --  Bilinear grey value at (X, Y); background outside the image.
       function Sample (X, Y : Long_Float) return Long_Float is
@@ -191,10 +202,40 @@ package body Circularity_Measure is
       function Object (Value : Long_Float) return Boolean is
         (if Light then Value >= Level else Value < Level);
 
+      --  True when the pixels around (X, Y) belong to another object and
+      --  none to this one: a ray that meets a neighbouring object first
+      --  goes on through it.
+      function Foreign_At (X, Y : Long_Float) return Boolean is
+         X0 : constant Integer := Integer (Long_Float'Floor (X));
+         Y0 : constant Integer := Integer (Long_Float'Floor (Y));
+         Seen_Foreign : Boolean := False;
+         Index : Natural;
+      begin
+         if not Use_IDs then
+            return False;
+         end if;
+         for YY in Y0 .. Y0 + 1 loop
+            for XX in X0 .. X0 + 1 loop
+               if XX in 0 .. Width - 1 and then YY in 0 .. Height - 1 then
+                  Index := Natural (IDs.Get_Pixel (XX, YY));
+                  if Index < Natural (Kinds.Length) then
+                     case Kinds (Index) is
+                        when Own     => return False;
+                        when Foreign => Seen_Foreign := True;
+                        when Neutral => null;
+                     end case;
+                  end if;
+               end if;
+            end loop;
+         end loop;
+         return Seen_Foreign;
+      end Foreign_At;
+
       --  For each ray from (CX, CY), the radius where it first enters the
       --  object coming in from Max_R: the outer edge, whatever lies
-      --  inside it (shadows, the cup's inside, a seam). Invalid where no
-      --  edge is found or the object reaches Max_R.
+      --  inside it (shadows, the cup's inside, a seam). Another object on
+      --  the way is passed through. Invalid where no edge is found or the
+      --  object reaches Max_R.
       procedure Cast (CX, CY, Max_R : Long_Float; Radii : out Radius_Array)
       is
          Steps : constant Natural := Natural (Max_R / Ray_Step);
@@ -216,17 +257,22 @@ package body Circularity_Measure is
             for S in reverse 0 .. Steps loop
                R := Long_Float (S) * Ray_Step;
                Value := Sample (CX + R * DX, CY + R * DY);
-               if Object (Value) then
-                  if S = Steps then
+               if Object (Value) and then S = Steps then
+                  if not Foreign_At (CX + R * DX, CY + R * DY) then
                      exit;  --  the object reaches the search limit
                   end if;
+               elsif Object (Value) then
                   if Run = 0 then
                      Edge_R := R;
                      Edge_Value := Value;
                      Outer_Value := Previous;
                   end if;
                   Run := Run + 1;
-                  if Run >= Run_Needed then
+                  if Run >= Run_Needed
+                    and then Foreign_At (CX + R * DX, CY + R * DY)
+                  then
+                     Run := 0;  --  another object: go on through it
+                  elsif Run >= Run_Needed then
                      Fraction :=
                        (if Edge_Value = Outer_Value then 1.0
                         else (Level - Outer_Value)
@@ -378,10 +424,45 @@ package body Circularity_Measure is
                end if;
             end;
          end loop;
+         if Best_ID < 0 then
+            return;
+         end if;
+
+         --  Which blob each pixel belongs to, so that the rays pass
+         --  through other objects (IDs + 1 must fit in 16 bits).
+         declare
+            Max_ID : Integer := -1;
+         begin
+            for I in 0 .. Features.Count - 1 loop
+               Max_ID := Integer'Max (Max_ID, Integer (Features.Item (I).ID));
+            end loop;
+            Use_IDs := Max_ID < 65_535;
+            if Use_IDs then
+               Kinds := Kind_Vectors.To_Vector
+                 (Neutral, Ada.Containers.Count_Type (Max_ID + 2));
+               for I in 0 .. Features.Count - 1 loop
+                  declare
+                     Feature : constant Ks_Blob_Result := Features.Item (I);
+                  begin
+                     if Feature.Label = Code (Ks_Blob_Label_Constants'(Blob))
+                     then
+                        Kinds (Natural (Feature.ID) + 1) :=
+                          (if Feature.Pixel_Aligned_Min_X <= Box_X0 + 1.0
+                             and then Feature.Pixel_Aligned_Max_X
+                                      >= Box_X1 - 1.0
+                             and then Feature.Pixel_Aligned_Min_Y
+                                      <= Box_Y0 + 1.0
+                             and then Feature.Pixel_Aligned_Max_Y
+                                      >= Box_Y1 - 1.0
+                           then Own
+                           else Foreign);
+                     end if;
+                  end;
+               end loop;
+               IDs := Create_Blob_ID_Image (Tool.Results, Filtered => False);
+            end if;
+         end;
       end;
-      if Best_ID < 0 then
-         return;
-      end if;
 
       --  Two passes: from the centre of the blob's box, then from the
       --  centre of the circle fitted to the first pass's edge.

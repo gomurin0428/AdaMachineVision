@@ -50,7 +50,10 @@ package Circularity_Measure is
    --  coming in from outside (three object samples in a row, the crossing
    --  of the threshold interpolated between grey values). What lies
    --  inside the edge (a cup's inside, its shadows, a seam that breaks
-   --  the blob) does not matter. A radius more than 3 % (at least 4 px)
+   --  the blob) does not matter. Only the pixels of the chosen blob, or
+   --  of a blob whose box encloses its box (a rim that a dark line parts
+   --  from the inside), are the object: a ray goes on through another
+   --  object in its way. A radius more than 3 % (at least 4 px)
    --  from the median of its 15 neighbouring rays is replaced by that
    --  median, so features narrower than about 3 degrees are not seen; the
    --  radii are then averaged over 5 rays. The rays start from the centre

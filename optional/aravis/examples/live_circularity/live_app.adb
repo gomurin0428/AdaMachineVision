@@ -73,7 +73,8 @@ package body Live_App is
    Id_Reference_Edit : constant := 114;
    Id_Calibrate      : constant := 115;
 
-   VK_RETURN : constant := 13;
+   VK_RETURN : constant := 16#0D#;
+   VK_F2     : constant := 16#71#;
 
    type HWND_List is array (Positive range <>) of HWND;
 
@@ -121,12 +122,21 @@ package body Live_App is
    Connected    : Boolean := False;
    Camera_Name  : Wide_String (1 .. 64);
    Camera_Len   : Natural := 0;
+   --  The sliders' ranges (exposure on a log scale, so above zero) ...
    Exposure_Min : Long_Float := 10.0;
    Exposure_Max : Long_Float := 1.0E6;
    Gain_Min     : Long_Float := 1.0;
    Gain_Max     : Long_Float := 16.0;
-   Exposure_Now : Long_Float := 0.0;   --  microseconds, as last shown
-   Gain_Now     : Long_Float := 0.0;
+   --  ... and the camera's, which every value sent is kept within.
+   Exposure_Low  : Long_Float := 10.0;
+   Exposure_High : Long_Float := 1.0E6;
+   Gain_Low      : Long_Float := 1.0;
+   Gain_High     : Long_Float := 16.0;
+   --  The camera's values as last read back from it, for the log.
+   Exposure_Now   : Long_Float := 0.0;   --  microseconds
+   Gain_Now       : Long_Float := 0.0;
+   Exposure_Known : Boolean := False;
+   Gain_Known     : Boolean := False;
    MM_Per_Px    : Long_Float := 0.0;   --  0.0: not calibrated, show pixels
    Reference_MM : Long_Float := Default_Reference_MM;
 
@@ -231,9 +241,11 @@ package body Live_App is
                Integer ((Gain - Gain_Min) / (Gain_Max - Gain_Min)
                         * Long_Float (Gain_Steps)))));
 
+   function Clamp (Value, Low, High : Long_Float) return Long_Float is
+     (Long_Float'Min (High, Long_Float'Max (Low, Value)));
+
    procedure Show_Exposure (Microseconds : Long_Float) is
    begin
-      Exposure_Now := Microseconds;
       Set_Text (Exposure_Label,
                 "Exposure: " & Fixed (Microseconds / 1_000.0, 2) & " ms");
       Set_Text (Exposure_Edit, Fixed (Microseconds / 1_000.0, 2));
@@ -241,9 +253,24 @@ package body Live_App is
 
    procedure Show_Gain (Gain : Long_Float) is
    begin
-      Gain_Now := Gain;
       Set_Text (Gain_Label, "Gain: " & Fixed (Gain, 2));
    end Show_Gain;
+
+   --  A value read back from the camera: shown and kept for the log.
+
+   procedure Note_Exposure (Microseconds : Long_Float) is
+   begin
+      Exposure_Now := Microseconds;
+      Exposure_Known := True;
+      Show_Exposure (Microseconds);
+   end Note_Exposure;
+
+   procedure Note_Gain (Gain : Long_Float) is
+   begin
+      Gain_Now := Gain;
+      Gain_Known := True;
+      Show_Gain (Gain);
+   end Note_Gain;
 
    procedure Show_Threshold is
    begin
@@ -255,22 +282,54 @@ package body Live_App is
       end if;
    end Show_Threshold;
 
-   procedure Read_Camera_Settings is
+   procedure Read_Exposure is
       Value, Low, High : Long_Float;
    begin
       Settings.Get_Exposure_Time (Camera, Value, Low, High);
-      Exposure_Min := Long_Float'Max (Low, 10.0);
+      Exposure_Low := Low;
+      Exposure_High := Long_Float'Max (High, Low);
+      Exposure_Min := Long_Float'Max (Low, 1.0);
       Exposure_Max := Long_Float'Max (High, Exposure_Min * 2.0);
       Set_Trackbar (Exposure_Bar, 0, Exposure_Steps,
                     Exposure_Position (Value));
-      Show_Exposure (Value);
+      Note_Exposure (Value);
+   end Read_Exposure;
 
+   procedure Read_Gain is
+      Value, Low, High : Long_Float;
+   begin
       Settings.Get_Gain (Camera, Value, Low, High);
+      Gain_Low := Low;
+      Gain_High := Long_Float'Max (High, Low);
       Gain_Min := Low;
       Gain_Max := Long_Float'Max (High, Low + 1.0);
       Set_Trackbar (Gain_Bar, 0, Gain_Steps, Gain_Position (Value));
-      Show_Gain (Value);
+      Note_Gain (Value);
+   end Read_Gain;
+
+   procedure Read_Camera_Settings is
+   begin
+      begin
+         Read_Exposure;
+      exception
+         when AMV.Ks_Exception =>
+            null;  --  the camera has no exposure time it lets us read
+      end;
+      begin
+         Read_Gain;
+      exception
+         when AMV.Ks_Exception =>
+            null;
+      end;
    end Read_Camera_Settings;
+
+   procedure Enable_Exposure_Controls is
+      Manual : constant Boolean := not Is_Checked (Auto_Exposure_Box);
+   begin
+      Enable (Exposure_Bar, Manual);
+      Enable (Exposure_Edit, Manual);
+      Enable (Exposure_Set, Manual);
+   end Enable_Exposure_Controls;
 
    ---------------------------------------------------------------------
    --  Drawing
@@ -536,6 +595,8 @@ package body Live_App is
         Name (Name'First .. Name'First + Camera_Len - 1);
       Set_Status ("Connecting...");
       Camera.Open (Ada.Characters.Conversions.To_String (Name));
+      Exposure_Known := False;
+      Gain_Known := False;
       begin
          Settings.Set_Auto_Exposure
            (Camera, Is_Checked (Auto_Exposure_Box));
@@ -543,12 +604,8 @@ package body Live_App is
          when AMV.Ks_Exception =>
             Set_Checked (Auto_Exposure_Box, False);
       end;
-      begin
-         Read_Camera_Settings;
-      exception
-         when AMV.Ks_Exception =>
-            null;
-      end;
+      Enable_Exposure_Controls;
+      Read_Camera_Settings;
       Camera.Start;
       Connected := True;
       Set_Text (Connect_Button, "Disconnect");
@@ -573,7 +630,10 @@ package body Live_App is
    --  a frame is being measured the camera fills every stream buffer, and
    --  frames that arrive with no free buffer come out incomplete (reported
    --  as timeouts at once); emptying the queue returns the buffers, so the
-   --  next frames are whole. False when no complete frame came.
+   --  next frames are whole. At most eight Grabs, twice the adapter's four
+   --  stream buffers: a camera that sends frames faster than they can be
+   --  taken off the queue may leave a newer one in it. False when no
+   --  complete frame came.
 
    function Grab_Latest (Wait : Positive) return Boolean is
       use type Ada.Real_Time.Time;
@@ -635,10 +695,10 @@ package body Live_App is
             Value, Low, High : Long_Float;
          begin
             Settings.Get_Exposure_Time (Camera, Value, Low, High);
-            Show_Exposure (Value);
+            Note_Exposure (Value);
             Set_Trackbar_Position (Exposure_Bar, Exposure_Position (Value));
             Settings.Get_Gain (Camera, Value, Low, High);
-            Show_Gain (Value);
+            Note_Gain (Value);
          end;
       end if;
    end Tick;
@@ -723,24 +783,30 @@ package body Live_App is
 
    procedure Upgrade_Log_Header;
    --  Rewrites the log's first line as Log_Header when it is an older
-   --  header (rows written before keep their fewer columns).
+   --  header (rows written before keep their fewer columns), or writes it
+   --  into an empty log. Reads only the first line of a current log.
 
    procedure Upgrade_Log_Header is
-      File  : Ada.Text_IO.File_Type;
-      Lines : String_Vectors.Vector;
+      File    : Ada.Text_IO.File_Type;
+      Lines   : String_Vectors.Vector;
+      Current : Boolean;
    begin
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Log_File_Name);
-      while not Ada.Text_IO.End_Of_File (File) loop
-         Lines.Append (Ada.Text_IO.Get_Line (File));
-      end loop;
+      Current := not Ada.Text_IO.End_Of_File (File)
+        and then Ada.Text_IO.Get_Line (File) = Log_Header;
+      if not Current then
+         while not Ada.Text_IO.End_Of_File (File) loop
+            Lines.Append (Ada.Text_IO.Get_Line (File));
+         end loop;
+      end if;
       Ada.Text_IO.Close (File);
-      if Lines.Is_Empty or else Lines.First_Element = Log_Header then
+      if Current then
          return;
       end if;
       Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Log_File_Name);
       Ada.Text_IO.Put_Line (File, Log_Header);
-      for I in 2 .. Natural (Lines.Length) loop
-         Ada.Text_IO.Put_Line (File, Lines (I));
+      for Line of Lines loop
+         Ada.Text_IO.Put_Line (File, Line);
       end loop;
       Ada.Text_IO.Close (File);
    end Upgrade_Log_Header;
@@ -775,8 +841,9 @@ package body Live_App is
          & Value (Outcome.Radius_Min, 2) & ","
          & Value (Outcome.Radius_Max, 2) & ","
          & (if Found and then Outcome.Clipped then "1" else "0") & ","
-         & Fixed_String (Exposure_Now, 1) & ","
-         & Fixed_String (Gain_Now, 2) & ","
+         & (if Exposure_Known then Fixed_String (Exposure_Now, 1) else "")
+         & ","
+         & (if Gain_Known then Fixed_String (Gain_Now, 2) else "") & ","
          & (if Config.Auto_Threshold then "auto"
             else Ada.Strings.Fixed.Trim
                    (Natural'Image (Config.Threshold), Ada.Strings.Both))
@@ -788,15 +855,10 @@ package body Live_App is
       Ada.Text_IO.Close (File);
    end Append_Log;
 
-   procedure Capture is
+   function Take_Frame return Boolean is
    begin
-      if not Connected then
-         Set_Status ("Connect to a camera before capturing");
-         return;
-      end if;
       if not Grab_Latest (Grab_Timeout) then
-         Set_Status ("Capture failed: no frame arrived");
-         return;
+         return False;
       end if;
       Have_Image := True;
       Last_Frame := Get_Tick_Count_64;
@@ -804,6 +866,28 @@ package body Live_App is
       Render (Last_Image);
       Invalidate (Main);
       Show_Results;
+      return True;
+   end Take_Frame;
+   --  Takes and measures the newest frame from the camera now, as Tick
+   --  does; False when none came.
+
+   function Capture_Text return Wide_String is
+     ("Capture [F2]"
+      & (if Captures = 0 then ""
+         else "  (" & Wide (Ada.Strings.Fixed.Trim
+                               (Natural'Image (Captures), Ada.Strings.Both))
+              & " saved)"));
+
+   procedure Capture is
+   begin
+      if not Connected then
+         Set_Status ("Connect to a camera before capturing");
+         return;
+      end if;
+      if not Take_Frame then
+         Set_Status ("Capture failed: no frame arrived");
+         return;
+      end if;
 
       Ada.Directories.Create_Path (Capture_Folder);
       declare
@@ -814,11 +898,7 @@ package body Live_App is
          Write_Shown_Image (Path & "_result.bmp");
          Append_Log (Base & ".bmp");
          Captures := Captures + 1;
-         Set_Text (Capture_Button,
-                   "Capture  (" & Wide (Ada.Strings.Fixed.Trim
-                                       (Natural'Image (Captures),
-                                        Ada.Strings.Both))
-                   & " saved)");
+         Set_Text (Capture_Button, Capture_Text);
          Status_Hold_Until := Get_Tick_Count_64 + 6_000;
          Set_Status
            ("Captured: " & Wide (Base) & ".bmp" & CRLF
@@ -888,8 +968,16 @@ package body Live_App is
          when Constraint_Error =>
             Value := 0.0;
       end;
+      --  Always from a frame taken now: the one on screen may be from
+      --  before a disconnection or before the reference cup was put in.
       if Value <= 0.0 then
          Set_Status ("Enter the reference diameter in millimetres");
+         return;
+      elsif not Connected then
+         Set_Status ("Connect to a camera before calibrating");
+         return;
+      elsif not Take_Frame then
+         Set_Status ("Calibration failed: no frame arrived");
          return;
       elsif not Outcome.Found then
          Set_Status ("Put the reference cup in view first");
@@ -927,29 +1015,23 @@ package body Live_App is
          Set_Status ("Connect to a camera first");
          return;
       end if;
-      Value := Long_Float'Min (Exposure_Max,
-                               Long_Float'Max (Exposure_Min, Value));
-      Settings.Set_Exposure_Time (Camera, Value);
+      Settings.Set_Exposure_Time
+        (Camera, Clamp (Value, Exposure_Low, Exposure_High));
       Settings.Get_Exposure_Time (Camera, Value, Low, High);
-      Show_Exposure (Value);
+      Note_Exposure (Value);
       Set_Trackbar_Position (Exposure_Bar, Exposure_Position (Value));
       Status_Hold_Until := Get_Tick_Count_64 + 3_000;
       Set_Status ("Exposure set to " & Fixed (Value / 1_000.0, 3)
                   & " ms");
    end Apply_Exposure;
 
-   procedure Enable_Exposure_Controls is
-      Manual : constant Boolean := not Is_Checked (Auto_Exposure_Box);
-   begin
-      Enable (Exposure_Bar, Manual);
-      Enable (Exposure_Edit, Manual);
-      Enable (Exposure_Set, Manual);
-   end Enable_Exposure_Controls;
-
    function Key_Pressed (Window : HWND; Key : WPARAM) return Boolean is
    begin
       if Key = VK_RETURN and then Window = Exposure_Edit then
          Apply_Exposure;
+         return True;
+      elsif Key = VK_F2 then
+         Capture;
          return True;
       end if;
       return False;
@@ -1013,7 +1095,7 @@ package body Live_App is
          WS_TABSTOP or ES_AUTOHSCROLL, Id_Reference_Edit, WS_EX_CLIENTEDGE);
       Calibrate_Button := Button ("Calibrate", Id_Calibrate);
       Results_Label := Static ("");
-      Capture_Button := Button ("Capture", Id_Capture);
+      Capture_Button := Button (Capture_Text, Id_Capture);
       Status_Label := Static ("Check the camera's IP address and press Connect");
 
       for Control of HWND_List'
@@ -1040,13 +1122,26 @@ package body Live_App is
    end Create_Controls;
 
    procedure Layout (Window : HWND) is
-      Client : aliased RECT;
-      Ignore : BOOL;
-      Left   : Integer;
-      Width  : constant Integer := Panel_Width - 2 * Margin;
+      Results_Top : constant := 432;
+      Capture_H   : constant := 44;
+      Status_Min  : constant := 40;
+      Client    : aliased RECT;
+      Ignore    : BOOL;
+      Left      : Integer;
+      Width     : constant Integer := Panel_Width - 2 * Margin;
+      Results_H : Integer;
+      Capture_Y : Integer;
+      Status_Y  : Integer;
    begin
       Ignore := Get_Client_Rect (Window, Client'Access);
       Left := Integer (Client.Right) - Panel_Width + Margin;
+      --  The results give up height, down to two lines, so that Capture
+      --  and the status stay in a short window (F2 captures as well).
+      Results_H := Integer'Max
+        (44, Integer'Min (170, Integer (Client.Bottom) - Results_Top
+                                - 4 - Capture_H - 8 - Status_Min - 4));
+      Capture_Y := Results_Top + Results_H + 4;
+      Status_Y := Capture_Y + Capture_H + 8;
       Place (Camera_Caption, Left, 12, Width, 20);
       Place (Camera_Edit, Left, 34, Width - 96, 28);
       Place (Connect_Button, Left + Width - 88, 33, 88, 30);
@@ -1068,10 +1163,11 @@ package body Live_App is
       Place (Reference_Caption, Left, 396, 120, 22);
       Place (Reference_Edit, Left + 124, 392, 70, 28);
       Place (Calibrate_Button, Left + 202, 391, Width - 202, 30);
-      Place (Results_Label, Left, 432, Width, 170);
-      Place (Capture_Button, Left, 606, Width, 44);
-      Place (Status_Label, Left, 658, Width,
-             Integer'Max (40, Integer (Client.Bottom) - 662));
+      Place (Results_Label, Left, Results_Top, Width, Results_H);
+      Place (Capture_Button, Left, Capture_Y, Width, Capture_H);
+      Place (Status_Label, Left, Status_Y, Width,
+             Integer'Max (Status_Min,
+                          Integer (Client.Bottom) - Status_Y - 4));
       Invalidate (Window);
    end Layout;
 
@@ -1085,11 +1181,21 @@ package body Live_App is
                Connect;
             end if;
          when Id_Auto_Exposure =>
-            Enable_Exposure_Controls;
+            --  The box has already toggled itself; it goes back when the
+            --  camera refuses, and the manual controls follow it.
             if Connected then
-               Settings.Set_Auto_Exposure
-                 (Camera, Is_Checked (Auto_Exposure_Box));
+               begin
+                  Settings.Set_Auto_Exposure
+                    (Camera, Is_Checked (Auto_Exposure_Box));
+               exception
+                  when others =>
+                     Set_Checked (Auto_Exposure_Box,
+                                  not Is_Checked (Auto_Exposure_Box));
+                     raise;
+               end;
+               Read_Camera_Settings;
             end if;
+            Enable_Exposure_Controls;
          when Id_Auto_Threshold =>
             Config.Auto_Threshold := Is_Checked (Auto_Threshold_Box);
             Enable (Threshold_Bar, not Config.Auto_Threshold);
@@ -1125,24 +1231,54 @@ package body Live_App is
 
    procedure On_Scroll (Bar : HWND) is
    begin
+      --  A slider's value is sent within the camera's range and what the
+      --  camera then holds is read back; when it refuses, the slider goes
+      --  back to the last value read.
       if Bar = Exposure_Bar then
          declare
-            Value : constant Long_Float :=
+            Value : Long_Float :=
               Exposure_At (Trackbar_Position (Exposure_Bar));
+            Low, High : Long_Float;
          begin
-            Show_Exposure (Value);
-            if Connected then
-               Settings.Set_Exposure_Time (Camera, Value);
+            if not Connected then
+               Show_Exposure (Value);
+               return;
             end if;
+            begin
+               Settings.Set_Exposure_Time
+                 (Camera, Clamp (Value, Exposure_Low, Exposure_High));
+            exception
+               when others =>
+                  if Exposure_Known then
+                     Set_Trackbar_Position
+                       (Exposure_Bar, Exposure_Position (Exposure_Now));
+                  end if;
+                  raise;
+            end;
+            Settings.Get_Exposure_Time (Camera, Value, Low, High);
+            Note_Exposure (Value);
          end;
       elsif Bar = Gain_Bar then
          declare
-            Value : constant Long_Float := Gain_At (Trackbar_Position (Gain_Bar));
+            Value : Long_Float := Gain_At (Trackbar_Position (Gain_Bar));
+            Low, High : Long_Float;
          begin
-            Show_Gain (Value);
-            if Connected then
-               Settings.Set_Gain (Camera, Value);
+            if not Connected then
+               Show_Gain (Value);
+               return;
             end if;
+            begin
+               Settings.Set_Gain (Camera, Clamp (Value, Gain_Low, Gain_High));
+            exception
+               when others =>
+                  if Gain_Known then
+                     Set_Trackbar_Position
+                       (Gain_Bar, Gain_Position (Gain_Now));
+                  end if;
+                  raise;
+            end;
+            Settings.Get_Gain (Camera, Value, Low, High);
+            Note_Gain (Value);
          end;
       elsif Bar = Threshold_Bar then
          Config.Threshold :=
