@@ -1,9 +1,11 @@
+pragma SPARK_Mode (Off);
+
 with Ada.Containers.Vectors;
 with AMV.Images;
 
 --  Finds the largest object in a grey image with the AMV blob tool and
 --  measures how round its outer boundary is.
-package Circularity_Measure is
+package AMV.Flow.Circularity is
 
    type Polarity_Kind is (Light_Object, Dark_Object);
 
@@ -58,11 +60,15 @@ package Circularity_Measure is
    --  median, so features narrower than about 3 degrees are not seen; the
    --  radii are then averaged over 5 rays. The rays start from the centre
    --  of the blob's box and again from the centre of the circle fitted to
-   --  that edge. The object must be star-shaped from its centre.
+   --  that edge. The object must be star-shaped from its centre. Where
+   --  the object runs out of the image, the rays meet the image's border
+   --  instead of its edge: they are left out (Clipped is set), so that
+   --  the circle is fitted to the edge seen in the image (Area, Perimeter
+   --  and Circularity then take the cut-off part as a straight line).
    --
    --  Boundary receives the edge points in pixel coordinates (pixel
    --  centres at whole numbers); Area, Perimeter, the circle and the radii
    --  are taken from them. Raises AMV.Ks_Exception when the blob tool
    --  fails.
 
-end Circularity_Measure;
+end AMV.Flow.Circularity;

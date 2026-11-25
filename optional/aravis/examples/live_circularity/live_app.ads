@@ -1,6 +1,6 @@
 --  The live circularity window: connects to a GigE Vision camera through
 --  AMV.GigE_Vision, shows its frames live and measures the circularity of
---  the largest object in each frame (Circularity_Measure).
+--  the largest object in each frame (AMV.Flow.Circularity, optional/flow).
 package Live_App is
 
    procedure Run;

@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	build-aravis test-aravis example-aravis build-live-circularity prove prove-aravis mutation mutation-diff clean
+	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow build-flow-c test-flow-c build-flow-c-camera prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -98,6 +98,40 @@ endif
 build-live-circularity: build-aravis
 	$(GPRBUILD) -p -P optional/aravis/examples/live_circularity/live_circularity.gpr \
 	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
+
+# AMV Flow (optional/flow, docs/FLOW_EDITOR_DESIGN.md): the engine, the
+# amv_flow command-line runner and its tests. Needs AMV only.
+build-flow:
+	$(GPRBUILD) -p -P optional/flow/cli/amv_flow_cli.gpr
+
+test-flow:
+	$(GPRBUILD) -p -P optional/flow/tests/amv_flow_tests.gpr
+	./build/bin/test_flow
+
+# The engine as the shared library amvflow with its C API
+# (optional/flow/include/amv_flow.h), and the C tests of that API (they
+# read the flow file that test-flow writes).
+build-flow-c:
+	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c.gpr
+
+# amvflow with the Camera node (needs Aravis, like build-aravis), into
+# build/flow-c-camera-lib; on Windows the Aravis and GLib DLLs it needs
+# are copied next to it, where the editor finds them.
+build-flow-c-camera: build-aravis
+	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c_camera.gpr \
+	  -XARAVIS_LIBS="$(ARAVIS_LIBS)" -cargs:C $(ARAVIS_CFLAGS)
+ifeq ($(OS),Windows_NT)
+	ldd build/flow-c-camera-lib/libamvflow.dll | awk '/mingw64/ {print $$3}' \
+	  | xargs -I{} cp {} build/flow-c-camera-lib/
+endif
+
+test-flow-c: test-flow build-flow-c
+	$(GPRBUILD) -p -P optional/flow/capi/tests/amv_flow_c_tests.gpr
+ifeq ($(OS),Windows_NT)
+	@PATH="$(CURDIR)/build/flow-c-lib:$$PATH" ./build/bin/test_amvf.exe
+else
+	LD_LIBRARY_PATH="$(CURDIR)/build/flow-c-lib:$$LD_LIBRARY_PATH" ./build/bin/test_amvf
+endif
 
 example-aravis: build-aravis
 	@test -n "$(CAMERA_ID)" || { \

@@ -1,0 +1,87 @@
+{
+  "format": 1,
+  "name": "cup cut (camera)",
+  "outputs": [
+    {"name": "Lines", "type": "Integer"},
+    {"name": "LargestArea", "type": "Real"},
+    {"name": "OnlyTheSeam", "type": "Boolean"},
+    {"name": "NoWideLine", "type": "Boolean"}
+  ],
+  "nodes": [
+    {
+      "id": 1, "kind": "Camera", "name": "GE134GC",
+      "ui": {"x": 0.0, "y": 0.0},
+      "params": {"CameraId": "169.254.151.175", "ExposureUs": 0.0, "Gain": -1.0,
+                 "AutoExposure": false, "TimeoutMs": 2000}
+    },
+    {
+      "id": 2, "kind": "Circularity", "name": "Cup rim",
+      "ui": {"x": 0.0, "y": 100.0},
+      "params": {"AutoThreshold": true, "Threshold": 128, "Polarity": "Light", "MinArea": 2000.0}
+    },
+    {
+      "id": 3, "kind": "Fixture", "name": "Cup",
+      "ui": {"x": 220.0, "y": 0.0},
+      "params": {"FixturedSpaceName": "Cup"}
+    },
+    {
+      "id": 4, "kind": "PolarUnwrap", "name": "Side wall",
+      "ui": {"x": 440.0, "y": 0.0},
+      "params": {"Region": {"shape": "CircularAnnulusSection", "space": ".",
+                            "centerX": 0.0, "centerY": 0.0, "radius": 326.0, "radialScale": 1.27,
+                            "angleStart": 0.0, "angleSpan": 6.283185307179586}}
+    },
+    {
+      "id": 5, "kind": "Morphology", "name": "Dark lines",
+      "ui": {"x": 220.0, "y": 100.0},
+      "params": {"Operation": "CloseMinusOriginal", "KernelWidth": 15, "KernelHeight": 1}
+    },
+    {
+      "id": 6, "kind": "Morphology", "name": "Join pieces",
+      "ui": {"x": 220.0, "y": 175.0},
+      "params": {"Operation": "Dilate", "KernelWidth": 7, "KernelHeight": 7}
+    },
+    {
+      "id": 7, "kind": "Blob", "name": "Lines",
+      "ui": {"x": 440.0, "y": 80.0},
+      "params": {"Threshold": 14, "Polarity": "Light", "MinArea": 200.0}
+    },
+    {
+      "id": 8, "kind": "RangeCheck", "name": "Only the seam",
+      "ui": {"x": 440.0, "y": 235.0},
+      "params": {"Low": 1.0, "High": 1.0}
+    },
+    {
+      "id": 9, "kind": "RangeCheck", "name": "No wide line",
+      "ui": {"x": 220.0, "y": 255.0},
+      "params": {"Low": 0.0, "High": 1400.0}
+    },
+    {
+      "id": 10, "kind": "CsvLog", "name": "Log",
+      "ui": {"x": 660.0, "y": 100.0},
+      "params": {"Path": "../../../build/cup_cut_log.csv",
+                 "Columns": "Lines, LargestArea, OnlyTheSeam, NoWideLine, Roundness",
+                 "Enabled": true}
+    }
+  ],
+  "links": [
+    {"from": "1.Image", "to": "2.Image"},
+    {"from": "1.Image", "to": "3.Image"},
+    {"from": "2.Pose", "to": "3.Transform"},
+    {"from": "3.Image", "to": "4.Image"},
+    {"from": "4.Image", "to": "5.Image"},
+    {"from": "5.Image", "to": "6.Image"},
+    {"from": "6.Image", "to": "7.Image"},
+    {"from": "7.Count", "to": "8.Value"},
+    {"from": "7.Area", "to": "9.Value"},
+    {"from": "7.Count", "to": "output.Lines"},
+    {"from": "7.Area", "to": "output.LargestArea"},
+    {"from": "8.Pass", "to": "output.OnlyTheSeam"},
+    {"from": "9.Pass", "to": "output.NoWideLine"},
+    {"from": "7.Count", "to": "10.Value1"},
+    {"from": "7.Area", "to": "10.Value2"},
+    {"from": "8.Pass", "to": "10.Value3"},
+    {"from": "9.Pass", "to": "10.Value4"},
+    {"from": "2.Roundness", "to": "10.Value5"}
+  ]
+}

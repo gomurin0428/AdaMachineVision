@@ -51,6 +51,9 @@ jobs:
       - name: make test (Ada and C API tests)
         run: make test
 
+      - name: make test-flow (AMV Flow engine, optional/flow)
+        run: make test-flow
+
       - name: make run-examples (run the examples, check their reports)
         run: make run-examples
 
@@ -216,6 +219,71 @@ jobs:
           set -euo pipefail
           export PATH="$MINGW_PREFIX/bin:$PATH"
           "$HOME/.local/bin/alr.exe" -n exec -- make build-live-circularity
+
+  # The flow engine as the shared library amvflow with its C API, and the
+  # JavaFX editor that loads it (optional/flow, optional/flow_editor). On
+  # Windows, where they are used; the library needs only system DLLs.
+  flow-c-java-windows:
+    name: AMV Flow C API and editor (Windows)
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      OS: Windows_NT
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSYS2 MINGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          release: true
+          path-type: minimal
+          update: false
+          install: >-
+            make
+            unzip
+
+      - name: Install Alire and the pinned GNAT toolchain
+        run: |
+          set -euo pipefail
+          alr="$HOME/.local/bin/alr.exe"
+          if [ ! -x "$alr" ]; then
+            tmp=$(mktemp -d)
+            trap 'rm -rf "$tmp"' EXIT
+            curl -fsSL --retry 3 -o "$tmp/alr.zip" \
+              https://github.com/alire-project/alire/releases/download/v2.1.1/alr-2.1.1-bin-x86_64-windows.zip
+            printf '%s  %s\n' \
+              863013b1f94da6f3b7d0d5a74022ac3370424eeea9a470ebdb33d188d61b9125 \
+              "$tmp/alr.zip" | sha256sum -c -
+            mkdir -p "$(dirname "$alr")"
+            unzip -j "$tmp/alr.zip" bin/alr.exe -d "$(dirname "$alr")"
+          fi
+          "$alr" -n toolchain --select gnat_native=16.1.0 gprbuild=26.0.1
+
+      - name: make test-flow-c (the engine, libamvflow and its C tests)
+        run: |
+          set -euo pipefail
+          "$HOME/.local/bin/alr.exe" -n exec -- make test-flow-c
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.2"
+
+      # The Java binding's tests run against build/flow-c-lib and the flow
+      # files test-flow wrote; the editor is compiled with warnings as
+      # errors.
+      - name: Test the Java binding and build the editor
+        shell: pwsh
+        working-directory: optional/flow_editor
+        run: gradle --no-daemon :amv-flow-native:test :amv-flow-editor:installDist
 
   prove:
     name: prove (${{ matrix.group }})

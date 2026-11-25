@@ -9,3 +9,8 @@
 __pycache__/
 /.adamutant/
 /adamutant-*.toml
+
+# The Gradle project of the AMV Flow editor (optional/flow_editor)
+.gradle/
+/optional/flow_editor/build/
+/optional/flow_editor/*/build/
