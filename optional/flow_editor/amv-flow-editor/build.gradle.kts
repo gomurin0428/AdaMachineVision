@@ -63,17 +63,20 @@ val stagePackage = tasks.register<Sync>("stagePackage") {
     into(packageInput)
 }
 
+val cleanPackage = tasks.register<Delete>("cleanPackage") {
+    delete(packageDir)
+}
+
 tasks.register<Exec>("jpackage") {
     group = "distribution"
     description = "Packages the editor with a Java runtime and the engine library"
-    dependsOn(stagePackage)
+    dependsOn(stagePackage, cleanPackage)
     val type = (findProperty("packageType") as String?) ?: "app-image"
     val jpackage = File(System.getProperty("java.home"), "bin/jpackage").path
     doFirst {
         if (!libraryFile.exists()) {
             throw GradleException("no engine library at $libraryFile: run make build-flow-c first")
         }
-        delete(packageDir)
     }
     commandLine(
         jpackage, "--type", type,

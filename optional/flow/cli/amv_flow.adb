@@ -280,11 +280,18 @@ begin
             end if;
             I := I + 2;
          end loop;
-         Bad := I + 1 > CL.Argument_Count
-           or else (CL.Argument (I)'Length >= 2
-                    and then CL.Argument (I) (CL.Argument (I)'First
-                                              .. CL.Argument (I)'First + 1)
-                             = "--");
+         --  The options come before the flow: an option after it would be
+         --  taken for an image.
+         Bad := I + 1 > CL.Argument_Count;
+         for J in I .. CL.Argument_Count loop
+            declare
+               A : constant String := CL.Argument (J);
+            begin
+               if A'Length >= 2 and then A (A'First .. A'First + 1) = "--" then
+                  Bad := True;
+               end if;
+            end;
+         end loop;
          if Bad then
             Usage;
          else

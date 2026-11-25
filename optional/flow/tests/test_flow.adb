@@ -1467,6 +1467,33 @@ procedure Test_Flow is
       Check (Threshold = 120, "recipe: all or nothing (a bad value)");
       Expect_Flow_Error ("recipe: not a recipe", Not_A_Recipe'Access,
                          "format");
+      --  A parameter without a value is null in a recipe; null clears it.
+      declare
+         procedure Missing_Train_Image is
+         begin
+            Apply ("{""format"": 1, ""params"": {""1.Threshold"": 5, "
+                   & """3.TrainImage"": ""no_such.bmp""}}");
+         end Missing_Train_Image;
+         procedure Other_Flow is
+         begin
+            Apply ("{""format"": 1, ""flow"": ""another"", ""params"": "
+                   & "{""1.Threshold"": 5}}");
+         end Other_Flow;
+      begin
+         Check (Flow.Add_Node ("ShapeMatch") = 3, "recipe: node 3");
+         Check (Contains (Flow.Recipe_JSON ("x"), """3.TrainRegion"": null"),
+                "recipe: a parameter without a value is null");
+         Apply ("{""format"": 1, ""params"": {""1.Region"": null}}");
+         Check (not Flow.Node (1).Get_Param ("Region").Has_Value,
+                "recipe: null clears a region");
+         Expect_Flow_Error ("recipe: a node that cannot be prepared",
+                            Missing_Train_Image'Access, "train image");
+         Check (Threshold = 120,
+                "recipe: all or nothing (a node that cannot be prepared)");
+         Flow.Set_Name ("this one");
+         Expect_Flow_Error ("recipe: for another flow", Other_Flow'Access,
+                            "another");
+      end;
    end Test_Recipe;
 
    ---------------------------------------------------------------------

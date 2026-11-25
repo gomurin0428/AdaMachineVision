@@ -1240,6 +1240,21 @@ package body AMV.Flow.Graphs is
          raise Ks_Flow_Exception with Ada.Exceptions.Exception_Message (E);
    end Read_JSON;
 
+   --  Flow becomes Fresh (Fresh is left empty); the run counts stay.
+   procedure Take (Flow : in out Ks_Flow; Fresh : in out Ks_Flow) is
+      Kept : constant Run_Counts := Flow.Tally;
+   begin
+      Clear (Flow);
+      Flow.Tally := Kept;
+      Flow.Flow_Name := Fresh.Flow_Name;
+      Flow.Base_Dir := Fresh.Base_Dir;
+      Flow.Nodes.Move (Source => Fresh.Nodes);
+      Flow.Unprepared.Move (Source => Fresh.Unprepared);
+      Flow.Links.Move (Source => Fresh.Links);
+      Flow.Inputs.Move (Source => Fresh.Inputs);
+      Flow.Outputs.Move (Source => Fresh.Outputs);
+   end Take;
+
    procedure From_JSON (Flow           : in out Ks_Flow;
                         Text           : String;
                         Base_Directory : String := "")
@@ -1249,19 +1264,7 @@ package body AMV.Flow.Graphs is
       Fresh : Ks_Flow;
    begin
       Read_JSON (Fresh, Text, Base_Directory);
-      declare
-         Kept : constant Run_Counts := Flow.Tally;
-      begin
-         Clear (Flow);
-         Flow.Tally := Kept;
-      end;
-      Flow.Flow_Name := Fresh.Flow_Name;
-      Flow.Base_Dir := Fresh.Base_Dir;
-      Flow.Nodes.Move (Source => Fresh.Nodes);
-      Flow.Unprepared.Move (Source => Fresh.Unprepared);
-      Flow.Links.Move (Source => Fresh.Links);
-      Flow.Inputs.Move (Source => Fresh.Inputs);
-      Flow.Outputs.Move (Source => Fresh.Outputs);
+      Take (Flow, Fresh);
    end From_JSON;
 
    ---------------------------------------------------------------------
@@ -1292,9 +1295,11 @@ package body AMV.Flow.Graphs is
                   Value      : constant Ks_Flow_Value :=
                     N.Get_Param (Param_Name);
                begin
+                  W.Key (Id_Image (Id) & "." & Param_Name);
                   if Value.Has_Value then
-                     W.Key (Id_Image (Id) & "." & Param_Name);
                      Write_Param (W, P, Value);
+                  else
+                     W.Null_Value;  --  none (a region: the whole image)
                   end if;
                end;
             end loop;
@@ -1308,18 +1313,18 @@ package body AMV.Flow.Graphs is
    procedure Apply_Recipe (Flow : in out Ks_Flow; Text : String) is
       use AMV.Flow.JSON;
 
-      --  What was set, with its old value, to put back on a failure (the
-      --  last run's results stay).
       type Change is record
          Id    : Positive;
          Name  : Unbounded_String;
-         Value : Ks_Flow_Value;
+         Key   : Unbounded_String;
+         Value : Ks_Flow_Value;  --  No_Value: clear (a region)
       end record;
       package Change_Vectors is new Ada.Containers.Vectors (Positive, Change);
       Changes : Change_Vectors.Vector;
 
-      Doc    : Document;
-      R      : J_Node;
+      Doc   : Document;
+      R     : J_Node;
+      Fresh : Ks_Flow;
    begin
       Parse (Doc, Text);
       R := Root (Doc);
@@ -1336,6 +1341,22 @@ package body AMV.Flow.Graphs is
            & " and ""params""";
       end if;
       declare
+         For_Flow : constant J_Node := Member (Doc, R, "flow");
+      begin
+         if For_Flow /= No_Node and then Kind (Doc, For_Flow) = String_Kind
+           and then String_Value (Doc, For_Flow) /= ""
+           and then Name (Flow) /= ""
+           and then String_Value (Doc, For_Flow) /= Name (Flow)
+         then
+            raise Ks_Flow_Exception with
+              "the recipe is for the flow """ & String_Value (Doc, For_Flow)
+              & """, not """ & Name (Flow) & """";
+         end if;
+      end;
+
+      --  First every key is checked and every value read, before anything
+      --  changes.
+      declare
          Params : constant J_Node := Member (Doc, R, "params");
       begin
          for I in 1 .. Length (Doc, Params) loop
@@ -1347,19 +1368,19 @@ package body AMV.Flow.Graphs is
             begin
                if Dot <= Key_Text'First then
                   raise Ks_Flow_Exception with
-                    "recipe: """ & Key_Text & """ is not <node id>.<parameter>";
+                    """" & Key_Text & """ is not <node id>.<parameter>";
                end if;
                begin
-                  Id_Value := Natural'Value (Key_Text (Key_Text'First .. Dot - 1));
+                  Id_Value :=
+                    Natural'Value (Key_Text (Key_Text'First .. Dot - 1));
                exception
                   when Constraint_Error =>
                      raise Ks_Flow_Exception with
-                       "recipe: """ & Key_Text
-                       & """ is not <node id>.<parameter>";
+                       """" & Key_Text & """ is not <node id>.<parameter>";
                end;
                if Id_Value = 0 or else not Flow.Nodes.Contains (Id_Value) then
                   raise Ks_Flow_Exception with
-                    "recipe: the flow has no node "
+                    "the flow has no node "
                     & Key_Text (Key_Text'First .. Dot - 1);
                end if;
                declare
@@ -1370,45 +1391,71 @@ package body AMV.Flow.Graphs is
                   Index_Of   : constant Natural :=
                     Find_Param (N.all, Param_Name);
                   All_Params : constant Param_Array := N.Params;
+                  Item       : constant J_Node := Element (Doc, Params, I);
                begin
                   if Index_Of = 0 then
                      raise Ks_Flow_Exception with
-                       "recipe: " & Describe (Flow, Id_Value)
-                       & " has no parameter """ & Param_Name & """";
+                       Describe (Flow, Id_Value) & " has no parameter """
+                       & Param_Name & """";
+                  elsif Kind (Doc, Item) = Null_Kind
+                    and then All_Params (Index_Of).Kind /= Shape_Param
+                  then
+                     raise Ks_Flow_Exception with "a value is needed";
                   end if;
                   Changes.Append
-                    (Change'(Id_Value, U (Param_Name),
-                             N.Get_Param (Param_Name)));
-                  Set_Param
-                    (Flow, Id_Value, Param_Name,
-                     JSON_Param_Value (Doc, Element (Doc, Params, I),
-                                       All_Params (Index_Of)));
-               exception
-                  when E : Ks_Flow_Exception | AMV.Ks_Exception
-                         | AMV.Ks_Bad_Parameter_Exception
-                         | AMV.Ks_Image_File_Exception =>
-                     raise Ks_Flow_Exception with
-                       "recipe: " & Key_Text & ": "
-                       & Ada.Exceptions.Exception_Message (E);
+                    (Change'(Id_Value, U (Param_Name), U (Key_Text),
+                             (if Kind (Doc, Item) = Null_Kind then No_Value
+                              else JSON_Param_Value
+                                     (Doc, Item, All_Params (Index_Of)))));
                end;
+            exception
+               when E : Ks_Flow_Exception | AMV.Ks_Exception
+                      | AMV.Ks_Bad_Parameter_Exception =>
+                  raise Ks_Flow_Exception with
+                    "recipe: " & Key_Text & ": "
+                    & Ada.Exceptions.Exception_Message (E);
             end;
          end loop;
       end;
-   exception
-      when E : Ks_Flow_Exception | AMV.Ks_Exception
-             | AMV.Ks_Bad_Parameter_Exception | AMV.Ks_Image_File_Exception =>
-         --  All or nothing: the parameters as they were.
-         for C of reverse Changes loop
-            if C.Value.Has_Value then
-               begin
-                  Set_Param (Flow, C.Id, To_String (C.Name), C.Value);
-               exception
-                  when others =>
-                     null;  --  it was set before, it is set again
-               end;
+
+      --  Then on a copy of the flow: every value set, and every node it
+      --  touches prepared once, with all its new values. The flow is
+      --  replaced only when all of that worked.
+      Read_JSON (Fresh, To_JSON (Flow), Base_Directory (Flow));
+      for C of Changes loop
+         begin
+            Set_Param_Checked
+              (Fresh.Nodes.Element (C.Id).all, To_String (C.Name), C.Value);
+         exception
+            when E : Ks_Flow_Exception | AMV.Ks_Exception
+                   | AMV.Ks_Bad_Parameter_Exception =>
+               raise Ks_Flow_Exception with
+                 "recipe: " & To_String (C.Key) & ": "
+                 & Ada.Exceptions.Exception_Message (E);
+         end;
+      end loop;
+      for C in Fresh.Nodes.Iterate loop
+         declare
+            Id : constant Positive := Node_Maps.Key (C);
+         begin
+            if (for some Ch of Changes => Ch.Id = Id) then
+               Node_Maps.Element (C).Prepare (Base_Directory (Fresh));
+               Fresh.Unprepared.Exclude (Id);
             end if;
-         end loop;
-         raise Ks_Flow_Exception with Ada.Exceptions.Exception_Message (E);
+         exception
+            when E : Ks_Flow_Exception | AMV.Ks_Exception
+                   | AMV.Ks_Bad_Parameter_Exception
+                   | AMV.Ks_Image_File_Exception =>
+               raise Ks_Flow_Exception with
+                 "recipe: " & Describe (Fresh, Id) & ": "
+                 & Ada.Exceptions.Exception_Message (E);
+         end;
+      end loop;
+      --  The flow's inputs keep their values (an image already set).
+      for I in 1 .. Natural (Flow.Inputs.Length) loop
+         Fresh.Inputs (I).Value := Flow.Inputs (I).Value;
+      end loop;
+      Take (Flow, Fresh);
    end Apply_Recipe;
 
    procedure Save (Flow : Ks_Flow; Path : String) is

@@ -206,13 +206,17 @@ package AMV.Flow.Graphs is
    --  A recipe: the value of every parameter of every node, to switch the
    --  flow from one product to another without changing its nodes:
    --  {"format": 1, "recipe": Name, "flow": the flow's name,
-   --   "params": {"<node id>.<parameter>": value, ...}}
+   --   "params": {"<node id>.<parameter>": value, ...}}, null for a
+   --  parameter without a value (a region: none).
 
    procedure Apply_Recipe (Flow : in out Ks_Flow; Text : String);
-   --  Sets the parameters a recipe names (others keep their values). A
-   --  recipe that names a node or parameter the flow does not have, or a
-   --  value a node cannot take: Ks_Flow_Exception, and the flow is left
-   --  as it was.
+   --  Sets the parameters a recipe names (others keep their values), on a
+   --  copy of the flow whose touched nodes are prepared once with all
+   --  their new values; the flow is replaced only when all of that works
+   --  (its inputs keep their values, its counts stay, the last run's
+   --  results are gone). Otherwise Ks_Flow_Exception, and the flow is as
+   --  it was: a recipe for another flow (by name), a node or parameter
+   --  the flow does not have, a value a node cannot take or prepare with.
 
    procedure Save (Flow : Ks_Flow; Path : String);
    procedure Load (Flow : in out Ks_Flow; Path : String);

@@ -147,6 +147,9 @@ int main(void) {
         amvf_flow_apply_recipe(flow, recipe, &st);
         check_ok(&st, "apply the saved recipe");
         free(recipe);
+        /* A recipe makes a new flow: run it again for results. */
+        amvf_flow_run(flow, &st);
+        check_ok(&st, "run after the recipe (the image input kept)");
     }
     amvf_flow_reset_counts(flow, &st);
     check_ok(&st, "reset the counts");
