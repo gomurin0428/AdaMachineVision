@@ -1314,6 +1314,13 @@ procedure Test_Flow is
                 and then not Boolean_Output (Flow, "Found")
                 and then not Flow.Get_Output ("R").Has_Value,
                 "measure: no circle is a reject (" & Flow.Message & ")");
+         --  Too many outliers to ignore for 12 calipers... a setting the
+         --  tool refuses is an Error, not a part that failed.
+         Flow.Set_Param (1, "NumToIgnore", From_Integer (10));
+         Flow.Set_Input ("Image", From_Image (Disc));
+         Flow.Run;
+         Check (Flow.Result = AMV.Tools.Error,
+                "measure: bad settings are an error (" & Flow.Message & ")");
       end;
 
       --  Distance: a 3-4-5 triangle.

@@ -88,9 +88,9 @@ package body AMV.Flow.Nodes.Measure is
                       "a Circle in the image's selected space: where the "
                       & "calipers go, all round"),
       Integer_Param_Of ("NumCalipers", 3.0, 1000.0),
-      Real_Param_Of ("SearchLength", 0.0, Large, "",
+      Real_Param_Of ("SearchLength", 1.0E-3, Large, "",
                      "how far each caliper looks across the circle"),
-      Real_Param_Of ("ProjectionLength", 0.0, Large, "",
+      Real_Param_Of ("ProjectionLength", 1.0E-3, Large, "",
                      "how wide each caliper is, along the circle"),
       Choice_Param_Of ("SearchDirection", "Inward|Outward"),
       Choice_Param_Of ("Polarity", Polarities,
@@ -208,8 +208,12 @@ package body AMV.Flow.Nodes.Measure is
       end;
       Node.Tool.Input_Image := Node.Image_In.As_Image;
       Node.Tool.Run;
-      if Node.Tool.Run_Status.Result = AMV.Tools.Error then
-         --  Too few edges: nothing found, not a broken flow.
+      if Node.Tool.Run_Status.Result = AMV.Tools.Error
+        and then AMV.Tools.Exception_Name (Node.Tool.Run_Status)
+                 = "AMV.KS_EXCEPTION"
+      then
+         --  Too few edges for a fit: nothing found, not a broken flow (bad
+         --  parameters, a space the image lacks stay an Error).
          Set_Result (Node, AMV.Tools.Reject,
                      AMV.Tools.Message (Node.Tool.Run_Status));
          return;
@@ -352,6 +356,10 @@ package body AMV.Flow.Nodes.Measure is
 
    overriding procedure Clear_Inputs (Node : in out Distance_Node) is
    begin
+      Node.X1 := 0.0;
+      Node.Y1 := 0.0;
+      Node.X2 := 0.0;
+      Node.Y2 := 0.0;
       Node.Got := False;
    end Clear_Inputs;
 
