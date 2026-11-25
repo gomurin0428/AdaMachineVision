@@ -121,7 +121,7 @@ public final class EditorApp extends Application {
         try {
             startError = engine.submit(() -> {
                 if (!Flow.abiMatches()) {
-                    return "the AMV Flow library has ABI version " + Flow.abiVersion() + "; this editor needs 1";
+                    return "the AMV Flow library has ABI version " + Flow.abiVersion() + "; this editor needs " + amv.flow.nativeapi.Flow.ABI_VERSION;
                 }
                 flow = new Flow();
                 kinds = Model.parseKinds(Flow.kindsJson());
@@ -310,6 +310,7 @@ public final class EditorApp extends Application {
             flowFile = null;
             act(f -> {
                 f.fromJson(EMPTY_FLOW, null);
+                f.resetCounts();
                 ranOnce = false;
                 undoStack.clear();
                 redoStack.clear();

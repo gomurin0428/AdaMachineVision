@@ -15,7 +15,7 @@ package AMV.Flow.C_API is
    use Interfaces.C;
    use Interfaces.C.Strings;
 
-   C_ABI_Version      : constant := 1;  --  AMVF_ABI_VERSION
+   C_ABI_Version      : constant := 2;  --  AMVF_ABI_VERSION
    Max_Message_Length : constant := 1023;
 
    Failure_None          : constant := 0;

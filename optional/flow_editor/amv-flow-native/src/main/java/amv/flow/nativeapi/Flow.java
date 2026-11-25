@@ -20,6 +20,9 @@ public final class Flow implements AutoCloseable {
     public record NodeImage(int width, int height, byte[] bgra) {
     }
 
+    /** The version of the C API this binding was written for (AMVF_ABI_VERSION). */
+    public static final int ABI_VERSION = AmvFlowNative.ABI_VERSION;
+
     private MemorySegment handle;
 
     /** A new, empty flow. */

@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define AMVF_ABI_VERSION 1
+#define AMVF_ABI_VERSION 2
 #define AMVF_MAX_MESSAGE_LENGTH 1023
 
 #define AMVF_OK                    0

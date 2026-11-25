@@ -26,7 +26,7 @@ import java.nio.file.Path;
 @SuppressWarnings("restricted")
 final class AmvFlowNative {
 
-    static final int ABI_VERSION = 1;
+    static final int ABI_VERSION = 2;
     static final int MAX_MESSAGE_LENGTH = 1023;
 
     static final StructLayout STATUS = MemoryLayout.structLayout(
@@ -125,8 +125,16 @@ final class AmvFlowNative {
     }
 
     private static MethodHandle find(String name, FunctionDescriptor descriptor) {
-        return LINKER.downcallHandle(
-                LOOKUP.find(name).orElseThrow(() -> new UnsatisfiedLinkError("no " + name + " in the AMV Flow library")),
-                descriptor);
+        var symbol = LOOKUP.find(name);
+        if (symbol.isEmpty()) {
+            // An older library: fail when called, so that abiVersion() can
+            // still say which version it is.
+            var type = descriptor.toMethodType();
+            MethodHandle thrower = java.lang.invoke.MethodHandles
+                    .throwException(type.returnType(), UnsatisfiedLinkError.class)
+                    .bindTo(new UnsatisfiedLinkError("no " + name + " in the AMV Flow library"));
+            return java.lang.invoke.MethodHandles.dropArguments(thrower, 0, type.parameterList());
+        }
+        return LINKER.downcallHandle(symbol.get(), descriptor);
     }
 }

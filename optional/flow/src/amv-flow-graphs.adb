@@ -634,6 +634,14 @@ package body AMV.Flow.Graphs is
       end;
    end Source_Value;
 
+   --  A count that stops at its largest value (years of runs).
+   procedure Bump (Count : in out Natural) is
+   begin
+      if Count < Natural'Last then
+         Count := Count + 1;
+      end if;
+   end Bump;
+
    procedure Run (Flow : in out Ks_Flow) is
       Ordered  : Id_Vectors.Vector;
       Complete : Boolean;
@@ -683,13 +691,14 @@ package body AMV.Flow.Graphs is
          when E : Ks_Flow_Exception =>
             Flow.Outcome := AMV.Tools.Error;
             Flow.Why := U (Ada.Exceptions.Exception_Message (E));
-            Flow.Tally.Runs := Flow.Tally.Runs + 1;
-            Flow.Tally.Failed := Flow.Tally.Failed + 1;
+            Bump (Flow.Tally.Runs);
+            Bump (Flow.Tally.Failed);
             raise;
       end;
 
       Order (Flow, Ordered, Complete);
 
+      begin
       for Id of Ordered loop
          declare
             N         : constant Node_Access := Flow.Nodes.Element (Id);
@@ -765,17 +774,25 @@ package body AMV.Flow.Graphs is
          end;
       end loop;
 
-      Flow.Tally.Runs := Flow.Tally.Runs + 1;
+      Bump (Flow.Tally.Runs);
       case Flow.Outcome is
          when AMV.Tools.Accept_Result =>
-            Flow.Tally.Accepted := Flow.Tally.Accepted + 1;
+            Bump (Flow.Tally.Accepted);
          when AMV.Tools.Warning =>
-            Flow.Tally.Warned := Flow.Tally.Warned + 1;
+            Bump (Flow.Tally.Warned);
          when AMV.Tools.Reject =>
-            Flow.Tally.Rejected := Flow.Tally.Rejected + 1;
+            Bump (Flow.Tally.Rejected);
          when AMV.Tools.Error =>
-            Flow.Tally.Failed := Flow.Tally.Failed + 1;
+            Bump (Flow.Tally.Failed);
       end case;
+      exception
+         when others =>
+            --  A run that broke off is counted as failed.
+            Flow.Outcome := AMV.Tools.Error;
+            Bump (Flow.Tally.Runs);
+            Bump (Flow.Tally.Failed);
+            raise;
+      end;
    end Run;
 
    function Result (Flow : Ks_Flow) return AMV.Tools.Ks_Tool_Result_Constants
