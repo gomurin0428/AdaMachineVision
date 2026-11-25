@@ -859,7 +859,21 @@ procedure Test_Flow is
                 "cut: the editor gets the annulus as an editable region");
       end;
 
+      --  Where the cut is, back on the camera image.
+      Check (Flow.Add_Node ("PolarPoint") = 7, "cut: node 7");
+      Flow.Add_Output ("CutAngle", Real_Type);
+      Flow.Link ("2.Image", "7.Image");
+      Flow.Link ("3.Region", "7.Region");
+      Flow.Link ("5.CenterX", "7.X");
+      Flow.Link ("5.CenterY", "7.Y");
+      Flow.Link ("7.Angle", "output.CutAngle");
+
       Run_On (320.3, 340.7, With_Cut => True);
+      Check_Near (Real_Output (Flow, "CutAngle"), Cut_Angle - 2.0 * Pi, 0.03,
+                  "cut: its angle on the cup (200 degrees)");
+      Check (Contains (AMV.Flow.Reports.Graphics_JSON (Flow, 7),
+                       """kind"": ""point"""),
+             "cut: the editor marks it on the image");
       Check (Cuts_Found = 1
              and then not Boolean_Output (Flow, "NoCut")
              and then Flow.Result = AMV.Tools.Reject
@@ -1113,6 +1127,103 @@ procedure Test_Flow is
    end Test_Kept;
 
    ---------------------------------------------------------------------
+   --  And, Or, Not, and the pass / fail tally
+   ---------------------------------------------------------------------
+
+   procedure Test_Logic is
+      Flow : AMV.Flow.Graphs.Ks_Flow;
+      Disc : AMV.Images.Ks_Image_8_Grey :=
+        AMV.Images.Create (200, 150, Value => 30);
+      Empty : constant AMV.Images.Ks_Image_8_Grey :=
+        AMV.Images.Create (100, 80, Value => 30);
+
+      procedure Run_With (A : Boolean; Image : AMV.Images.Ks_Image_8_Grey) is
+      begin
+         Flow.Set_Input ("A", From_Boolean (A));
+         Flow.Set_Input ("Image", From_Image (Image));
+         Flow.Run;
+      end Run_With;
+
+      function Output (Name : String) return Boolean is
+        (Boolean_Output (Flow, Name));
+   begin
+      for Y in 0 .. 149 loop
+         for X in 0 .. 199 loop
+            if (Real (X) - 100.0) ** 2 + (Real (Y) - 75.0) ** 2 <= 40.0 ** 2
+            then
+               Disc.Set_Pixel (X, Y, 220);
+            end if;
+         end loop;
+      end loop;
+      --  A, and whether the image holds something round: And (judging),
+      --  Or, Not A.
+      Flow.Add_Input ("A", Boolean_Type);
+      Flow.Add_Input ("Image", Image_8_Grey_Type);
+      Flow.Add_Output ("Both", Boolean_Type);
+      Flow.Add_Output ("Either", Boolean_Type);
+      Flow.Add_Output ("NotA", Boolean_Type);
+      Check (Flow.Add_Node ("Circularity") = 1, "logic: node 1");
+      Check (Flow.Add_Node ("RangeCheck") = 2, "logic: node 2");
+      Check (Flow.Add_Node ("And") = 3, "logic: node 3");
+      Check (Flow.Add_Node ("Or") = 4, "logic: node 4");
+      Check (Flow.Add_Node ("Not") = 5, "logic: node 5");
+      Flow.Set_Param (2, "Low", From_Real (0.9));
+      Flow.Set_Param (2, "High", From_Real (1.0));
+      Flow.Set_Param (3, "Judge", From_Boolean (True));
+      Flow.Link ("input.Image", "1.Image");
+      Flow.Link ("1.Roundness", "2.Value");
+      Flow.Link ("input.A", "3.In1");
+      Flow.Link ("2.Pass", "3.In2");
+      Flow.Link ("input.A", "4.In1");
+      Flow.Link ("2.Pass", "4.In3");
+      Flow.Link ("input.A", "5.In");
+      Flow.Link ("3.Out", "output.Both");
+      Flow.Link ("4.Out", "output.Either");
+      Flow.Link ("5.Out", "output.NotA");
+      Check (Flow.Problems.Is_Empty, "logic: no problems (In3, In4 unlinked)");
+
+      Run_With (True, Disc);
+      Check (Output ("Both") and then Output ("Either")
+             and then not Output ("NotA")
+             and then Flow.Result = AMV.Tools.Accept_Result,
+             "logic: A and round: both, accepted (" & Flow.Message & ")");
+      Run_With (False, Disc);
+      Check (not Output ("Both") and then Output ("Either")
+             and then Output ("NotA")
+             and then Flow.Result = AMV.Tools.Reject
+             and then Contains (Flow.Message, "node 3 (And)"),
+             "logic: not A: And judges the run a reject ("
+             & Flow.Message & ")");
+      --  Nothing round: the range check is skipped; its Pass counts as
+      --  False, and And and Or still run.
+      Run_With (True, Empty);
+      Check (Flow.Node (2).State = AMV.Flow.Nodes.Skipped
+             and then Flow.Node (3).State = AMV.Flow.Nodes.Ran
+             and then not Output ("Both") and then Output ("Either"),
+             "logic: an input with no value is False");
+      Run_With (False, Empty);
+      Check (not Output ("Either"), "logic: Or of two False");
+
+      declare
+         C : constant AMV.Flow.Graphs.Run_Counts := Flow.Counts;
+      begin
+         Check (C.Runs = 4 and then C.Accepted = 1
+                and then C.Rejected = 3 and then C.Failed = 0,
+                "logic: the tally of four runs");
+      end;
+      Flow.Unlink ("3.In1");
+      Flow.Unlink ("3.In2");
+      Run_With (True, Disc);
+      Check (Flow.Node (3).Result = AMV.Tools.Error
+             and then Contains (Flow.Node (3).Message, "no input"),
+             "logic: And with no input linked is an error");
+      Check (Flow.Counts.Runs = 5 and then Flow.Counts.Failed = 1,
+             "logic: an error counted");
+      Flow.Reset_Counts;
+      Check (Flow.Counts.Runs = 0, "logic: the tally reset");
+   end Test_Logic;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -1173,6 +1284,7 @@ begin
    Test_Cut;
    Test_Log;
    Test_Kept;
+   Test_Logic;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

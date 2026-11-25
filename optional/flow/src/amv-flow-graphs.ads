@@ -155,6 +155,20 @@ package AMV.Flow.Graphs is
    --  Result is Error and Message says why. Node failures are not
    --  exceptions: they are in the nodes' statuses, Result and Message.
 
+   type Run_Counts is record
+      Runs     : Natural := 0;
+      Accepted : Natural := 0;
+      Warned   : Natural := 0;
+      Rejected : Natural := 0;
+      Failed   : Natural := 0;  --  Error, or a run that could not start
+   end record;
+
+   function Counts (Flow : Ks_Flow) return Run_Counts;
+   procedure Reset_Counts (Flow : in out Ks_Flow);
+   --  The runs since the flow was made, loaded from a file or its counts
+   --  reset, by result: a pass / fail tally. From_JSON keeps them (an
+   --  editor's undo is not a new flow); Load starts again from zero.
+
    function Result (Flow : Ks_Flow) return AMV.Tools.Ks_Tool_Result_Constants;
    function Message (Flow : Ks_Flow) return String;
    --  After Run: the first node, in run order, with the flow's result
@@ -234,6 +248,7 @@ private
       Outcome   : AMV.Tools.Ks_Tool_Result_Constants := AMV.Tools.Accept_Result;
       Why       : Unbounded_String;
       Unprepared : Message_Maps.Map;
+      Tally     : Run_Counts;
    end record;
 
    overriding procedure Finalize (Flow : in out Ks_Flow);

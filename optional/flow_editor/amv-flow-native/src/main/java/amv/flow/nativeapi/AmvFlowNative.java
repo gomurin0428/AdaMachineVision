@@ -98,6 +98,8 @@ final class AmvFlowNative {
             FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS));
     static final MethodHandle FLOW_SET_INPUT_IMAGE_FILE = find("amvf_flow_set_input_image_file", FLOW_STRING_2);
     static final MethodHandle FLOW_RUN = find("amvf_flow_run", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+    static final MethodHandle FLOW_RESET_COUNTS =
+            find("amvf_flow_reset_counts", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
     static final MethodHandle FLOW_RESULTS_JSON = find("amvf_flow_results_json", FLOW_TEXT);
     static final MethodHandle NODE_GRAPHICS_JSON = find("amvf_node_graphics_json",
             FunctionDescriptor.ofVoid(ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS));

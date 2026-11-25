@@ -164,6 +164,11 @@ public final class Flow implements AutoCloseable {
         call((arena, status) -> AmvFlowNative.FLOW_RUN.invoke(handle(), status));
     }
 
+    /** The pass / fail tally of the results ("counts") back to zero. */
+    public void resetCounts() {
+        call((arena, status) -> AmvFlowNative.FLOW_RESET_COUNTS.invoke(handle(), status));
+    }
+
     /** The results of the last run (AMV.Flow.Reports.Results_JSON). */
     public String resultsJson() {
         return text((buffer, capacity, needed, status) ->

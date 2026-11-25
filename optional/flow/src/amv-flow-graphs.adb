@@ -683,6 +683,8 @@ package body AMV.Flow.Graphs is
          when E : Ks_Flow_Exception =>
             Flow.Outcome := AMV.Tools.Error;
             Flow.Why := U (Ada.Exceptions.Exception_Message (E));
+            Flow.Tally.Runs := Flow.Tally.Runs + 1;
+            Flow.Tally.Failed := Flow.Tally.Failed + 1;
             raise;
       end;
 
@@ -717,6 +719,13 @@ package body AMV.Flow.Graphs is
                      elsif P.Required then
                         Reason := U ("its input " & Port & " got no value from "
                                      & Endpoint_Text (L.From, True));
+                     end if;
+                     if Length (Why) > 0 or else not Value.Has_Value then
+                        if not P.Required then
+                           --  Linked, but no value: the node can tell this
+                           --  from an input that is not linked (And).
+                           N.Set_Input (Port, No_Value);
+                        end if;
                      end if;
                   end;
                end if;
@@ -755,10 +764,29 @@ package body AMV.Flow.Graphs is
             end if;
          end;
       end loop;
+
+      Flow.Tally.Runs := Flow.Tally.Runs + 1;
+      case Flow.Outcome is
+         when AMV.Tools.Accept_Result =>
+            Flow.Tally.Accepted := Flow.Tally.Accepted + 1;
+         when AMV.Tools.Warning =>
+            Flow.Tally.Warned := Flow.Tally.Warned + 1;
+         when AMV.Tools.Reject =>
+            Flow.Tally.Rejected := Flow.Tally.Rejected + 1;
+         when AMV.Tools.Error =>
+            Flow.Tally.Failed := Flow.Tally.Failed + 1;
+      end case;
    end Run;
 
    function Result (Flow : Ks_Flow) return AMV.Tools.Ks_Tool_Result_Constants
    is (Flow.Outcome);
+
+   function Counts (Flow : Ks_Flow) return Run_Counts is (Flow.Tally);
+
+   procedure Reset_Counts (Flow : in out Ks_Flow) is
+   begin
+      Flow.Tally := (others => 0);
+   end Reset_Counts;
 
    function Message (Flow : Ks_Flow) return String is (To_String (Flow.Why));
 
@@ -1188,7 +1216,12 @@ package body AMV.Flow.Graphs is
       Fresh : Ks_Flow;
    begin
       Read_JSON (Fresh, Text, Base_Directory);
-      Clear (Flow);
+      declare
+         Kept : constant Run_Counts := Flow.Tally;
+      begin
+         Clear (Flow);
+         Flow.Tally := Kept;
+      end;
       Flow.Flow_Name := Fresh.Flow_Name;
       Flow.Base_Dir := Fresh.Base_Dir;
       Flow.Nodes.Move (Source => Fresh.Nodes);
@@ -1242,6 +1275,7 @@ package body AMV.Flow.Graphs is
          From_JSON (Flow, Text.all,
                     Ada.Directories.Containing_Directory
                       (Ada.Directories.Full_Name (Path)));
+         Reset_Counts (Flow);
       exception
          when others =>
             Free (Text);

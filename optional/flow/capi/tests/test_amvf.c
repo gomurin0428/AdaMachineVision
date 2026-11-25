@@ -125,6 +125,18 @@ int main(void) {
     check(strstr(results, "\"Count\": 3") != NULL, "results: three blobs");
     free(results);
 
+    amvf_flow_run(flow, &st);
+    check_ok(&st, "run again");
+    results = fetch(amvf_flow_results_json, flow, "results");
+    check(strstr(results, "\"runs\": 2, \"accept\": 2") != NULL,
+          "results: two runs counted");
+    free(results);
+    amvf_flow_reset_counts(flow, &st);
+    check_ok(&st, "reset the counts");
+    results = fetch(amvf_flow_results_json, flow, "results");
+    check(strstr(results, "\"runs\": 0") != NULL, "results: counts reset");
+    free(results);
+
     char *json = fetch(amvf_flow_to_json, flow, "to JSON");
     check(strstr(json, "\"name\": \"Spots\"") != NULL
               && strstr(json, "\"x\": 40.0") != NULL,

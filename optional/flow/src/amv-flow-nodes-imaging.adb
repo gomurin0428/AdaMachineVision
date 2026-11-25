@@ -1,10 +1,12 @@
 pragma SPARK_Mode (Off);
 
 with Ada.Numerics;
+with Ada.Numerics.Long_Elementary_Functions;
 
 with AMV.Flow.Values;
 with AMV.Image_Processing.IP_One_Image;
 with AMV.Image_Processing.Polar_Unwrap;
+with AMV.Images;
 with AMV.Shapes;
 
 package body AMV.Flow.Nodes.Imaging is
@@ -53,7 +55,9 @@ package body AMV.Flow.Nodes.Imaging is
      [In_Port ("Image", Image_8_Grey_Type),
       Out_Port ("Image", Image_8_Grey_Type,
                 "the annulus unwrapped: x along the angle, y along the "
-                & "radius")];
+                & "radius"),
+      Out_Port ("Region", Shape_Type,
+                "the annulus unwrapped (for PolarPoint)")];
 
    overriding function Params (Node : Polar_Unwrap_Node) return Param_Array is
      [1 => Shape_Param_Of
@@ -120,6 +124,8 @@ package body AMV.Flow.Nodes.Imaging is
       if Port = "Image" then
          return (if Node.Got then From_Image (Node.Tool.Output_Image)
                  else No_Value);
+      elsif Port = "Region" then
+         return (if Node.Got then Node.Region else No_Value);
       end if;
       Unknown ("PolarUnwrap", "output", Port);
    end Get_Output;
@@ -137,6 +143,136 @@ package body AMV.Flow.Nodes.Imaging is
       Polar_Unwrap_Node (Node.all).Region := From_Shape (Annulus);
       return Node;
    end Create_Polar_Unwrap;
+
+   ---------------------------------------------------------------------
+   --  PolarPoint
+   ---------------------------------------------------------------------
+
+   type Polar_Point_Node is new Ks_Flow_Node with record
+      Image_In  : Ks_Flow_Value;
+      Region_In : Ks_Flow_Value;
+      SX, SY    : Real := 0.0;  --  in the strip
+      Got       : Boolean := False;
+      X, Y      : Real := 0.0;  --  in the image's selected space
+      Angle     : Real := 0.0;
+      Radius    : Real := 0.0;
+   end record;
+
+   overriding function Kind_Id (Node : Polar_Point_Node) return String;
+   overriding function Ports (Node : Polar_Point_Node) return Port_Array;
+   overriding function Params (Node : Polar_Point_Node) return Param_Array;
+   overriding procedure Set_Param
+     (Node : in out Polar_Point_Node; Name : String; Value : Ks_Flow_Value);
+   overriding function Get_Param
+     (Node : Polar_Point_Node; Name : String) return Ks_Flow_Value;
+   overriding procedure Set_Input
+     (Node : in out Polar_Point_Node; Port : String; Value : Ks_Flow_Value);
+   overriding procedure Clear_Inputs (Node : in out Polar_Point_Node);
+   overriding procedure Execute (Node : in out Polar_Point_Node);
+   overriding function Get_Output
+     (Node : Polar_Point_Node; Port : String) return Ks_Flow_Value;
+
+   overriding function Kind_Id (Node : Polar_Point_Node) return String is
+     ("PolarPoint");
+
+   overriding function Ports (Node : Polar_Point_Node) return Port_Array is
+     [In_Port ("Image", Image_8_Grey_Type,
+               Help => "the image PolarUnwrap unwrapped"),
+      In_Port ("Region", Shape_Type, Help => "PolarUnwrap's Region"),
+      In_Port ("X", Real_Type, Help => "in the strip"),
+      In_Port ("Y", Real_Type, Help => "in the strip"),
+      Out_Port ("X", Real_Type, "in the image's selected space"),
+      Out_Port ("Y", Real_Type, "in the image's selected space"),
+      Out_Port ("Angle", Real_Type,
+                "radians about the annulus' centre, in its space"),
+      Out_Port ("Radius", Real_Type, "from the annulus' centre")];
+
+   overriding function Params (Node : Polar_Point_Node) return Param_Array is
+     ([]);
+
+   overriding procedure Set_Param
+     (Node : in out Polar_Point_Node; Name : String; Value : Ks_Flow_Value) is
+   begin
+      Unknown ("PolarPoint", "parameter", Name);
+   end Set_Param;
+
+   overriding function Get_Param
+     (Node : Polar_Point_Node; Name : String) return Ks_Flow_Value is
+     (raise Ks_Flow_Exception with
+        "PolarPoint has no parameter """ & Name & """");
+
+   overriding procedure Set_Input
+     (Node : in out Polar_Point_Node; Port : String; Value : Ks_Flow_Value) is
+   begin
+      if Port = "Image" then
+         Node.Image_In := Value;
+      elsif Port = "Region" then
+         Node.Region_In := Value;
+      elsif Port = "X" then
+         Node.SX := Value.As_Real;
+      elsif Port = "Y" then
+         Node.SY := Value.As_Real;
+      else
+         Unknown ("PolarPoint", "input", Port);
+      end if;
+   end Set_Input;
+
+   overriding procedure Clear_Inputs (Node : in out Polar_Point_Node) is
+   begin
+      Node.Image_In := No_Value;
+      Node.Region_In := No_Value;
+      Node.Got := False;
+   end Clear_Inputs;
+
+   overriding procedure Execute (Node : in out Polar_Point_Node) is
+      use Ada.Numerics.Long_Elementary_Functions;
+      Image  : constant AMV.Images.Ks_Image_8_Grey := Node.Image_In.As_Image;
+      Params : PU.Ks_Polar_Unwrap;  --  PolarUnwrap's (the defaults)
+      RX, RY : Real;
+   begin
+      Node.Got := False;
+      if Node.Region_In.As_Shape
+           not in AMV.Shapes.Ks_Circular_Annulus_Section'Class
+      then
+         raise Ks_Flow_Exception with
+           "Region must be a CircularAnnulusSection (PolarUnwrap's Region)";
+      end if;
+      declare
+         Annulus : constant AMV.Shapes.Ks_Circular_Annulus_Section :=
+           AMV.Shapes.Ks_Circular_Annulus_Section (Node.Region_In.As_Shape);
+      begin
+         PU.Get_Input_Point_From_Output_Point
+           (Params, Image, Annulus, Node.SX, Node.SY, Node.X, Node.Y);
+         --  Angle and radius about the centre, in the annulus' own space.
+         Image.Get_Transform (Annulus.Selected_Space_Name, ".").Map_Point
+           (Node.X, Node.Y, RX, RY);
+         RX := RX - Annulus.Center_X;
+         RY := RY - Annulus.Center_Y;
+         Node.Radius := Sqrt (RX * RX + RY * RY);
+         Node.Angle := (if Node.Radius = 0.0 then 0.0 else Arctan (RY, RX));
+      end;
+      Node.Got := True;
+   end Execute;
+
+   overriding function Get_Output
+     (Node : Polar_Point_Node; Port : String) return Ks_Flow_Value
+   is
+      function If_Got (X : Real) return Ks_Flow_Value is
+        (if Node.Got then From_Real (X) else No_Value);
+   begin
+      if Port = "X" then
+         return If_Got (Node.X);
+      elsif Port = "Y" then
+         return If_Got (Node.Y);
+      elsif Port = "Angle" then
+         return If_Got (Node.Angle);
+      elsif Port = "Radius" then
+         return If_Got (Node.Radius);
+      end if;
+      Unknown ("PolarPoint", "output", Port);
+   end Get_Output;
+
+   function Create_Polar_Point return Node_Access is (new Polar_Point_Node);
 
    ---------------------------------------------------------------------
    --  Morphology
