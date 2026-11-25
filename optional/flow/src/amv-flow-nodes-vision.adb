@@ -807,6 +807,7 @@ package body AMV.Flow.Nodes.Vision is
                 "smallest / largest radius about the fitted circle"),
       Out_Port ("Circularity", Real_Type, "4 Pi area / perimeter squared"),
       Out_Port ("Diameter", Real_Type, "of the fitted circle, pixels"),
+      Out_Port ("Radius", Real_Type, "of the fitted circle, pixels"),
       Out_Port ("Area", Real_Type, "inside the edge, square pixels"),
       Out_Port ("Perimeter", Real_Type, "pixels"),
       Out_Port ("CenterX", Real_Type, "of the fitted circle, pixels"),
@@ -902,6 +903,8 @@ package body AMV.Flow.Nodes.Vision is
          return Real_If (Got, R.Circularity);
       elsif Port = "Diameter" then
          return Real_If (Got, 2.0 * R.Radius);
+      elsif Port = "Radius" then
+         return Real_If (Got, R.Radius);
       elsif Port = "Area" then
          return Real_If (Got, R.Area);
       elsif Port = "Perimeter" then

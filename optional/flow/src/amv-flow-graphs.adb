@@ -602,10 +602,18 @@ package body AMV.Flow.Graphs is
       Ordered  : Id_Vectors.Vector;
       Complete : Boolean;
 
-      procedure Note (Id : Positive; Text : String) is
+      --  The message of the first node with the worst result so far: a
+      --  reject after a warning names the reject.
+      Why_Result : AMV.Tools.Ks_Tool_Result_Constants :=
+        AMV.Tools.Accept_Result;
+
+      procedure Note (Id     : Positive;
+                      Text   : String;
+                      Result : AMV.Tools.Ks_Tool_Result_Constants) is
       begin
-         if Length (Flow.Why) = 0 then
+         if Length (Flow.Why) = 0 or else Result > Why_Result then
             Flow.Why := U (Describe (Flow, Id) & ": " & Text);
+            Why_Result := Result;
          end if;
       end Note;
    begin
@@ -665,12 +673,12 @@ package body AMV.Flow.Graphs is
             if Length (Reason) > 0 then
                Skip (N.all, To_String (Reason));
                Flow.Outcome := Worse (Flow.Outcome, AMV.Tools.Reject);
-               Note (Id, "skipped: " & To_String (Reason));
+               Note (Id, "skipped: " & To_String (Reason), AMV.Tools.Reject);
             else
                Run (N.all);
                if N.Result /= AMV.Tools.Accept_Result then
                   Flow.Outcome := Worse (Flow.Outcome, N.Result);
-                  Note (Id, N.Message);
+                  Note (Id, N.Message, N.Result);
                end if;
             end if;
          end;

@@ -151,8 +151,9 @@ package AMV.Flow.Graphs is
 
    function Result (Flow : Ks_Flow) return AMV.Tools.Ks_Tool_Result_Constants;
    function Message (Flow : Ks_Flow) return String;
-   --  After Run: the first node, in run order, that did not accept or was
-   --  skipped, "node 3 (Caliper): no edge found"; "" when all accepted.
+   --  After Run: the first node, in run order, with the flow's result
+   --  (the worst of the nodes', a skip counting as a reject), "node 3
+   --  (Caliper): no edge found"; "" when all accepted.
 
    function Get_Output (Flow : Ks_Flow; Name : String)
                         return AMV.Flow.Values.Ks_Flow_Value;

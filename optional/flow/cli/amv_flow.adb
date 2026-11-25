@@ -6,6 +6,10 @@
 --     amv_flow check FLOW            the flow's problems (none: exit 0)
 --     amv_flow run FLOW IMAGE...     runs the flow on each image and
 --                                    prints one CSV line per image
+--     amv_flow run --images DIR FLOW IMAGE...
+--                                    also writes the image each node
+--                                    made into DIR, as
+--                                    <image name>_node<id>.bmp
 --
 --  For run, the flow has exactly one input of type Image_8_Grey; the CSV
 --  columns are the image, the result (accept, warning, reject, error),
@@ -14,7 +18,10 @@
 --  usage error or a flow that cannot be loaded or run.
 
 with Ada.Command_Line;
+with Ada.Directories;
 with Ada.Exceptions;
+with Ada.Strings;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
@@ -41,7 +48,7 @@ procedure AMV_Flow is
    begin
       Put_Line (Standard_Error, "usage: amv_flow kinds");
       Put_Line (Standard_Error, "       amv_flow check FLOW");
-      Put_Line (Standard_Error, "       amv_flow run FLOW IMAGE...");
+      Put_Line (Standard_Error, "       amv_flow run [--images DIR] FLOW IMAGE...");
       CL.Set_Exit_Status (Usage_Status);
    end Usage;
 
@@ -129,7 +136,38 @@ procedure AMV_Flow is
       end;
    end Check;
 
-   procedure Run (Path : String; First_Image : Positive) is
+   --  The output Image of each node that made one, into Dir.
+   procedure Write_Node_Images (Flow : AMV.Flow.Graphs.Ks_Flow;
+                                Dir, Stem : String) is
+      use AMV.Flow.Nodes;
+   begin
+      for I in 1 .. Flow.Node_Count loop
+         declare
+            Id   : constant Positive := Flow.Node_Id_At (I);
+            Node : constant Node_Access := Flow.Node (Id);
+         begin
+            if Find_Port (Node.all, "Image", Output) /= 0
+              and then Node.State = Ran
+            then
+               declare
+                  Value : constant AMV.Flow.Values.Ks_Flow_Value :=
+                    Node.Get_Output ("Image");
+               begin
+                  if Value.Has_Value then
+                     AMV.Image_File.Write_Image
+                       (Dir & "/" & Stem & "_node"
+                        & Ada.Strings.Fixed.Trim (Id'Image, Ada.Strings.Left)
+                        & ".bmp",
+                        Value.As_Image);
+                  end if;
+               end;
+            end if;
+         end;
+      end loop;
+   end Write_Node_Images;
+
+   procedure Run (Path : String; First_Image : Positive;
+                  Image_Dir : String := "") is
       Flow       : AMV.Flow.Graphs.Ks_Flow;
       Image_Port : Natural := 0;
       All_Good   : Boolean := True;
@@ -165,6 +203,10 @@ procedure AMV_Flow is
                AMV.Flow.Values.From_Image
                  (AMV.Image_File.Read_Image_8_Grey (Image_Path)));
             Flow.Run;
+            if Image_Dir /= "" then
+               Write_Node_Images (Flow, Image_Dir,
+                                  Ada.Directories.Base_Name (Image_Path));
+            end if;
             Put (CSV (Image_Path) & "," & Result_Name (Flow.Result) & ","
                  & CSV (Flow.Message));
             for O in 1 .. Flow.Output_Count loop
@@ -193,6 +235,10 @@ begin
       List_Kinds;
    elsif CL.Argument_Count = 2 and then CL.Argument (1) = "check" then
       Check (CL.Argument (2));
+   elsif CL.Argument_Count >= 5 and then CL.Argument (1) = "run"
+     and then CL.Argument (2) = "--images"
+   then
+      Run (CL.Argument (4), First_Image => 5, Image_Dir => CL.Argument (3));
    elsif CL.Argument_Count >= 3 and then CL.Argument (1) = "run" then
       Run (CL.Argument (2), First_Image => 3);
    else

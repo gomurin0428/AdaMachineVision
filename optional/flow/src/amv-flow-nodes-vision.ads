@@ -44,13 +44,14 @@ pragma SPARK_Mode (Off);
 --     in   Image : Image_8_Grey
 --     out  Found, Clipped : Boolean; Roundness (smallest / largest radius
 --          about the fitted circle), Circularity (4 Pi area / perimeter
---          squared), Diameter, Area, Perimeter, CenterX, CenterY : Real
---          (pixels)
+--          squared), Diameter, Radius, Area, Perimeter, CenterX, CenterY :
+--          Real (pixels)
 --     params  AutoThreshold (Otsu's), Threshold (0 .. 255), Polarity
 --             (Light | Dark), MinArea
 --     The outer edge of the largest object, found along 720 rays (the
 --     editor draws it). Nothing found: Reject; an object touching the
---     image border: Warning.
+--     image border: Warning (the circle is fitted to the edge inside the
+--     image).
 
 package AMV.Flow.Nodes.Vision is
 

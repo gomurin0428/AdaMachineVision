@@ -9,6 +9,7 @@ with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Numerics;
+with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -724,6 +725,135 @@ procedure Test_Flow is
    end Test_Circularity;
 
    ---------------------------------------------------------------------
+   --  A cut in a cup: Circularity, PolarUnwrap, Morphology, Blob
+   ---------------------------------------------------------------------
+
+   procedure Test_Cut is
+      use Ada.Numerics.Long_Elementary_Functions;
+      Flow : AMV.Flow.Graphs.Ks_Flow;
+      CX   : constant Real := 320.3;
+      CY   : constant Real := 340.7;
+      Cut_Angle : constant Real := 200.0 * Pi / 180.0;
+
+      --  A cup seen from above, cut off by the image's bottom edge: the
+      --  bottom (grey 220) to radius 140, the side wall (150) to 185, the
+      --  rim (200) to 200; with a cut, a dark line 2 px wide across the
+      --  wall and the rim.
+      function Cup (With_Cut : Boolean) return AMV.Images.Ks_Image_8_Grey is
+         Image : AMV.Images.Ks_Image_8_Grey :=
+           AMV.Images.Create (640, 480, Value => 30);
+         DX, DY, R, Along, Across : Real;
+      begin
+         for Y in 0 .. 479 loop
+            for X in 0 .. 639 loop
+               DX := Real (X) - CX;
+               DY := Real (Y) - CY;
+               R := Sqrt (DX * DX + DY * DY);
+               Along := DX * Cos (Cut_Angle) + DY * Sin (Cut_Angle);
+               Across := -DX * Sin (Cut_Angle) + DY * Cos (Cut_Angle);
+               if With_Cut and then Along > 0.0 and then abs Across <= 1.0
+                 and then R in 140.0 .. 200.0
+               then
+                  Image.Set_Pixel (X, Y, 90);
+               elsif R <= 140.0 then
+                  Image.Set_Pixel (X, Y, 220);
+               elsif R <= 185.0 then
+                  Image.Set_Pixel (X, Y, 150);
+               elsif R <= 200.0 then
+                  Image.Set_Pixel (X, Y, 200);
+               end if;
+            end loop;
+         end loop;
+         return Image;
+      end Cup;
+
+      Unwrap, Lines, Cuts : Positive;
+   begin
+      Flow.Add_Input ("Image", Image_8_Grey_Type);
+      Flow.Add_Output ("X", Real_Type);
+      Flow.Add_Output ("Y", Real_Type);
+      Flow.Add_Output ("R", Real_Type);
+      Flow.Add_Output ("Cuts", Integer_Type);
+      Flow.Add_Output ("NoCut", Boolean_Type);
+      Check (Flow.Add_Node ("Circularity") = 1, "cut: node 1");
+      Unwrap := Flow.Add_Node ("PolarUnwrap");
+      Lines := Flow.Add_Node ("Morphology");
+      Cuts := Flow.Add_Node ("Blob");
+      Check (Flow.Add_Node ("RangeCheck") = 5, "cut: node 5");
+      --  The wall and the rim, leaving out the part below the image.
+      Flow.Set_Param (Unwrap, "InnerRatio", From_Real (0.74));
+      Flow.Set_Param (Unwrap, "OuterRatio", From_Real (0.94));
+      Flow.Set_Param (Unwrap, "AngleStart", From_Real (140.0));
+      Flow.Set_Param (Unwrap, "AngleSpan", From_Real (260.0));
+      Flow.Set_Param (Lines, "Operation", From_String ("CloseMinusOriginal"));
+      Flow.Set_Param (Lines, "KernelWidth", From_Integer (15));
+      Flow.Set_Param (Lines, "KernelHeight", From_Integer (1));
+      Flow.Set_Param (Cuts, "Threshold", From_Integer (14));
+      Flow.Set_Param (Cuts, "MinArea", From_Real (50.0));
+      Flow.Link ("input.Image", "1.Image");
+      Flow.Link ("input.Image", "2.Image");
+      Flow.Link ("1.CenterX", "2.CenterX");
+      Flow.Link ("1.CenterY", "2.CenterY");
+      Flow.Link ("1.Radius", "2.Radius");
+      Flow.Link ("2.Image", "3.Image");
+      Flow.Link ("3.Image", "4.Image");
+      Flow.Link ("4.Count", "5.Value");
+      Flow.Link ("1.CenterX", "output.X");
+      Flow.Link ("1.CenterY", "output.Y");
+      Flow.Link ("1.Radius", "output.R");
+      Flow.Link ("4.Count", "output.Cuts");
+      Flow.Link ("5.Pass", "output.NoCut");
+      Check (Flow.Problems.Is_Empty, "cut: no problems");
+
+      Flow.Set_Input ("Image", From_Image (Cup (With_Cut => False)));
+      Flow.Run;
+      Check (Flow.Result = AMV.Tools.Warning
+             and then Contains (Flow.Message, "touches the image border"),
+             "cut: the cup runs out of the image (" & Flow.Message & ")");
+      Check_Near (Real_Output (Flow, "X"), CX, 0.5,
+                  "cut: the rim's centre x, from the edge inside the image");
+      Check_Near (Real_Output (Flow, "Y"), CY, 0.5, "cut: its centre y");
+      Check_Near (Real_Output (Flow, "R"), 200.0, 1.0, "cut: its radius");
+      Check (Flow.Get_Output ("Cuts").Has_Value
+             and then Flow.Get_Output ("Cuts").As_Integer = 0
+             and then Boolean_Output (Flow, "NoCut"),
+             "cut: none in a whole cup");
+      declare
+         Graphics : constant String :=
+           AMV.Flow.Reports.Graphics_JSON (Flow, Unwrap);
+      begin
+         Check (Contains (Graphics, """role"": ""found""")
+                and then Contains (Graphics, """kind"": ""polygon"""),
+                "cut: the editor gets the annulus");
+      end;
+
+      Flow.Set_Input ("Image", From_Image (Cup (With_Cut => True)));
+      Flow.Run;
+      Check (Flow.Get_Output ("Cuts").Has_Value
+             and then Flow.Get_Output ("Cuts").As_Integer = 1
+             and then not Boolean_Output (Flow, "NoCut")
+             and then Flow.Result = AMV.Tools.Reject
+             and then Contains (Flow.Message, "node 5 (RangeCheck)"),
+             "cut: one found, the flow rejects and says why, not the "
+             & "warning before (" & Flow.Message & ")");
+
+      --  All round, the annulus leaves the image.
+      Flow.Set_Param (Unwrap, "AngleSpan", From_Real (360.0));
+      Flow.Run;
+      Check (Flow.Node (Unwrap).Result = AMV.Tools.Error
+             and then Flow.Node (Cuts).State = AMV.Flow.Nodes.Skipped,
+             "cut: an annulus outside the image is an error ("
+             & Flow.Node (Unwrap).Message & ")");
+      Flow.Set_Param (Unwrap, "AngleSpan", From_Real (260.0));
+      Flow.Set_Param (Lines, "KernelWidth", From_Integer (4));
+      Flow.Run;
+      Check (Flow.Node (Lines).Result = AMV.Tools.Error
+             and then Contains (Flow.Node (Lines).Message, "KernelWidth"),
+             "cut: an even kernel is an error ("
+             & Flow.Node (Lines).Message & ")");
+   end Test_Cut;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -784,6 +914,7 @@ begin
    Test_Align;
    Test_Blob;
    Test_Circularity;
+   Test_Cut;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

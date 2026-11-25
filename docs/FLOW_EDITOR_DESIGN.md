@@ -176,9 +176,10 @@ end AMV.Flow.Nodes;
 | 計測 | Caliper, Find Line, Find Circle, Blob | 見つけた図形と数値を出す |
 | 計測 | Distance, Angle | `AMV.Dimensioning` の各ツール |
 | 前処理 | Histogram, IP One Image | 平均・分散、フィルタ |
+| 前処理 | Polar Unwrap, Morphology | 円環を帯状に展開、濃淡モルフォロジー（トップハットで細い傷を浮かせる） |
 | 判定 | Range Check, And / Or | 下限 ≤ 値 ≤ 上限 で合否 |
 | 出力 | CSV Log, Result Image | 1 回の実行ごとに 1 行、図形を描いた画像 |
-| 応用 | Circularity | `examples/live_circularity` の真円度測定を移したもの |
+| 応用 | Circularity | `examples/live_circularity` の真円度測定を移したもの（中心と半径も出す） |
 
 コード読み取り、校正、作図・フィット系などほかの AMV ツールは順に足す。
 

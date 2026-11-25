@@ -3,6 +3,7 @@ pragma SPARK_Mode (Off);
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Containers.Vectors;
 
+with AMV.Flow.Nodes.Imaging;
 with AMV.Flow.Nodes.Logic;
 with AMV.Flow.Nodes.Vision;
 
@@ -53,5 +54,8 @@ begin
    Register ("Blob", AMV.Flow.Nodes.Vision.Create_Blob'Access);
    Register ("Circularity",
              AMV.Flow.Nodes.Vision.Create_Circularity'Access);
+   Register ("PolarUnwrap",
+             AMV.Flow.Nodes.Imaging.Create_Polar_Unwrap'Access);
+   Register ("Morphology", AMV.Flow.Nodes.Imaging.Create_Morphology'Access);
    Register ("RangeCheck", AMV.Flow.Nodes.Logic.Create_Range_Check'Access);
 end AMV.Flow.Kinds;

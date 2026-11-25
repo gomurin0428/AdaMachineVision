@@ -60,7 +60,11 @@ package AMV.Flow.Circularity is
    --  median, so features narrower than about 3 degrees are not seen; the
    --  radii are then averaged over 5 rays. The rays start from the centre
    --  of the blob's box and again from the centre of the circle fitted to
-   --  that edge. The object must be star-shaped from its centre.
+   --  that edge. The object must be star-shaped from its centre. Where
+   --  the object runs out of the image, the rays meet the image's border
+   --  instead of its edge: they are left out (Clipped is set), so that
+   --  the circle is fitted to the edge seen in the image (Area, Perimeter
+   --  and Circularity then take the cut-off part as a straight line).
    --
    --  Boundary receives the edge points in pixel coordinates (pixel
    --  centres at whole numbers); Area, Perimeter, the circle and the radii

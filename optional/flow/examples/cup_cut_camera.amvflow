@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "name": "cup cut (camera)",
+  "outputs": [
+    {"name": "Cuts", "type": "Integer"},
+    {"name": "CutArea", "type": "Real"},
+    {"name": "NoCut", "type": "Boolean"}
+  ],
+  "nodes": [
+    {
+      "id": 1, "kind": "Camera", "name": "GE134GC",
+      "ui": {"x": 0.0, "y": 0.0},
+      "params": {"CameraId": "169.254.151.175", "ExposureUs": 0.0, "Gain": -1.0,
+                 "AutoExposure": false, "TimeoutMs": 2000}
+    },
+    {
+      "id": 2, "kind": "Circularity", "name": "Cup rim",
+      "ui": {"x": 0.0, "y": 110.0},
+      "params": {"AutoThreshold": true, "Threshold": 128, "Polarity": "Light", "MinArea": 2000.0}
+    },
+    {
+      "id": 3, "kind": "PolarUnwrap", "name": "Side wall",
+      "ui": {"x": 220.0, "y": 110.0},
+      "params": {"InnerRatio": 0.74, "OuterRatio": 0.94, "AngleStart": 145.0, "AngleSpan": 250.0}
+    },
+    {
+      "id": 4, "kind": "Morphology", "name": "Dark lines",
+      "ui": {"x": 440.0, "y": 110.0},
+      "params": {"Operation": "CloseMinusOriginal", "KernelWidth": 15, "KernelHeight": 1}
+    },
+    {
+      "id": 5, "kind": "Blob", "name": "Cuts",
+      "ui": {"x": 220.0, "y": 260.0},
+      "params": {"Threshold": 14, "Polarity": "Light", "MinArea": 50.0}
+    },
+    {
+      "id": 6, "kind": "RangeCheck", "name": "No cut",
+      "ui": {"x": 440.0, "y": 260.0},
+      "params": {"Low": 0.0, "High": 0.0}
+    }
+  ],
+  "links": [
+    {"from": "1.Image", "to": "2.Image"},
+    {"from": "1.Image", "to": "3.Image"},
+    {"from": "2.CenterX", "to": "3.CenterX"},
+    {"from": "2.CenterY", "to": "3.CenterY"},
+    {"from": "2.Radius", "to": "3.Radius"},
+    {"from": "3.Image", "to": "4.Image"},
+    {"from": "4.Image", "to": "5.Image"},
+    {"from": "5.Count", "to": "6.Value"},
+    {"from": "5.Count", "to": "output.Cuts"},
+    {"from": "5.Area", "to": "output.CutArea"},
+    {"from": "6.Pass", "to": "output.NoCut"}
+  ]
+}

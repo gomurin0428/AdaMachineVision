@@ -236,8 +236,8 @@ package body AMV.Flow.Circularity is
       --  For each ray from (CX, CY), the radius where it first enters the
       --  object coming in from Max_R: the outer edge, whatever lies
       --  inside it (shadows, the cup's inside, a seam). Another object on
-      --  the way is passed through. Invalid where no edge is found or the
-      --  object reaches Max_R.
+      --  the way is passed through. Invalid where no edge is found, the
+      --  object reaches Max_R or the edge is the image's border.
       procedure Cast (CX, CY, Max_R : Long_Float; Radii : out Radius_Array)
       is
          Steps : constant Natural := Natural (Max_R / Ray_Step);
@@ -289,7 +289,9 @@ package body AMV.Flow.Circularity is
                        or else EX > Long_Float (Width) - 2.0
                        or else EY > Long_Float (Height) - 2.0
                      then
+                        --  The image's border, not the object's edge.
                         Touches := True;
+                        Radii (K) := Invalid;
                      end if;
                      exit;
                   end if;
