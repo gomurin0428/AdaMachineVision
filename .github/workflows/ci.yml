@@ -285,6 +285,20 @@ jobs:
         working-directory: optional/flow_editor
         run: gradle --no-daemon :amv-flow-native:test :amv-flow-editor:installDist
 
+      # The editor as a self-contained package (a Java runtime, the jars,
+      # libamvflow): unzip and run "AMV Flow Editor.exe". Without the
+      # Camera node (that build needs Aravis).
+      - name: Package the editor
+        shell: pwsh
+        working-directory: optional/flow_editor
+        run: gradle --no-daemon :amv-flow-editor:jpackage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amv-flow-editor-windows
+          path: optional/flow_editor/amv-flow-editor/build/package/
+          retention-days: 14
+
   prove:
     name: prove (${{ matrix.group }})
     runs-on: ubuntu-24.04

@@ -47,6 +47,22 @@ set JAVA_OPTS=-Damv.flow.library=D:\...\build\flow-c-lib\libamvflow.dll
 amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
 ```
 
+## Packaging
+
+```sh
+gradle :amv-flow-editor:jpackage    # amv-flow-editor/build/package/AMV Flow Editor
+```
+
+makes a self-contained copy of the editor with jpackage (part of the
+JDK): a Java runtime, the jars and the engine library (the camera build
+when there is one, with the Aravis DLLs next to it), and a launcher that
+finds the library itself. `-PpackageType=msi` (or `exe`, `deb`, `rpm`,
+`dmg`, `pkg`) makes an installer instead, where jpackage has the tools for
+it (WiX on Windows). The Windows CI job builds the package without the
+Camera node and keeps it as the artifact `amv-flow-editor-windows`.
+Linux and macOS are not packaged yet: the engine library is only built
+and tested on Windows so far.
+
 ## Using it
 
 * **Tools** (left): drag a node kind onto the flow, or double-click it.

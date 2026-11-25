@@ -40,3 +40,50 @@ tasks.named<JavaExec>("run") {
     workingDir = repoRoot
     (findProperty("flow") as String?)?.let { args(it) }
 }
+
+// A self-contained package of the editor: a Java runtime, the editor's
+// jars and the engine library (with the DLLs next to it: Aravis's for the
+// camera build), made by jpackage (part of the JDK).
+//
+//     gradle :amv-flow-editor:jpackage                     build/package/AMV Flow Editor
+//     gradle :amv-flow-editor:jpackage -PpackageType=msi   an installer, where jpackage
+//                                                          has the tools for one (WiX
+//                                                          on Windows, dpkg or rpm on
+//                                                          Linux; dmg, pkg on macOS)
+val libraryFile = File(amvFlowLibrary)
+val packageInput = layout.buildDirectory.dir("package-input")
+val packageDir = layout.buildDirectory.dir("package")
+
+val stagePackage = tasks.register<Sync>("stagePackage") {
+    dependsOn("installDist")
+    from(layout.buildDirectory.dir("install/amv-flow-editor/lib"))
+    from(libraryFile.parentFile) {
+        include("*.dll", "*.so", "*.so.*", "*.dylib")
+    }
+    into(packageInput)
+}
+
+tasks.register<Exec>("jpackage") {
+    group = "distribution"
+    description = "Packages the editor with a Java runtime and the engine library"
+    dependsOn(stagePackage)
+    val type = (findProperty("packageType") as String?) ?: "app-image"
+    val jpackage = File(System.getProperty("java.home"), "bin/jpackage").path
+    doFirst {
+        if (!libraryFile.exists()) {
+            throw GradleException("no engine library at $libraryFile: run make build-flow-c first")
+        }
+        delete(packageDir)
+    }
+    commandLine(
+        jpackage, "--type", type,
+        "--name", "AMV Flow Editor",
+        "--app-version", "0.1.0",
+        "--input", packageInput.get().asFile.path,
+        "--main-jar", "amv-flow-editor.jar",
+        "--main-class", "amv.flow.editor.Main",
+        "--java-options", "--enable-native-access=ALL-UNNAMED",
+        // \$APPDIR: where jpackage puts the input files, the library among them.
+        "--java-options", "-Damv.flow.library=\$APPDIR/${libraryFile.name}",
+        "--dest", packageDir.get().asFile.path)
+}
