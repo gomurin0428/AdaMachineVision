@@ -1,0 +1,20 @@
+with "../../amv.gpr";
+
+--  AMV Flow: tools as nodes linked into a flow, run and saved without
+--  writing code (docs/FLOW_EDITOR_DESIGN.md). The engine; the command-line
+--  runner and the tests are separate projects.
+library project AMV_Flow is
+   for Source_Dirs use ("src");
+   for Object_Dir use "../../build/flow-obj";
+   for Library_Dir use "../../build/flow-lib";
+   for Library_Name use "amv_flow";
+   for Library_Kind use "static";
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Local_Configuration_Pragmas use "../../contracts.adc";
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-gnatwe", "-O2");
+   end Compiler;
+end AMV_Flow;

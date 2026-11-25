@@ -51,6 +51,9 @@ jobs:
       - name: make test (Ada and C API tests)
         run: make test
 
+      - name: make test-flow (AMV Flow engine, optional/flow)
+        run: make test-flow
+
       - name: make run-examples (run the examples, check their reports)
         run: make run-examples
 

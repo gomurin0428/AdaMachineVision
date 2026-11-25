@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	build-aravis test-aravis example-aravis build-live-circularity prove prove-aravis mutation mutation-diff clean
+	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -98,6 +98,15 @@ endif
 build-live-circularity: build-aravis
 	$(GPRBUILD) -p -P optional/aravis/examples/live_circularity/live_circularity.gpr \
 	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
+
+# AMV Flow (optional/flow, docs/FLOW_EDITOR_DESIGN.md): the engine, the
+# amv_flow command-line runner and its tests. Needs AMV only.
+build-flow:
+	$(GPRBUILD) -p -P optional/flow/cli/amv_flow_cli.gpr
+
+test-flow:
+	$(GPRBUILD) -p -P optional/flow/tests/amv_flow_tests.gpr
+	./build/bin/test_flow
 
 example-aravis: build-aravis
 	@test -n "$(CAMERA_ID)" || { \
