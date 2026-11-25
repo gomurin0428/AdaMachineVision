@@ -1368,7 +1368,7 @@ package body AMV.Flow.Graphs is
             begin
                if Dot <= Key_Text'First then
                   raise Ks_Flow_Exception with
-                    """" & Key_Text & """ is not <node id>.<parameter>";
+                    "not <node id>.<parameter>";
                end if;
                begin
                   Id_Value :=
@@ -1376,7 +1376,7 @@ package body AMV.Flow.Graphs is
                exception
                   when Constraint_Error =>
                      raise Ks_Flow_Exception with
-                       """" & Key_Text & """ is not <node id>.<parameter>";
+                       "not <node id>.<parameter>";
                end;
                if Id_Value = 0 or else not Flow.Nodes.Contains (Id_Value) then
                   raise Ks_Flow_Exception with
