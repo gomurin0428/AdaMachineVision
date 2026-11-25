@@ -211,6 +211,14 @@ package body Live_App is
       Set_Text (Status_Label, Text);
    end Set_Status;
 
+   procedure Hold_Status (Text : Wide_String) is
+   begin
+      Status_Hold_Until := Get_Tick_Count_64 + 5_000;
+      Set_Status (Text);
+   end Hold_Status;
+   --  A message that the running status (frame rate) leaves up for five
+   --  seconds.
+
    ---------------------------------------------------------------------
    --  Exposure, gain and threshold controls
    ---------------------------------------------------------------------
@@ -881,11 +889,11 @@ package body Live_App is
    procedure Capture is
    begin
       if not Connected then
-         Set_Status ("Connect to a camera before capturing");
+         Hold_Status ("Connect to a camera before capturing");
          return;
       end if;
       if not Take_Frame then
-         Set_Status ("Capture failed: no frame arrived");
+         Hold_Status ("Capture failed: no frame arrived");
          return;
       end if;
 
@@ -971,20 +979,20 @@ package body Live_App is
       --  Always from a frame taken now: the one on screen may be from
       --  before a disconnection or before the reference cup was put in.
       if Value <= 0.0 then
-         Set_Status ("Enter the reference diameter in millimetres");
+         Hold_Status ("Enter the reference diameter in millimetres");
          return;
       elsif not Connected then
-         Set_Status ("Connect to a camera before calibrating");
+         Hold_Status ("Connect to a camera before calibrating");
          return;
       elsif not Take_Frame then
-         Set_Status ("Calibration failed: no frame arrived");
+         Hold_Status ("Calibration failed: no frame arrived");
          return;
       elsif not Outcome.Found then
-         Set_Status ("Put the reference cup in view first");
+         Hold_Status ("Put the reference cup in view first");
          return;
       elsif Outcome.Clipped then
-         Set_Status ("The cup touches the image border:" & CRLF
-                     & "move it fully into view first");
+         Hold_Status ("The cup touches the image border:" & CRLF
+                      & "move it fully into view first");
          return;
       end if;
       Reference_MM := Value;
@@ -1008,11 +1016,11 @@ package body Live_App is
            (Ada.Characters.Conversions.To_String (Text)) * 1_000.0;
       exception
          when Constraint_Error =>
-            Set_Status ("Enter the exposure in milliseconds (e.g. 12.5)");
+            Hold_Status ("Enter the exposure in milliseconds (e.g. 12.5)");
             return;
       end;
       if not Connected then
-         Set_Status ("Connect to a camera first");
+         Hold_Status ("Connect to a camera first");
          return;
       end if;
       Settings.Set_Exposure_Time
