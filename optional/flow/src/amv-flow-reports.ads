@@ -40,7 +40,10 @@ package AMV.Flow.Reports is
    --  What to draw over Node_Image, in its pixel coordinates (the centre
    --  of pixel (i, j) at (i, j)):
    --  {"width", "height",
-   --   "items": [{"kind": "polygon", "role": "region" | "train",
+   --   "items": [{"kind": "polygon", "role": "region" | "found",
+   --              "param": "<shape parameter>", "toPixel": [a, b, c, d,
+   --              tx, ty] (regions: x' = a x + b y + tx, y' = c x + d y + ty
+   --              maps the parameter's space to pixels),
    --              "points": [[x, y], ...]},
    --             {"kind": "point", "role": "found", "x", "y"}]}
    --  Regions are the node's shape parameters mapped from their space; a

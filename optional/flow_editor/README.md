@@ -40,7 +40,7 @@ gradle :amv-flow-editor:installDist   # amv-flow-editor/build/install/amv-flow-e
 `build/flow-c-lib`; give another with `-PamvFlowLibrary=<path>`. The
 installed launcher takes the library from `-Damv.flow.library=<path>` in
 `JAVA_OPTS` (or `libamvflow` in the working directory) and the arguments
-`[flow file [image file]]`:
+`[flow file [image file or folder of images]]`:
 
 ```sh
 set JAVA_OPTS=-Damv.flow.library=D:\...\build\flow-c-lib\libamvflow.dll
@@ -61,17 +61,28 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
 * **Image** (centre, bottom): the selected node's input image from the
   last run (a camera's own frame), with its regions in green and what it
   found in orange (an outline, such as the edge Circularity measured) and
-  red (a point).
+  red (a point). The wheel zooms about the cursor, the right or middle
+  button pans, a double click fits the image again. The node's regions
+  are edited on the image: drag inside one to move it, a corner (square
+  handle) to size it, the round handle to turn a rectangle, the handle on
+  a circle's edge for its radius. The drag works in the region's own space
+  (a region in a fixtured space turns with the part), and on release the
+  flow runs again.
 * **Properties** (right): the node's name and parameters, with an editor
   for each (a number, a check box, a choice, a path with a file chooser,
   a shape as JSON); and the outputs of its last run. With no node
   selected: the flow's inputs, outputs and result.
-* **Toolbar**: new, open, save; Open image sets the flow's image input and
-  runs it; every change after that runs the flow again (F5 runs it too);
+* **Toolbar**: new, open, save; **Undo** / **Redo** (Ctrl+Z, Ctrl+Y or
+  Ctrl+Shift+Z: every edit, moves of nodes included, up to 100); Open
+  image sets the flow's image input and runs it; **Open folder** plays the
+  images of a folder through it (the arrows or Page Up / Page Down, in
+  name order); every change runs the flow again (F5 runs it too);
   **Live** (F6) runs it again and again, so that a flow starting with a
-  Camera node shows each new frame (edits made meanwhile apply at once);
-  add flow inputs and outputs.
+  Camera node shows each new frame, or one with an image input steps
+  through the folder (edits made meanwhile apply at once); add flow inputs
+  and outputs.
+* **Flow zoom**: Ctrl + wheel over the flow; Ctrl+0 back to 100 %.
 
-Not yet: dragging regions on the image (they are edited as JSON), undo,
-zoom, playing a folder of images, the C API's image transfer without a
-copy (`PixelBuffer`).
+Not yet: drawing a new region on the image (a region parameter is set
+first as JSON, then dragged), a polygon or annulus region, the C API's
+image transfer without a copy (`PixelBuffer`).

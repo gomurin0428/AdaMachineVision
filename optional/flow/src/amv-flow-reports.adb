@@ -225,7 +225,8 @@ package body AMV.Flow.Reports is
 
       procedure Polygon (Role   : String;
                          To_Px  : AMV.Transforms.Ks_Transform_2D_Linear;
-                         Points : Point_Array) is
+                         Points : Point_Array;
+                         Param  : String := "") is
          PX, PY : Real;
       begin
          W.Begin_Object (Inline => True);
@@ -233,6 +234,21 @@ package body AMV.Flow.Reports is
          W.Value ("polygon");
          W.Key ("role");
          W.Value (Role);
+         if Param /= "" then
+            --  The parameter the region is, and the map from its space to
+            --  pixels: an editor turns a drag in pixels into new values.
+            W.Key ("param");
+            W.Value (Param);
+            W.Key ("toPixel");
+            W.Begin_Array;
+            W.Value (To_Px.Get_Matrix_Element (0, 0));
+            W.Value (To_Px.Get_Matrix_Element (0, 1));
+            W.Value (To_Px.Get_Matrix_Element (1, 0));
+            W.Value (To_Px.Get_Matrix_Element (1, 1));
+            W.Value (To_Px.Translation_X);
+            W.Value (To_Px.Translation_Y);
+            W.End_Array;
+         end if;
          W.Key ("points");
          W.Begin_Array;
          for P of Points loop
@@ -247,7 +263,8 @@ package body AMV.Flow.Reports is
       end Polygon;
 
       procedure Region (Shape : AMV.Shapes.Ks_Shape'Class;
-                        Image : AMV.Images.Ks_Image_8_Grey) is
+                        Image : AMV.Images.Ks_Image_8_Grey;
+                        Param : String) is
          To_Px : constant AMV.Transforms.Ks_Transform_2D_Linear :=
            Image.Get_Transform ("#", Shape.Selected_Space_Name);
       begin
@@ -262,7 +279,7 @@ package body AMV.Flow.Reports is
                         [(R.Center_X - HW, R.Center_Y - HH),
                          (R.Center_X + HW, R.Center_Y - HH),
                          (R.Center_X + HW, R.Center_Y + HH),
-                         (R.Center_X - HW, R.Center_Y + HH)]);
+                         (R.Center_X - HW, R.Center_Y + HH)], Param);
             end;
          elsif Shape in AMV.Shapes.Ks_Rectangle_Affine'Class then
             declare
@@ -273,7 +290,7 @@ package body AMV.Flow.Reports is
                         [(R.Corner_Origin_X, R.Corner_Origin_Y),
                          (R.Corner_X_X, R.Corner_X_Y),
                          (R.Corner_Opposite_X, R.Corner_Opposite_Y),
-                         (R.Corner_Y_X, R.Corner_Y_Y)]);
+                         (R.Corner_Y_X, R.Corner_Y_Y)], Param);
             end;
          elsif Shape in AMV.Shapes.Ks_Circle'Class then
             declare
@@ -287,7 +304,7 @@ package body AMV.Flow.Reports is
                   Points (I) := (C.Center_X + C.Radius * Cos (A),
                                  C.Center_Y + C.Radius * Sin (A));
                end loop;
-               Polygon ("region", To_Px, Points);
+               Polygon ("region", To_Px, Points, Param);
             end;
          end if;
       end Region;
@@ -322,7 +339,7 @@ package body AMV.Flow.Reports is
                     N.Get_Param (To_String (P.Name));
                begin
                   if Value.Has_Value then
-                     Region (Value.As_Shape, Image);
+                     Region (Value.As_Shape, Image, To_String (P.Name));
                   end if;
                exception
                   when AMV.Ks_Exception | AMV.Ks_Bad_Parameter_Exception

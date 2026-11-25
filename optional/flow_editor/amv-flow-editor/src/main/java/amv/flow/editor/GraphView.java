@@ -18,6 +18,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -28,6 +29,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.scene.transform.Scale;
 
 /**
  * The flow as boxes and curves: each node with its input ports on the left
@@ -66,6 +68,7 @@ final class GraphView extends ScrollPane {
     }
 
     private final Pane canvas = new Pane();
+    private final Scale zoom = new Scale(1, 1, 0, 0);
     private final Group linkLayer = new Group();
     private final Group nodeLayer = new Group();
     private final Listener listener;
@@ -96,7 +99,17 @@ final class GraphView extends ScrollPane {
         this.listener = listener;
         canvas.setStyle("-fx-background-color: #1e2126;");
         canvas.getChildren().addAll(linkLayer, nodeLayer);
-        setContent(canvas);
+        // Ctrl + wheel zooms; the group lets the scroll pane see the zoomed size.
+        canvas.getTransforms().add(zoom);
+        setContent(new Group(canvas));
+        addEventFilter(ScrollEvent.SCROLL, e -> {
+            if (e.isControlDown() && e.getDeltaY() != 0) {
+                double z = Math.max(0.3, Math.min(2.5, zoom.getX() * (e.getDeltaY() > 0 ? 1.1 : 1 / 1.1)));
+                zoom.setX(z);
+                zoom.setY(z);
+                e.consume();
+            }
+        });
         canvas.setOnMouseClicked(e -> {
             if (e.getTarget() == canvas) {
                 listener.selectNode(null);
@@ -119,6 +132,12 @@ final class GraphView extends ScrollPane {
             e.setDropCompleted(done);
             e.consume();
         });
+    }
+
+    /** Back to 100 %. */
+    void resetZoom() {
+        zoom.setX(1);
+        zoom.setY(1);
     }
 
     void show(FlowInfo flow, Map<String, KindInfo> kinds, Results results, Long selectedNode,

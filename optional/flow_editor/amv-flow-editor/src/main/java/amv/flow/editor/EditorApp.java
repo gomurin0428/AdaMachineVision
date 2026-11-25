@@ -96,6 +96,16 @@ public final class EditorApp extends Application {
             new java.util.concurrent.atomic.AtomicBoolean(false);
     private final javafx.scene.control.ToggleButton liveButton = new javafx.scene.control.ToggleButton("Live (F6)");
 
+    // Undo and redo: the flow's JSON before each edit (engine thread only).
+    private static final int MAX_UNDO = 100;
+    private final java.util.ArrayDeque<String> undoStack = new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<String> redoStack = new java.util.ArrayDeque<>();
+
+    // A folder of images played through (set on the FX thread, read on both).
+    private volatile List<Path> folder = List.of();
+    private final java.util.concurrent.atomic.AtomicInteger folderIndex =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     private GraphView graph;
     private PropertiesView properties;
     private ImagePane imagePane;
@@ -114,7 +124,7 @@ public final class EditorApp extends Application {
                 }
                 flow = new Flow();
                 kinds = Model.parseKinds(Flow.kindsJson());
-                // Arguments: [flow file [image file]]
+                // Arguments: [flow file [image file or folder]]
                 List<String> args = getParameters().getRaw();
                 if (!args.isEmpty()) {
                     flowFile = Path.of(args.get(0)).toAbsolutePath();
@@ -123,7 +133,16 @@ public final class EditorApp extends Application {
                     flow.fromJson(EMPTY_FLOW, null);
                 }
                 if (args.size() >= 2) {
-                    imageFile = Path.of(args.get(1)).toAbsolutePath();
+                    // An image file, or a folder of images to play through.
+                    Path second = Path.of(args.get(1)).toAbsolutePath();
+                    if (Files.isDirectory(second)) {
+                        try (var files = Files.list(second)) {
+                            folder = files.filter(Files::isRegularFile).filter(EditorApp::isImage).sorted().toList();
+                        }
+                        imageFile = folder.isEmpty() ? null : folder.get(0);
+                    } else {
+                        imageFile = second;
+                    }
                     setImageInput(flow);
                 }
                 return null;
@@ -201,7 +220,15 @@ public final class EditorApp extends Application {
                 }
             }
         });
-        imagePane = new ImagePane();
+        imagePane = new ImagePane((param, shapeJson) -> {
+            Long id = selected;
+            if (id != null) {
+                act(f -> {
+                    f.setParamJson(id, param, shapeJson);
+                    return null;
+                }, true);
+            }
+        });
 
         BorderPane root = new BorderPane();
         root.setTop(toolBar());
@@ -232,6 +259,15 @@ public final class EditorApp extends Application {
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN), this::open);
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F5), () -> act(null, true));
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F6), liveButton::fire);
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN), () -> undo(false));
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN), () -> undo(true));
+        scene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN),
+                () -> undo(true));
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.PAGE_DOWN), () -> stepFolder(1));
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.PAGE_UP), () -> stepFolder(-1));
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHORTCUT_DOWN),
+                graph::resetZoom);
         stage.setScene(scene);
         stage.show();
         act(null, imageFile != null);
@@ -262,8 +298,10 @@ public final class EditorApp extends Application {
             act(f -> {
                 f.fromJson(EMPTY_FLOW, null);
                 ranOnce = false;
+                undoStack.clear();
+                redoStack.clear();
                 return NONE;
-            }, false);
+            }, false, false);
         });
         Button open = new Button("Open…");
         open.setOnAction(e -> open());
@@ -283,13 +321,29 @@ public final class EditorApp extends Application {
                 engine.execute(this::liveStep);
             }
         });
+        Button undo = new Button("Undo");
+        undo.setTooltip(new javafx.scene.control.Tooltip("Ctrl+Z"));
+        undo.setOnAction(e -> undo(false));
+        Button redo = new Button("Redo");
+        redo.setTooltip(new javafx.scene.control.Tooltip("Ctrl+Y"));
+        redo.setOnAction(e -> undo(true));
+        Button openFolder = new Button("Open folder…");
+        openFolder.setTooltip(new javafx.scene.control.Tooltip(
+                "Play the images of a folder through the flow: Page Up / Page Down, or Live"));
+        openFolder.setOnAction(e -> openFolder());
+        Button previous = new Button("\u25c0");
+        previous.setTooltip(new javafx.scene.control.Tooltip("Previous image (Page Up)"));
+        previous.setOnAction(e -> stepFolder(-1));
+        Button next = new Button("\u25b6");
+        next.setTooltip(new javafx.scene.control.Tooltip("Next image (Page Down)"));
+        next.setOnAction(e -> stepFolder(1));
         Button addInput = new Button("Add input…");
         addInput.setOnAction(e -> addPort(true));
         Button addOutput = new Button("Add output…");
         addOutput.setOnAction(e -> addPort(false));
         result.setPadding(new Insets(0, 0, 0, 16));
-        return new ToolBar(newFlow, open, save, saveAs, new Separator(), image, run, liveButton, new Separator(),
-                addInput, addOutput, result);
+        return new ToolBar(newFlow, open, save, saveAs, new Separator(), undo, redo, new Separator(), image,
+                openFolder, previous, next, run, liveButton, new Separator(), addInput, addOutput, result);
     }
 
     private VBox palette() {
@@ -385,9 +439,11 @@ public final class EditorApp extends Application {
             f.load(path);
             flowFile = path;
             ranOnce = false;
+            undoStack.clear();
+            redoStack.clear();
             setImageInput(f);
             return NONE;
-        }, true);
+        }, true, false);
     }
 
     private void save() {
@@ -427,6 +483,85 @@ public final class EditorApp extends Application {
             setImageInput(f);
             return null;
         }, true);
+    }
+
+    /** Undoes the last edit, or redoes the last one undone. */
+    private void undo(boolean redo) {
+        act(f -> {
+            java.util.ArrayDeque<String> from = redo ? redoStack : undoStack;
+            java.util.ArrayDeque<String> to = redo ? undoStack : redoStack;
+            if (from.isEmpty()) {
+                throw new AmvFlowException(0, redo ? "Nothing to redo" : "Nothing to undo");
+            }
+            String current = f.toJson();
+            f.fromJson(from.pop(), flowFile == null ? null : flowFile.getParent());
+            to.push(current);
+            setImageInput(f);
+            return null;
+        }, true, false);
+    }
+
+    private static boolean isImage(Path p) {
+        String name = p.getFileName().toString().toLowerCase();
+        return name.endsWith(".bmp") || name.endsWith(".pgm") || name.endsWith(".pnm");
+    }
+
+    private void openFolder() {
+        javafx.stage.DirectoryChooser chooser = new javafx.stage.DirectoryChooser();
+        chooser.setTitle("A folder of images");
+        File start = imageFile != null ? imageFile.getParent().toFile() : new File(System.getProperty("user.dir"));
+        if (start.isDirectory()) {
+            chooser.setInitialDirectory(start);
+        }
+        File dir = chooser.showDialog(stage);
+        if (dir == null) {
+            return;
+        }
+        try (var files = Files.list(dir.toPath())) {
+            List<Path> images = files.filter(Files::isRegularFile).filter(EditorApp::isImage).sorted().toList();
+            if (images.isEmpty()) {
+                showStatus("No .bmp, .pgm or .pnm images in " + dir, true);
+                return;
+            }
+            folder = images;
+            folderIndex.set(0);
+            showImage(images.get(0));
+        } catch (java.io.IOException e) {
+            showStatus("Cannot read " + dir + ": " + e.getMessage(), true);
+        }
+    }
+
+    /** The next (+1) or previous (-1) image of the folder, round. */
+    private void stepFolder(int step) {
+        List<Path> images = folder;
+        if (images.isEmpty()) {
+            showStatus("Open a folder of images first", true);
+            return;
+        }
+        int i = Math.floorMod(folderIndex.get() + step, images.size());
+        folderIndex.set(i);
+        showImage(images.get(i));
+    }
+
+    private void showImage(Path file) {
+        imageFile = file.toAbsolutePath();
+        act(f -> {
+            setImageInput(f);
+            return null;
+        }, true, false);
+    }
+
+    /** Engine thread, live mode: the next image of the folder, when the flow takes an image. */
+    private void nextFolderImage() {
+        List<Path> images = folder;
+        if (images.isEmpty() || FlowInfo.parse(flow.toJson()).links().stream()
+                .noneMatch(l -> l.from().startsWith("input."))) {
+            return;
+        }
+        int i = Math.floorMod(folderIndex.incrementAndGet(), images.size());
+        folderIndex.set(i);
+        imageFile = images.get(i).toAbsolutePath();
+        setImageInput(flow);
     }
 
     /** Engine thread: sets the image file on the flow's first image input (adding one if there is none). */
@@ -496,11 +631,17 @@ public final class EditorApp extends Application {
      * (and it can run), then shows the engine's view.
      */
     private void act(EngineTask task, boolean rerun) {
+        act(task, rerun, true);
+    }
+
+    /** As act; an edit that changes the flow is recorded for undo when undoable. */
+    private void act(EngineTask task, boolean rerun, boolean undoable) {
         Long current = selected;
         engine.execute(() -> {
             String error = null;
             Long select = current;
             if (task != null) {
+                String before = undoable ? flow.toJson() : null;
                 try {
                     Long chosen = task.run(flow);
                     if (chosen != null) {
@@ -508,6 +649,13 @@ public final class EditorApp extends Application {
                     }
                 } catch (RuntimeException e) {
                     error = message(e);
+                }
+                if (before != null && !before.equals(flow.toJson())) {
+                    undoStack.push(before);
+                    while (undoStack.size() > MAX_UNDO) {
+                        undoStack.removeLast();
+                    }
+                    redoStack.clear();
                 }
             }
             String problemsJson = flow.problemsJson();
@@ -572,6 +720,12 @@ public final class EditorApp extends Application {
             return;
         }
         long started = System.nanoTime();
+        try {
+            nextFolderImage();
+        } catch (RuntimeException e) {
+            liveOn = false;
+            Platform.runLater(() -> liveButton.setSelected(false));
+        }
         String problemsJson = flow.problemsJson();
         String error;
         if (canRun(problemsJson)) {
@@ -615,12 +769,12 @@ public final class EditorApp extends Application {
         if (selected != null) {
             NodeInfo node = model.nodes().get(selected);
             properties.showNode(node, kinds.get(node.kind()), results.nodes().get(selected));
-            imagePane.show(s.image(), s.graphicsJson(),
+            imagePane.show(s.image(), s.graphicsJson(), node.params(),
                     s.image() == null ? "Node " + selected + " has no image yet" : "Node " + selected
                             + " image");
         } else {
             properties.showFlow(model, results);
-            imagePane.show(null, null, "Select a node to see its image");
+            imagePane.show(null, null, Map.of(), "Select a node to see its image");
         }
         problems.getItems().setAll(Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList());
         if (results.result().isEmpty()) {
@@ -639,8 +793,11 @@ public final class EditorApp extends Application {
         if (s.error() != null) {
             showStatus(s.error(), true);
         } else {
-            showStatus((imageFile == null ? "No image file (Open image…, or a Camera node)"
-                    : "Image: " + imageFile) + (liveOn ? "   — live" : ""), false);
+            List<Path> images = folder;
+            String place = images.isEmpty() || imageFile == null || !images.contains(imageFile) ? ""
+                    : "  (" + (images.indexOf(imageFile) + 1) + " of " + images.size() + ")";
+            showStatus((imageFile == null ? "No image file (Open image\u2026, or a Camera node)"
+                    : "Image: " + imageFile + place) + (liveOn ? "   \u2014 live" : ""), false);
         }
         stage.setTitle("AMV Flow Editor — " + (flowFile == null ? "untitled"
                 : flowFile.getFileName() + (Files.exists(flowFile) ? "" : " (not saved)")));
