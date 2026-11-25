@@ -1,18 +1,16 @@
 pragma SPARK_Mode (Off);
 
 with Ada.Numerics;
-with Ada.Numerics.Long_Elementary_Functions;
 
 with AMV.Flow.Values;
 with AMV.Image_Processing.IP_One_Image;
 with AMV.Image_Processing.Polar_Unwrap;
+with AMV.Shapes;
 
 package body AMV.Flow.Nodes.Imaging is
 
    use AMV.Flow.Values;
    use type AMV.Tools.Ks_Tool_Result_Constants;
-
-   Degree : constant := Ada.Numerics.Pi / 180.0;
 
    procedure Unknown (Kind, What, Name : String) with No_Return;
    procedure Unknown (Kind, What, Name : String) is
@@ -28,15 +26,10 @@ package body AMV.Flow.Nodes.Imaging is
    package PU renames AMV.Image_Processing.Polar_Unwrap;
 
    type Polar_Unwrap_Node is new Ks_Flow_Node with record
-      Tool        : PU.Ks_Polar_Unwrap_Tool;
-      Image_In    : Ks_Flow_Value;
-      CX, CY, R   : Real := 0.0;
-      Inner_Ratio : Real := 0.7;
-      Outer_Ratio : Real := 0.95;
-      Start_Deg   : Real := 0.0;
-      Span_Deg    : Real := 360.0;
-      Done        : Boolean := False;
-      Got         : Boolean := False;
+      Tool     : PU.Ks_Polar_Unwrap_Tool;
+      Image_In : Ks_Flow_Value;
+      Region   : Ks_Flow_Value;
+      Got      : Boolean := False;
    end record;
 
    overriding function Kind_Id (Node : Polar_Unwrap_Node) return String;
@@ -52,109 +45,70 @@ package body AMV.Flow.Nodes.Imaging is
    overriding procedure Execute (Node : in out Polar_Unwrap_Node);
    overriding function Get_Output
      (Node : Polar_Unwrap_Node; Port : String) return Ks_Flow_Value;
-   overriding procedure Add_Pixel_Marks
-     (Node : Polar_Unwrap_Node; Marks : in out Mark_Vectors.Vector);
 
    overriding function Kind_Id (Node : Polar_Unwrap_Node) return String is
      ("PolarUnwrap");
 
    overriding function Ports (Node : Polar_Unwrap_Node) return Port_Array is
      [In_Port ("Image", Image_8_Grey_Type),
-      In_Port ("CenterX", Real_Type, Help => "pixels"),
-      In_Port ("CenterY", Real_Type, Help => "pixels"),
-      In_Port ("Radius", Real_Type,
-               Help => "pixels; the annulus' radii are fractions of it"),
       Out_Port ("Image", Image_8_Grey_Type,
-                "the annulus unwrapped: x along the angle, y outwards")];
+                "the annulus unwrapped: x along the angle, y along the "
+                & "radius")];
 
    overriding function Params (Node : Polar_Unwrap_Node) return Param_Array is
-     [Real_Param_Of ("InnerRatio", 0.0, 100.0, "",
-                     "the inner radius, as a fraction of Radius"),
-      Real_Param_Of ("OuterRatio", 0.0, 100.0, "",
-                     "the outer radius, as a fraction of Radius"),
-      Real_Param_Of ("AngleStart", -360.0, 360.0, "deg",
-                     "where the annulus starts, clockwise from +x"),
-      Real_Param_Of ("AngleSpan", -360.0, 360.0, "deg",
-                     "360: all round; less to leave out a part outside "
-                     & "the image")];
+     [1 => Shape_Param_Of
+        ("Region",
+         "a CircularAnnulusSection in the image's selected space (after "
+         & "a Fixture, the part's)")];
 
    overriding procedure Set_Param
      (Node : in out Polar_Unwrap_Node; Name : String; Value : Ks_Flow_Value) is
    begin
-      if Name = "InnerRatio" then
-         Node.Inner_Ratio := Value.As_Real;
-      elsif Name = "OuterRatio" then
-         Node.Outer_Ratio := Value.As_Real;
-      elsif Name = "AngleStart" then
-         Node.Start_Deg := Value.As_Real;
-      elsif Name = "AngleSpan" then
-         Node.Span_Deg := Value.As_Real;
-      else
+      if Name /= "Region" then
          Unknown ("PolarUnwrap", "parameter", Name);
+      elsif Value.Has_Value
+        and then Value.As_Shape
+                 not in AMV.Shapes.Ks_Circular_Annulus_Section'Class
+      then
+         raise Ks_Flow_Exception with
+           "PolarUnwrap parameter Region: a CircularAnnulusSection is needed";
       end if;
+      Node.Region := Value;
    end Set_Param;
 
    overriding function Get_Param
      (Node : Polar_Unwrap_Node; Name : String) return Ks_Flow_Value is
    begin
-      if Name = "InnerRatio" then
-         return From_Real (Node.Inner_Ratio);
-      elsif Name = "OuterRatio" then
-         return From_Real (Node.Outer_Ratio);
-      elsif Name = "AngleStart" then
-         return From_Real (Node.Start_Deg);
-      elsif Name = "AngleSpan" then
-         return From_Real (Node.Span_Deg);
+      if Name /= "Region" then
+         Unknown ("PolarUnwrap", "parameter", Name);
       end if;
-      Unknown ("PolarUnwrap", "parameter", Name);
+      return Node.Region;
    end Get_Param;
 
    overriding procedure Set_Input
      (Node : in out Polar_Unwrap_Node; Port : String; Value : Ks_Flow_Value) is
    begin
-      if Port = "Image" then
-         Node.Image_In := Value;
-      elsif Port = "CenterX" then
-         Node.CX := Value.As_Real;
-      elsif Port = "CenterY" then
-         Node.CY := Value.As_Real;
-      elsif Port = "Radius" then
-         Node.R := Value.As_Real;
-      else
+      if Port /= "Image" then
          Unknown ("PolarUnwrap", "input", Port);
       end if;
+      Node.Image_In := Value;
    end Set_Input;
 
    overriding procedure Clear_Inputs (Node : in out Polar_Unwrap_Node) is
    begin
       Node.Image_In := No_Value;
-      Node.Done := False;
       Node.Got := False;
    end Clear_Inputs;
 
    overriding procedure Execute (Node : in out Polar_Unwrap_Node) is
    begin
-      Node.Done := True;
       Node.Got := False;
-      if Node.R <= 0.0 then
-         raise Ks_Flow_Exception with "Radius must be above 0";
-      elsif Node.Inner_Ratio <= 0.0
-        or else Node.Outer_Ratio <= Node.Inner_Ratio
-      then
-         raise Ks_Flow_Exception with
-           "InnerRatio must be above 0 and OuterRatio above InnerRatio";
-      elsif Node.Span_Deg = 0.0 then
-         raise Ks_Flow_Exception with "AngleSpan must not be 0";
+      if not Node.Region.Has_Value then
+         raise Ks_Flow_Exception with "set Region: the annulus to unwrap";
       end if;
       Node.Tool.Input_Image := Node.Image_In.As_Image;
-      Node.Tool.Region.Set_Selected_Space_Name ("#");
-      Node.Tool.Region.Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
-        (Center_X     => Node.CX,
-         Center_Y     => Node.CY,
-         Radius       => Node.Inner_Ratio * Node.R,
-         Angle_Start  => Node.Start_Deg * Degree,
-         Angle_Span   => Node.Span_Deg * Degree,
-         Radial_Scale => Node.Outer_Ratio / Node.Inner_Ratio);
+      Node.Tool.Region :=
+        AMV.Shapes.Ks_Circular_Annulus_Section (Node.Region.As_Shape);
       Node.Tool.Run;
       Take_Status (Node, Node.Tool.Run_Status);
       Node.Got := Result (Node) /= AMV.Tools.Error;
@@ -170,33 +124,19 @@ package body AMV.Flow.Nodes.Imaging is
       Unknown ("PolarUnwrap", "output", Port);
    end Get_Output;
 
-   overriding procedure Add_Pixel_Marks
-     (Node : Polar_Unwrap_Node; Marks : in out Mark_Vectors.Vector)
-   is
-      use Ada.Numerics.Long_Elementary_Functions;
-      Steps : constant := 90;
-      Outline : Mark (2 * (Steps + 1));
-      Angle : Real;
-   begin
-      if not Node.Done or else Node.R <= 0.0 then
-         return;
-      end if;
-      --  The inner arc from the start, then the outer arc back.
-      for I in 0 .. Steps loop
-         Angle := (Node.Start_Deg
-                   + Node.Span_Deg * Real (I) / Real (Steps)) * Degree;
-         Outline.X (I + 1) := Node.CX + Node.Inner_Ratio * Node.R * Cos (Angle);
-         Outline.Y (I + 1) := Node.CY + Node.Inner_Ratio * Node.R * Sin (Angle);
-         Outline.X (2 * (Steps + 1) - I) :=
-           Node.CX + Node.Outer_Ratio * Node.R * Cos (Angle);
-         Outline.Y (2 * (Steps + 1) - I) :=
-           Node.CY + Node.Outer_Ratio * Node.R * Sin (Angle);
-      end loop;
-      Marks.Append (Outline);
-   end Add_Pixel_Marks;
-
    function Create_Polar_Unwrap return Node_Access is
-     (new Polar_Unwrap_Node);
+      Node    : constant Node_Access := new Polar_Unwrap_Node;
+      Annulus : AMV.Shapes.Ks_Circular_Annulus_Section;
+   begin
+      --  Somewhere to start from in the editor: an annulus inside any
+      --  image of at least 200 x 200 pixels, to be dragged into place.
+      Annulus.Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
+        (Center_X => 100.0, Center_Y => 100.0, Radius => 50.0,
+         Angle_Start => 0.0, Angle_Span => 2.0 * Ada.Numerics.Pi,
+         Radial_Scale => 1.8);
+      Polar_Unwrap_Node (Node.all).Region := From_Shape (Annulus);
+      return Node;
+   end Create_Polar_Unwrap;
 
    ---------------------------------------------------------------------
    --  Morphology

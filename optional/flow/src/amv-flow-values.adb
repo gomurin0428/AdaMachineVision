@@ -210,6 +210,18 @@ package body AMV.Flow.Values is
             Number ("centerY", C.Center_Y);
             Number ("radius", C.Radius);
          end;
+      elsif Shape in AMV.Shapes.Ks_Circular_Annulus_Section'Class then
+         declare
+            A : constant AMV.Shapes.Ks_Circular_Annulus_Section :=
+              AMV.Shapes.Ks_Circular_Annulus_Section (Shape);
+         begin
+            Number ("centerX", A.Center_X);
+            Number ("centerY", A.Center_Y);
+            Number ("radius", A.Radius);
+            Number ("radialScale", A.Radial_Scale);
+            Number ("angleStart", A.Angle_Start);
+            Number ("angleSpan", A.Angle_Span);
+         end;
       else
          raise Ks_Flow_Exception with
            "a " & Shape_Type_Name (Shape) & " cannot be saved yet";
@@ -295,6 +307,22 @@ package body AMV.Flow.Values is
                  (Number ("centerX"), Number ("centerY"), Number ("radius"));
                Check_All_Used;
                return C;
+            end;
+         elsif Type_Name_Text = "CircularAnnulusSection" then
+            declare
+               A : AMV.Shapes.Ks_Circular_Annulus_Section;
+               CX : constant Real := Number ("centerX");
+               CY : constant Real := Number ("centerY");
+               R  : constant Real := Number ("radius");
+               RS : constant Real := Number ("radialScale");
+               S  : constant Real := Number ("angleStart");
+               SP : constant Real := Number ("angleSpan");
+            begin
+               A.Set_Selected_Space_Name (Space);
+               A.Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
+                 (CX, CY, R, S, SP, RS);
+               Check_All_Used;
+               return A;
             end;
          else
             raise Ks_Flow_Exception with

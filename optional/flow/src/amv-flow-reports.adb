@@ -306,6 +306,33 @@ package body AMV.Flow.Reports is
                end loop;
                Polygon ("region", To_Px, Points, Param);
             end;
+         elsif Shape in AMV.Shapes.Ks_Circular_Annulus_Section'Class then
+            declare
+               --  The arc at Radius from the start, then the other arc
+               --  back (a full annulus: two circles joined at the start).
+               A     : constant AMV.Shapes.Ks_Circular_Annulus_Section :=
+                 AMV.Shapes.Ks_Circular_Annulus_Section (Shape);
+               Steps : constant := 72;
+               Span  : constant Real :=
+                 (if abs A.Angle_Span >= 2.0 * Ada.Numerics.Pi
+                  then 2.0 * Ada.Numerics.Pi * (if A.Angle_Span < 0.0
+                                                then -1.0 else 1.0)
+                  else A.Angle_Span);
+               R0    : constant Real := A.Radius;
+               R1    : constant Real := A.Radius * A.Radial_Scale;
+               Points : Point_Array (1 .. 2 * (Steps + 1));
+               Angle : Real;
+            begin
+               for I in 0 .. Steps loop
+                  Angle := A.Angle_Start + Span * Real (I) / Real (Steps);
+                  Points (I + 1) := (A.Center_X + R0 * Cos (Angle),
+                                     A.Center_Y + R0 * Sin (Angle));
+                  Points (Points'Last - I) :=
+                    (A.Center_X + R1 * Cos (Angle),
+                     A.Center_Y + R1 * Sin (Angle));
+               end loop;
+               Polygon ("region", To_Px, Points, Param);
+            end;
          end if;
       end Region;
    begin

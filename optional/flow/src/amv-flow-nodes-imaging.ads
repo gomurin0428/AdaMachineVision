@@ -5,16 +5,18 @@ pragma SPARK_Mode (Off);
 --  (AMV.Flow.Kinds lists them by name).
 --
 --  PolarUnwrap (AMV.Image_Processing.Polar_Unwrap)
---     in   Image : Image_8_Grey; CenterX, CenterY, Radius : Real (pixels;
---          a circle, such as Circularity's)
---     out  Image : Image_8_Grey (the annulus unwrapped: x along the
---          angle, y along the radius, outwards)
---     params  InnerRatio, OuterRatio (the annulus' radii as fractions of
---             Radius), AngleStart, AngleSpan (degrees, clockwise as the
---             image is shown; 360: all round)
+--     in   Image : Image_8_Grey
+--     out  Image : Image_8_Grey (the annulus unwrapped: x along the angle
+--          from AngleStart, y along the radius from Radius to Radius *
+--          RadialScale)
+--     params  Region (a CircularAnnulusSection in the image's selected
+--             space: to follow a part, put a Fixture before it, fed by
+--             the Pose of ShapeMatch or Circularity, and give the region
+--             in the part's space)
 --     The annulus must lie inside the image (else Error): leave out the
 --     part of a circle that the image cuts with AngleStart and AngleSpan.
---     The editor draws the annulus on the input image.
+--     A new node's region is a full annulus about (100, 100), radii 50 to
+--     90, to be dragged into place in the editor.
 --
 --  Morphology (AMV.Image_Processing.IP_One_Image, Grey_Morphology_NxM)
 --     in   Image : Image_8_Grey

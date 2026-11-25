@@ -779,6 +779,7 @@ package body AMV.Flow.Nodes.Vision is
       Done     : Boolean := False;
       Outcome  : Round.Result;
       Boundary : Round.Point_Vectors.Vector;
+      Pose     : Ks_Flow_Value;
    end record;
 
    overriding function Kind_Id (Node : Circularity_Node) return String;
@@ -803,6 +804,9 @@ package body AMV.Flow.Nodes.Vision is
    overriding function Ports (Node : Circularity_Node) return Port_Array is
      [In_Port ("Image", Image_8_Grey_Type),
       Out_Port ("Found", Boolean_Type),
+      Out_Port ("Pose", Transform_Type,
+                "from the circle's centre (axes along the pixels') to the "
+                & "image's selected space: for a Fixture"),
       Out_Port ("Roundness", Real_Type,
                 "smallest / largest radius about the fitted circle"),
       Out_Port ("Circularity", Real_Type, "4 Pi area / perimeter squared"),
@@ -872,13 +876,24 @@ package body AMV.Flow.Nodes.Vision is
       Node.Image_In := No_Value;
       Node.Done := False;
       Node.Boundary.Clear;
+      Node.Pose := No_Value;
    end Clear_Inputs;
 
    overriding procedure Execute (Node : in out Circularity_Node) is
+      Image : constant AMV.Images.Ks_Image_8_Grey := Node.Image_In.As_Image;
    begin
       Node.Done := True;
-      Round.Measure (Node.Image_In.As_Image, Node.Config, Node.Outcome,
-                     Node.Boundary);
+      Node.Pose := No_Value;
+      Round.Measure (Image, Node.Config, Node.Outcome, Node.Boundary);
+      if Node.Outcome.Found then
+         --  The centre is in pixels; the pose maps into the selected space,
+         --  as ShapeMatch's does.
+         Node.Pose := From_Transform
+           (AMV.Transforms.Compose
+              (Image.Get_Transform (".", "#"),
+               AMV.Transforms.Create_Rigid
+                 (0.0, Node.Outcome.Center_X, Node.Outcome.Center_Y)));
+      end if;
       if not Node.Outcome.Found then
          Set_Result (Node, AMV.Tools.Reject, "no object found");
       elsif Node.Outcome.Clipped then
@@ -895,6 +910,8 @@ package body AMV.Flow.Nodes.Vision is
    begin
       if Port = "Found" then
          return (if Node.Done then From_Boolean (R.Found) else No_Value);
+      elsif Port = "Pose" then
+         return (if Got then Node.Pose else No_Value);
       elsif Port = "Clipped" then
          return (if Got then From_Boolean (R.Clipped) else No_Value);
       elsif Port = "Roundness" then

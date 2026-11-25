@@ -65,7 +65,10 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
   button pans, a double click fits the image again. The node's regions
   are edited on the image: drag inside one to move it, a corner (square
   handle) to size it, the round handle to turn a rectangle, the handle on
-  a circle's edge for its radius. The drag works in the region's own space
+  a circle's edge for its radius; an annulus (PolarUnwrap's region) has a
+  square handle on each of its two arcs for the radii and round ones where
+  it starts and ends (a full annulus has one: drag it to open the
+  annulus). The drag works in the region's own space
   (a region in a fixtured space turns with the part), and on release the
   flow runs again.
 * **Properties** (right): the node's name and parameters, with an editor
@@ -84,5 +87,6 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
 * **Flow zoom**: Ctrl + wheel over the flow; Ctrl+0 back to 100 %.
 
 Not yet: drawing a new region on the image (a region parameter is set
-first as JSON, then dragged), a polygon or annulus region, the C API's
+first as JSON, then dragged; a new PolarUnwrap has an annulus to drag),
+a polygon region, the C API's
 image transfer without a copy (`PixelBuffer`).

@@ -74,21 +74,26 @@ measures a cup's roundness this way (set the Camera node's CameraId to
 your camera's address).
 
 [`examples/cup_cut_camera.amvflow`](examples/cup_cut_camera.amvflow) finds
-a cut in a cup's side wall (a slit made with scissors, seen from above):
+a cut in a cup's side wall (a slit made with scissors, seen from above),
+with the same pattern as locate, fixture and measure:
 
 | Node | Does |
 |---|---|
 | Camera | the frame |
-| Circularity | the rim: its centre and radius (fitted to the part of the rim inside the image when the cup runs out of it) |
-| PolarUnwrap | the side wall and rim, 0.74 to 0.94 of the rim's radius, unwrapped into a strip; AngleStart 145, AngleSpan 250 leave out the bottom of the cup, which that camera's image cuts off (360 when the whole cup is in view) |
-| Morphology | CloseMinusOriginal with a 15 x 1 kernel: what is darker than its neighbours along the circle and narrower than 15 px (the cut, crossing the wall) becomes light; shading round the cup and the rim's edges do not |
-| Blob | light blobs of at least 50 px at grey 14 and above: the cuts |
+| Circularity | finds the rim; its Pose (a translation to the rim's centre) goes to the Fixture |
+| Fixture | adds the space "Cup", centred on the rim, so that the region below follows the cup |
+| PolarUnwrap | Region: an annulus in "Cup" (radii 326 to 414 px, all round) over the side wall and the rim, unwrapped into a strip |
+| Morphology | CloseMinusOriginal, 15 x 1: what is darker than its neighbours along the circle and narrower than 15 px (a cut crossing the wall) becomes light; shading round the cup and the edges of the rim and the bottom do not |
+| Morphology | Dilate, 7 x 7: joins the pieces of one cut (an opened cut has two edges, broken in places) |
+| Blob | light blobs of at least 200 px at grey 14 and above: the cuts |
 | RangeCheck | Count in [0, 0]: no cut, else Reject |
 
-On the GE134GC frames the slit gives one blob of about 230 px; nothing
-else in the strip reaches 30 px at grey 10. A seam or printing on the
-side wall would also be a dark line: check uncut cups before relying on
-the thresholds.
+On a GE134GC frame of a cup with one cut, the cut is one blob of 936 px;
+on one with the cut pulled open and a second thin line from the rim down
+(a seam or a second cut), two blobs. Nothing else reached 100 px. The annulus must lie inside the image: for a cup that the image
+cuts off, drag the annulus' round handles in the editor to leave that
+part out. A seam or printing on the side wall would also be a dark line:
+check uncut cups before relying on the thresholds.
 
 ## Not done yet
 
@@ -96,4 +101,4 @@ From the first phase of the design: the FindCircle, Distance, Histogram
 and CSV Log nodes, the place of a cut on the camera image (Blob gives it
 in PolarUnwrap's strip), `Ks_Flow_Tool` (a saved flow as an AMV tool), saving
 trained patterns (ShapeMatch trains from its `TrainImage` when the flow
-loads), the image folder playback, and a camera build of `amv_flow`.
+loads), and a camera build of `amv_flow`.

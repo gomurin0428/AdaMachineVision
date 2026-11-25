@@ -23,8 +23,9 @@ import javafx.scene.text.Font;
  * about the cursor, the right or middle button pans, a double click fits
  * the image again. The node's regions are edited with the left button:
  * drag inside one to move it, a corner to size it, the round handle to
- * turn a rectangle, the handle on a circle's edge for its radius; on
- * release the new shape goes to the listener.
+ * turn a rectangle, the handle on a circle's edge for its radius; an
+ * annulus has square handles for its two radii and round ones for where it
+ * starts and ends. On release the new shape goes to the listener.
  */
 final class ImagePane extends Pane {
 
@@ -40,7 +41,11 @@ final class ImagePane extends Pane {
     }
 
     private enum Handle {
-        MOVE, CORNER, ROTATE, RADIUS
+        MOVE, CORNER, ROTATE, RADIUS, INNER, OUTER, START, END;
+
+        boolean isRound() {
+            return this == ROTATE || this == START || this == END;
+        }
     }
 
     private static final double HANDLE = 5;
@@ -233,10 +238,40 @@ final class ImagePane extends Pane {
                 }
                 return points;
             }
+            case "CircularAnnulusSection" -> {
+                // The arc at radius from the start, then the other arc back.
+                int steps = 72;
+                double r0 = num(s, "radius");
+                double r1 = r0 * num(s, "radialScale");
+                double start = num(s, "angleStart");
+                double span = span(s);
+                double[][] points = new double[2 * (steps + 1)][];
+                for (int i = 0; i <= steps; i++) {
+                    double a = start + span * i / steps;
+                    points[i] = new double[] {cx + r0 * Math.cos(a), cy + r0 * Math.sin(a)};
+                    points[points.length - 1 - i] = new double[] {cx + r1 * Math.cos(a), cy + r1 * Math.sin(a)};
+                }
+                return points;
+            }
             default -> {
                 return new double[0][];
             }
         }
+    }
+
+    /** An annulus' angle span, at most one turn either way. */
+    private static double span(Map<String, Object> s) {
+        double span = num(s, "angleSpan");
+        return Math.abs(span) >= 2 * Math.PI ? Math.copySign(2 * Math.PI, span) : span;
+    }
+
+    private static boolean fullTurn(Map<String, Object> s) {
+        return Math.abs(num(s, "angleSpan")) >= 2 * Math.PI - 1e-9;
+    }
+
+    /** The point at radius r and angle a about the shape's centre, on the screen. */
+    private double[] polar(double[] t, Map<String, Object> s, double r, double a) {
+        return toScreen(t, num(s, "centerX") + r * Math.cos(a), num(s, "centerY") + r * Math.sin(a));
     }
 
     /** The handles in screen coordinates, each with its kind. */
@@ -262,10 +297,32 @@ final class ImagePane extends Pane {
             }
             case "Circle" -> result.add(new Object[] {Handle.RADIUS,
                 toScreen(t, num(s, "centerX") + num(s, "radius"), num(s, "centerY"))});
+            case "CircularAnnulusSection" -> {
+                double r0 = num(s, "radius");
+                double r1 = r0 * num(s, "radialScale");
+                double start = num(s, "angleStart");
+                double middle = start + span(s) / 2;
+                result.add(new Object[] {Handle.INNER, polar(t, s, r0, middle)});
+                result.add(new Object[] {Handle.OUTER, polar(t, s, r1, middle)});
+                // A full annulus has one angle handle: dragging it opens the annulus.
+                if (!fullTurn(s)) {
+                    result.add(new Object[] {Handle.START, polar(t, s, (r0 + r1) / 2, start)});
+                }
+                result.add(new Object[] {Handle.END, polar(t, s, (r0 + r1) / 2, start + span(s))});
+            }
             default -> {
             }
         }
         return result;
+    }
+
+    /** a modulo one turn, in (0, 2 Pi]. */
+    private static double turn(double a) {
+        double m = a % (2 * Math.PI);
+        if (m <= 1e-9) {
+            m += 2 * Math.PI;
+        }
+        return m;
     }
 
     private static boolean inside(double[][] screen, double x, double y) {
@@ -395,6 +452,35 @@ final class ImagePane extends Pane {
             }
             case ROTATE -> draft.put("rotation", Math.round(Math.atan2(dy, dx) * 1e6) / 1e6);
             case RADIUS -> draft.put("radius", round(Math.max(1, Math.hypot(dx, dy))));
+            case INNER, OUTER -> {
+                // One radius follows the mouse, the other stays; they stay 1 apart.
+                double r0 = num(s, "radius");
+                double r1 = r0 * num(s, "radialScale");
+                double r = Math.max(1, Math.hypot(dx, dy));
+                if (handle == Handle.INNER) {
+                    r0 = Math.abs(r - r1) < 1 ? r1 + (r < r1 ? -1 : 1) : r;
+                    r0 = Math.max(1, r0);
+                } else {
+                    r1 = Math.abs(r - r0) < 1 ? r0 + (r < r0 ? -1 : 1) : r;
+                    r1 = Math.max(1, r1);
+                }
+                draft.put("radius", round(r0));
+                draft.put("radialScale", Math.round(r1 / round(r0) * 1e6) / 1e6);
+            }
+            case START, END -> {
+                // The other end of the annulus stays; the span keeps its sense.
+                double a = Math.atan2(dy, dx);
+                double start = num(s, "angleStart");
+                double span = span(s);
+                double sense = span < 0 ? -1 : 1;
+                if (handle == Handle.START) {
+                    double end = start + span;
+                    draft.put("angleStart", Math.round(a * 1e6) / 1e6);
+                    draft.put("angleSpan", Math.round(sense * turn(sense * (end - a)) * 1e6) / 1e6);
+                } else {
+                    draft.put("angleSpan", Math.round(sense * turn(sense * (a - start)) * 1e6) / 1e6);
+                }
+            }
             default -> {
             }
         }
@@ -499,7 +585,7 @@ final class ImagePane extends Pane {
                 gc.setFill(Color.WHITE);
                 gc.setStroke(Color.web("#222"));
                 gc.setLineWidth(1);
-                if (hdl[0] == Handle.ROTATE) {
+                if (((Handle) hdl[0]).isRound()) {
                     gc.fillOval(p[0] - HANDLE, p[1] - HANDLE, 2 * HANDLE, 2 * HANDLE);
                     gc.strokeOval(p[0] - HANDLE, p[1] - HANDLE, 2 * HANDLE, 2 * HANDLE);
                 } else {

@@ -42,7 +42,9 @@ pragma SPARK_Mode (Off);
 --
 --  Circularity (AMV.Flow.Circularity)
 --     in   Image : Image_8_Grey
---     out  Found, Clipped : Boolean; Roundness (smallest / largest radius
+--     out  Found, Clipped : Boolean; Pose : Transform (from the circle's
+--          centre, axes along the pixels', to the image's selected space:
+--          for a Fixture); Roundness (smallest / largest radius
 --          about the fitted circle), Circularity (4 Pi area / perimeter
 --          squared), Diameter, Radius, Area, Perimeter, CenterX, CenterY :
 --          Real (pixels)

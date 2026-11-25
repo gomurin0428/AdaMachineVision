@@ -58,6 +58,9 @@ package AMV.Flow.Values is
    --     Rectangle:        centerX, centerY, width, height
    --     RectangleAffine:  centerX, centerY, sideX, sideY, rotation, skew
    --     Circle:           centerX, centerY, radius
+   --     CircularAnnulusSection: centerX, centerY, radius, radialScale
+   --                       (the other radius is radius * radialScale),
+   --                       angleStart, angleSpan
    --  Lengths in the space's units, angles in radians. Other shape types
    --  cannot be written yet (Ks_Flow_Exception).
 

@@ -213,7 +213,24 @@ procedure Test_Flow is
       R  : AMV.Shapes.Ks_Rectangle;
       RA : AMV.Shapes.Ks_Rectangle_Affine;
       C  : AMV.Shapes.Ks_Circle;
+      A  : AMV.Shapes.Ks_Circular_Annulus_Section;
    begin
+      A.Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
+        (3.0, -4.0, 120.0, 2.5, 4.25, 1.25);
+      A.Set_Selected_Space_Name ("Cup");
+      declare
+         A2 : constant AMV.Shapes.Ks_Shape'Class := Round_Trip (A);
+         use AMV.Shapes;
+      begin
+         Check (A2 in Ks_Circular_Annulus_Section'Class
+                and then Ks_Circular_Annulus_Section (A2).Center_Y = -4.0
+                and then Ks_Circular_Annulus_Section (A2).Radius = 120.0
+                and then Ks_Circular_Annulus_Section (A2).Radial_Scale = 1.25
+                and then Ks_Circular_Annulus_Section (A2).Angle_Start = 2.5
+                and then Ks_Circular_Annulus_Section (A2).Angle_Span = 4.25
+                and then A2.Selected_Space_Name = "Cup",
+                "shapes: a CircularAnnulusSection reads back");
+      end;
       R.Set_Center_Width_Height (10.0, 20.0, 30.0, 40.5);
       R.Set_Selected_Space_Name ("@\Part");
       RA.Set_Center_Lengths_Rotation_Skew (1.0, 2.0, 30.0, 4.0, 0.3, -0.1);
@@ -725,21 +742,21 @@ procedure Test_Flow is
    end Test_Circularity;
 
    ---------------------------------------------------------------------
-   --  A cut in a cup: Circularity, PolarUnwrap, Morphology, Blob
+   --  A cut in a cup: Circularity, Fixture, PolarUnwrap, Morphology, Blob
    ---------------------------------------------------------------------
 
    procedure Test_Cut is
       use Ada.Numerics.Long_Elementary_Functions;
       Flow : AMV.Flow.Graphs.Ks_Flow;
-      CX   : constant Real := 320.3;
-      CY   : constant Real := 340.7;
       Cut_Angle : constant Real := 200.0 * Pi / 180.0;
 
-      --  A cup seen from above, cut off by the image's bottom edge: the
-      --  bottom (grey 220) to radius 140, the side wall (150) to 185, the
-      --  rim (200) to 200; with a cut, a dark line 2 px wide across the
-      --  wall and the rim.
-      function Cup (With_Cut : Boolean) return AMV.Images.Ks_Image_8_Grey is
+      --  A cup seen from above about (CX, CY), cut off by the image's
+      --  bottom edge: the bottom (grey 220) to radius 140, the side wall
+      --  (150) to 185, the rim (200) to 200; with a cut, a dark line 2 px
+      --  wide across the wall and the rim.
+      function Cup (CX, CY : Real; With_Cut : Boolean)
+                    return AMV.Images.Ks_Image_8_Grey
+      is
          Image : AMV.Images.Ks_Image_8_Grey :=
            AMV.Images.Create (640, 480, Value => 30);
          DX, DY, R, Along, Across : Real;
@@ -767,6 +784,27 @@ procedure Test_Flow is
          return Image;
       end Cup;
 
+      --  The wall and the rim (radii 148 to 188 about the cup's centre),
+      --  leaving out the part below the image.
+      function Wall (Span_Degrees : Real) return Ks_Flow_Value is
+         A : AMV.Shapes.Ks_Circular_Annulus_Section;
+      begin
+         A.Set_Center_Radius_Angle_Start_Angle_Span_Radial_Scale
+           (0.0, 0.0, 148.0, 140.0 * Pi / 180.0, Span_Degrees * Pi / 180.0,
+            188.0 / 148.0);
+         return From_Shape (A);
+      end Wall;
+
+      procedure Run_On (CX, CY : Real; With_Cut : Boolean) is
+      begin
+         Flow.Set_Input ("Image", From_Image (Cup (CX, CY, With_Cut)));
+         Flow.Run;
+      end Run_On;
+
+      function Cuts_Found return Integer is
+        (if Flow.Get_Output ("Cuts").Has_Value
+         then Integer (Flow.Get_Output ("Cuts").As_Integer) else -1);
+
       Unwrap, Lines, Cuts : Positive;
    begin
       Flow.Add_Input ("Image", Image_8_Grey_Type);
@@ -776,15 +814,13 @@ procedure Test_Flow is
       Flow.Add_Output ("Cuts", Integer_Type);
       Flow.Add_Output ("NoCut", Boolean_Type);
       Check (Flow.Add_Node ("Circularity") = 1, "cut: node 1");
+      Check (Flow.Add_Node ("Fixture") = 2, "cut: node 2");
       Unwrap := Flow.Add_Node ("PolarUnwrap");
       Lines := Flow.Add_Node ("Morphology");
       Cuts := Flow.Add_Node ("Blob");
-      Check (Flow.Add_Node ("RangeCheck") = 5, "cut: node 5");
-      --  The wall and the rim, leaving out the part below the image.
-      Flow.Set_Param (Unwrap, "InnerRatio", From_Real (0.74));
-      Flow.Set_Param (Unwrap, "OuterRatio", From_Real (0.94));
-      Flow.Set_Param (Unwrap, "AngleStart", From_Real (140.0));
-      Flow.Set_Param (Unwrap, "AngleSpan", From_Real (260.0));
+      Check (Flow.Add_Node ("RangeCheck") = 6, "cut: node 6");
+      Flow.Set_Param (2, "FixturedSpaceName", From_String ("Cup"));
+      Flow.Set_Param (Unwrap, "Region", Wall (260.0));
       Flow.Set_Param (Lines, "Operation", From_String ("CloseMinusOriginal"));
       Flow.Set_Param (Lines, "KernelWidth", From_Integer (15));
       Flow.Set_Param (Lines, "KernelHeight", From_Integer (1));
@@ -792,65 +828,77 @@ procedure Test_Flow is
       Flow.Set_Param (Cuts, "MinArea", From_Real (50.0));
       Flow.Link ("input.Image", "1.Image");
       Flow.Link ("input.Image", "2.Image");
-      Flow.Link ("1.CenterX", "2.CenterX");
-      Flow.Link ("1.CenterY", "2.CenterY");
-      Flow.Link ("1.Radius", "2.Radius");
+      Flow.Link ("1.Pose", "2.Transform");
       Flow.Link ("2.Image", "3.Image");
       Flow.Link ("3.Image", "4.Image");
-      Flow.Link ("4.Count", "5.Value");
+      Flow.Link ("4.Image", "5.Image");
+      Flow.Link ("5.Count", "6.Value");
       Flow.Link ("1.CenterX", "output.X");
       Flow.Link ("1.CenterY", "output.Y");
       Flow.Link ("1.Radius", "output.R");
-      Flow.Link ("4.Count", "output.Cuts");
-      Flow.Link ("5.Pass", "output.NoCut");
+      Flow.Link ("5.Count", "output.Cuts");
+      Flow.Link ("6.Pass", "output.NoCut");
       Check (Flow.Problems.Is_Empty, "cut: no problems");
 
-      Flow.Set_Input ("Image", From_Image (Cup (With_Cut => False)));
-      Flow.Run;
+      Run_On (320.3, 340.7, With_Cut => False);
       Check (Flow.Result = AMV.Tools.Warning
              and then Contains (Flow.Message, "touches the image border"),
              "cut: the cup runs out of the image (" & Flow.Message & ")");
-      Check_Near (Real_Output (Flow, "X"), CX, 0.5,
+      Check_Near (Real_Output (Flow, "X"), 320.3, 0.5,
                   "cut: the rim's centre x, from the edge inside the image");
-      Check_Near (Real_Output (Flow, "Y"), CY, 0.5, "cut: its centre y");
+      Check_Near (Real_Output (Flow, "Y"), 340.7, 0.5, "cut: its centre y");
       Check_Near (Real_Output (Flow, "R"), 200.0, 1.0, "cut: its radius");
-      Check (Flow.Get_Output ("Cuts").Has_Value
-             and then Flow.Get_Output ("Cuts").As_Integer = 0
-             and then Boolean_Output (Flow, "NoCut"),
+      Check (Cuts_Found = 0 and then Boolean_Output (Flow, "NoCut"),
              "cut: none in a whole cup");
       declare
          Graphics : constant String :=
            AMV.Flow.Reports.Graphics_JSON (Flow, Unwrap);
       begin
-         Check (Contains (Graphics, """role"": ""found""")
-                and then Contains (Graphics, """kind"": ""polygon"""),
-                "cut: the editor gets the annulus");
+         Check (Contains (Graphics, """param"": ""Region""")
+                and then Contains (Graphics, """role"": ""region"""),
+                "cut: the editor gets the annulus as an editable region");
       end;
 
-      Flow.Set_Input ("Image", From_Image (Cup (With_Cut => True)));
-      Flow.Run;
-      Check (Flow.Get_Output ("Cuts").Has_Value
-             and then Flow.Get_Output ("Cuts").As_Integer = 1
+      Run_On (320.3, 340.7, With_Cut => True);
+      Check (Cuts_Found = 1
              and then not Boolean_Output (Flow, "NoCut")
              and then Flow.Result = AMV.Tools.Reject
-             and then Contains (Flow.Message, "node 5 (RangeCheck)"),
+             and then Contains (Flow.Message, "node 6 (RangeCheck)"),
              "cut: one found, the flow rejects and says why, not the "
              & "warning before (" & Flow.Message & ")");
 
+      --  The cup elsewhere: the region follows it through the fixture.
+      Run_On (290.0, 320.0, With_Cut => True);
+      Check (Cuts_Found = 1, "cut: found in a cup moved by (-30, -21)");
+      Run_On (290.0, 320.0, With_Cut => False);
+      Check (Cuts_Found = 0, "cut: none in the moved cup without one");
+
       --  All round, the annulus leaves the image.
-      Flow.Set_Param (Unwrap, "AngleSpan", From_Real (360.0));
-      Flow.Run;
+      Flow.Set_Param (Unwrap, "Region", Wall (360.0));
+      Run_On (320.3, 340.7, With_Cut => True);
       Check (Flow.Node (Unwrap).Result = AMV.Tools.Error
              and then Flow.Node (Cuts).State = AMV.Flow.Nodes.Skipped,
              "cut: an annulus outside the image is an error ("
              & Flow.Node (Unwrap).Message & ")");
-      Flow.Set_Param (Unwrap, "AngleSpan", From_Real (260.0));
+      Flow.Set_Param (Unwrap, "Region", Wall (260.0));
       Flow.Set_Param (Lines, "KernelWidth", From_Integer (4));
       Flow.Run;
       Check (Flow.Node (Lines).Result = AMV.Tools.Error
              and then Contains (Flow.Node (Lines).Message, "KernelWidth"),
              "cut: an even kernel is an error ("
              & Flow.Node (Lines).Message & ")");
+
+      declare
+         procedure Not_An_Annulus is
+            C : AMV.Shapes.Ks_Circle;
+         begin
+            Flow.Set_Param (Unwrap, "Region", From_Shape (C));
+         end Not_An_Annulus;
+      begin
+         Expect_Flow_Error ("cut: PolarUnwrap's Region is an annulus",
+                            Not_An_Annulus'Access,
+                            "CircularAnnulusSection");
+      end;
    end Test_Cut;
 
    ---------------------------------------------------------------------
