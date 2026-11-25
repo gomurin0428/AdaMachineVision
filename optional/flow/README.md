@@ -94,7 +94,7 @@ with the same pattern as locate, fixture and measure:
 | Blob | light blobs of at least 200 px at grey 14 and above: the lines on the wall |
 | RangeCheck | Count in [1, 1]: only the cup's seam |
 | RangeCheck | the largest line's Area in [0, 1400]: no line wider than the seam (a cut pulled open) |
-| CsvLog | a row a run into `build/cup_cut_log.csv`: the lines, the largest one's area, both checks, the rim's roundness and the verdict, to set the limits from many cups |
+| CsvLog | a row a run into `build/cup_cut_checks.csv`: the lines, the largest one's area, both checks, the rim's roundness and the verdict, to set the limits from many cups |
 | And | the verdict: both checks pass (output OK; Judge on) |
 | PolarPoint | the largest line, back on the camera image (select it in the editor to see the mark; LineAngle in radians) |
 

@@ -26,7 +26,8 @@ pragma SPARK_Mode (Off);
 --          Angle (radians), Radius : Real (about the annulus' centre, in
 --          its space)
 --     What is found in the strip, back on the image: the editor draws the
---     point on the image (select the node).
+--     point on the image (select the node). X and Y may have no value
+--     (Blob found nothing): the node then gives no point and accepts.
 --
 --  Morphology (AMV.Image_Processing.IP_One_Image, Grey_Morphology_NxM)
 --     in   Image : Image_8_Grey

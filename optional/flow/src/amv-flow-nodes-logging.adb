@@ -70,6 +70,7 @@ package body AMV.Flow.Nodes.Logging is
       Values   : Value_Array;
       Done     : Boolean := False;
       Rows     : Natural := 0;
+      Checked  : Unbounded_String;  --  "<file>|<header>" known to match
    end record;
 
    overriding function Kind_Id (Node : Csv_Log_Node) return String;
@@ -218,6 +219,35 @@ package body AMV.Flow.Nodes.Logging is
       if not Node.Enabled then
          return;
       end if;
+      declare
+         Header : Unbounded_String := To_Unbounded_String ("time");
+      begin
+         for I in 1 .. Node.Count loop
+            Append (Header, "," & Cell (To_String (Node.Names (I))));
+         end loop;
+         --  An existing log with other columns (an older flow's) is not
+         --  appended to: its rows would not match its header.
+         if Ada.Directories.Exists (Full)
+           and then Ada.Directories.Size (Full) > 0
+           and then To_String (Node.Checked) /= Full & "|" & To_String (Header)
+         then
+            Open (File, In_File, Full);
+            declare
+               First : constant String :=
+                 (if End_Of_File (File) then "" else Get_Line (File));
+            begin
+               Close (File);
+               if First /= To_String (Header) then
+                  Set_Result
+                    (Node, AMV.Tools.Error,
+                     Full & " has other columns (" & First
+                     & "): log into another file, or move that one away");
+                  return;
+               end if;
+            end;
+         end if;
+         Node.Checked := Full & "|" & Header;
+      end;
       declare
          Folder : constant String := Ada.Directories.Containing_Directory
            (Ada.Directories.Full_Name (Full));

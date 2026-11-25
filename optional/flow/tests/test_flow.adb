@@ -886,6 +886,19 @@ procedure Test_Flow is
       Check (Cuts_Found = 1, "cut: found in a cup moved by (-30, -21)");
       Run_On (290.0, 320.0, With_Cut => False);
       Check (Cuts_Found = 0, "cut: none in the moved cup without one");
+      Check (Flow.Result /= AMV.Tools.Reject
+             and then Flow.Node (7).State = AMV.Flow.Nodes.Ran
+             and then not Flow.Get_Output ("CutAngle").Has_Value,
+             "cut: nothing found, PolarPoint gives no point and the part "
+             & "passes (" & Flow.Message & ")");
+      --  The strip's region is the one it was made with.
+      Flow.Set_Param (Unwrap, "Region", Wall (250.0));
+      Check_Near
+        (AMV.Shapes.Ks_Circular_Annulus_Section
+           (Flow.Node (Unwrap).Get_Output ("Region").As_Shape).Angle_Span,
+         260.0 * Pi / 180.0, 1.0E-9,
+         "cut: PolarUnwrap's Region is the one of the last run");
+      Flow.Set_Param (Unwrap, "Region", Wall (260.0));
 
       --  All round, the annulus leaves the image.
       Flow.Set_Param (Unwrap, "Region", Wall (360.0));
@@ -1025,6 +1038,16 @@ procedure Test_Flow is
       Flow.Set_Param (Log, "Enabled", From_Boolean (False));
       Flow.Run;
       Check (Natural (Lines.Length) = 3, "log: nothing written when disabled");
+      Flow.Set_Param (Log, "Enabled", From_Boolean (True));
+      Flow.Set_Param (Log, "Columns", From_String ("Found, Roundness"));
+      Flow.Run;
+      Check (Flow.Node (Log).Result = AMV.Tools.Error
+             and then Contains (Flow.Node (Log).Message, "other columns")
+             and then Natural (Lines.Length) = 3,
+             "log: a file with other columns is not appended to ("
+             & Flow.Node (Log).Message & ")");
+      Flow.Set_Param (Log, "Columns",
+                      From_String ("Found, Roundness, Round, Image"));
       Flow.Set_Param (Log, "Enabled", From_Boolean (True));
       --  A folder that is a file: written nowhere, on any system.
       Flow.Set_Param (Log, "Path", From_String (Path & "/x.csv"));
@@ -1221,6 +1244,16 @@ procedure Test_Flow is
              "logic: an error counted");
       Flow.Reset_Counts;
       Check (Flow.Counts.Runs = 0, "logic: the tally reset");
+      --  A range check that does not judge: Pass alone says it.
+      Flow.Link ("input.A", "3.In1");
+      Flow.Link ("2.Pass", "3.In2");
+      Flow.Set_Param (2, "Low", From_Real (0.1));
+      Flow.Set_Param (2, "High", From_Real (0.5));
+      Flow.Set_Param (2, "Judge", From_Boolean (False));
+      Run_With (False, Disc);
+      Check (Flow.Node (2).Result = AMV.Tools.Accept_Result
+             and then not Output ("Either"),
+             "logic: a range check with Judge off only says Pass");
    end Test_Logic;
 
    ---------------------------------------------------------------------

@@ -61,7 +61,7 @@
     {
       "id": 10, "kind": "CsvLog", "name": "Log",
       "ui": {"x": 660.0, "y": 100.0},
-      "params": {"Path": "../../../build/cup_cut_log.csv",
+      "params": {"Path": "../../../build/cup_cut_checks.csv",
                  "Columns": "Lines, LargestArea, OnlyTheSeam, NoWideLine, Roundness, OK",
                  "Enabled": true}
     },

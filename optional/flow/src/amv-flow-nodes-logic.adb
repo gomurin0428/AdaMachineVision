@@ -14,6 +14,7 @@ package body AMV.Flow.Nodes.Logic is
 
    type Range_Check_Node is new Ks_Flow_Node with record
       Low, High : Real := 0.0;
+      Judge     : Boolean := True;
       Value_In  : Ks_Flow_Value;
       Done      : Boolean := False;
       Pass      : Boolean := False;
@@ -43,7 +44,10 @@ package body AMV.Flow.Nodes.Logic is
 
    overriding function Params (Node : Range_Check_Node) return Param_Array is
      [Real_Param_Of ("Low", -Large, Large),
-      Real_Param_Of ("High", -Large, Large)];
+      Real_Param_Of ("High", -Large, Large),
+      Boolean_Param_Of
+        ("Judge", "on: a value out of range rejects the run; off: only "
+         & "Pass says so (for an Or)")];
 
    overriding procedure Set_Param (Node  : in out Range_Check_Node;
                                    Name  : String;
@@ -53,6 +57,8 @@ package body AMV.Flow.Nodes.Logic is
          Node.Low := Value.As_Real;
       elsif Name = "High" then
          Node.High := Value.As_Real;
+      elsif Name = "Judge" then
+         Node.Judge := Value.As_Boolean;
       else
          raise Ks_Flow_Exception with
            "RangeCheck has no parameter """ & Name & """";
@@ -66,6 +72,8 @@ package body AMV.Flow.Nodes.Logic is
          return From_Real (Node.Low);
       elsif Name = "High" then
          return From_Real (Node.High);
+      elsif Name = "Judge" then
+         return From_Boolean (Node.Judge);
       end if;
       raise Ks_Flow_Exception with
         "RangeCheck has no parameter """ & Name & """";
@@ -100,7 +108,7 @@ package body AMV.Flow.Nodes.Logic is
       end if;
       Node.Done := True;
       Node.Pass := Value >= Node.Low and then Value <= Node.High;
-      if not Node.Pass then
+      if not Node.Pass and then Node.Judge then
          Set_Result
            (Node, AMV.Tools.Reject,
             AMV.Flow.JSON.Number_Image (Value) & " is outside ["

@@ -31,6 +31,7 @@ package body AMV.Flow.Nodes.Imaging is
       Tool     : PU.Ks_Polar_Unwrap_Tool;
       Image_In : Ks_Flow_Value;
       Region   : Ks_Flow_Value;
+      Used     : Ks_Flow_Value;  --  the region of the last unwrap
       Got      : Boolean := False;
    end record;
 
@@ -113,6 +114,7 @@ package body AMV.Flow.Nodes.Imaging is
       Node.Tool.Input_Image := Node.Image_In.As_Image;
       Node.Tool.Region :=
         AMV.Shapes.Ks_Circular_Annulus_Section (Node.Region.As_Shape);
+      Node.Used := Node.Region;
       Node.Tool.Run;
       Take_Status (Node, Node.Tool.Run_Status);
       Node.Got := Result (Node) /= AMV.Tools.Error;
@@ -125,7 +127,9 @@ package body AMV.Flow.Nodes.Imaging is
          return (if Node.Got then From_Image (Node.Tool.Output_Image)
                  else No_Value);
       elsif Port = "Region" then
-         return (if Node.Got then Node.Region else No_Value);
+         --  The region the strip was made with, even when the parameter
+         --  has changed since.
+         return (if Node.Got then Node.Used else No_Value);
       end if;
       Unknown ("PolarUnwrap", "output", Port);
    end Get_Output;
@@ -152,6 +156,8 @@ package body AMV.Flow.Nodes.Imaging is
       Image_In  : Ks_Flow_Value;
       Region_In : Ks_Flow_Value;
       SX, SY    : Real := 0.0;  --  in the strip
+      Has_X     : Boolean := False;  --  a value came this run
+      Has_Y     : Boolean := False;
       Got       : Boolean := False;
       X, Y      : Real := 0.0;  --  in the image's selected space
       Angle     : Real := 0.0;
@@ -179,8 +185,9 @@ package body AMV.Flow.Nodes.Imaging is
      [In_Port ("Image", Image_8_Grey_Type,
                Help => "the image PolarUnwrap unwrapped"),
       In_Port ("Region", Shape_Type, Help => "PolarUnwrap's Region"),
-      In_Port ("X", Real_Type, Help => "in the strip"),
-      In_Port ("Y", Real_Type, Help => "in the strip"),
+      In_Port ("X", Real_Type, Required => False,
+               Help => "in the strip; none (nothing found): no point"),
+      In_Port ("Y", Real_Type, Required => False, Help => "in the strip"),
       Out_Port ("X", Real_Type, "in the image's selected space"),
       Out_Port ("Y", Real_Type, "in the image's selected space"),
       Out_Port ("Angle", Real_Type,
@@ -209,9 +216,15 @@ package body AMV.Flow.Nodes.Imaging is
       elsif Port = "Region" then
          Node.Region_In := Value;
       elsif Port = "X" then
-         Node.SX := Value.As_Real;
+         Node.Has_X := Value.Has_Value;  --  none: nothing found upstream
+         if Value.Has_Value then
+            Node.SX := Value.As_Real;
+         end if;
       elsif Port = "Y" then
-         Node.SY := Value.As_Real;
+         Node.Has_Y := Value.Has_Value;
+         if Value.Has_Value then
+            Node.SY := Value.As_Real;
+         end if;
       else
          Unknown ("PolarPoint", "input", Port);
       end if;
@@ -221,6 +234,8 @@ package body AMV.Flow.Nodes.Imaging is
    begin
       Node.Image_In := No_Value;
       Node.Region_In := No_Value;
+      Node.Has_X := False;
+      Node.Has_Y := False;
       Node.Got := False;
    end Clear_Inputs;
 
@@ -231,6 +246,9 @@ package body AMV.Flow.Nodes.Imaging is
       RX, RY : Real;
    begin
       Node.Got := False;
+      if not (Node.Has_X and Node.Has_Y) then
+         return;  --  nothing found: no point, and not a failed run
+      end if;
       if Node.Region_In.As_Shape
            not in AMV.Shapes.Ks_Circular_Annulus_Section'Class
       then

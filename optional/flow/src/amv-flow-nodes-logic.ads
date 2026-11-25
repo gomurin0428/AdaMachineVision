@@ -5,8 +5,9 @@ pragma SPARK_Mode (Off);
 --  RangeCheck
 --     in   Value : Real
 --     out  Pass : Boolean (Low <= Value <= High)
---     params  Low, High
---     Out of range: Pass is False and the result is Reject. Low > High:
+--     params  Low, High, Judge (default on)
+--     Out of range: Pass is False and, with Judge on, the result is
+--     Reject (off: Pass alone says it, for an Or of checks). Low > High:
 --     Error.
 --
 --  And, Or
