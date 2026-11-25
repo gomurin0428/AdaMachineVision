@@ -714,6 +714,24 @@ package body AMV.Flow.Graphs is
       return Flow.Outputs (I).Value;
    end Get_Output;
 
+   function Value_Into (Flow : Ks_Flow; Id : Positive; Port : String)
+                        return AMV.Flow.Values.Ks_Flow_Value
+   is
+      Into   : constant Natural :=
+        Link_Into (Flow, (Node => Id, Port => U (Port)));
+      Reason : Unbounded_String;
+   begin
+      if Into = 0 or else not Flow.Nodes.Contains (Id) then
+         return No_Value;
+      end if;
+      declare
+         Value : constant Ks_Flow_Value :=
+           Source_Value (Flow, Flow.Links (Into).From, Reason);
+      begin
+         return (if Length (Reason) = 0 then Value else No_Value);
+      end;
+   end Value_Into;
+
    ---------------------------------------------------------------------
    --  Flow files
    ---------------------------------------------------------------------
@@ -815,6 +833,62 @@ package body AMV.Flow.Graphs is
       return W.Text & ASCII.LF;
    end To_JSON;
 
+   function JSON_Param_Value (Doc : AMV.Flow.JSON.Document;
+                              N   : J_Node;
+                              P   : Param_Descriptor) return Ks_Flow_Value
+   is
+      use AMV.Flow.JSON;
+   begin
+      case P.Kind is
+         when Real_Param =>
+            return From_Real (Number_Value (Doc, N));
+         when Integer_Param =>
+            declare
+               X : constant Long_Float := Number_Value (Doc, N);
+            begin
+               if X /= Long_Float'Floor (X) or else abs X > 1.0E15 then
+                  raise Ks_Flow_Exception with "a whole number is needed";
+               end if;
+               return From_Integer (Long_Long_Integer (X));
+            end;
+         when Boolean_Param =>
+            return From_Boolean (Boolean_Value (Doc, N));
+         when Choice_Param | String_Param =>
+            return From_String (String_Value (Doc, N));
+         when Shape_Param =>
+            return From_Shape (Read_Shape (Doc, N));
+      end case;
+   end JSON_Param_Value;
+   --  A parameter's value from its JSON, as the descriptor's kind wants.
+
+   procedure Set_Param_JSON (Flow       : in out Ks_Flow;
+                             Id         : Positive;
+                             Name       : String;
+                             Value_JSON : String)
+   is
+      Doc   : AMV.Flow.JSON.Document;
+      N     : constant Node_Access := Node (Flow, Id);
+      Index : constant Natural := Find_Param (N.all, Name);
+   begin
+      if Index = 0 then
+         raise Ks_Flow_Exception with
+           Describe (Flow, Id) & " has no parameter """ & Name & """";
+      end if;
+      AMV.Flow.JSON.Parse (Doc, Value_JSON);
+      declare
+         All_Params : constant Param_Array := N.Params;
+      begin
+         Set_Param (Flow, Id, Name,
+                    JSON_Param_Value (Doc, AMV.Flow.JSON.Root (Doc),
+                                      All_Params (Index)));
+      end;
+   exception
+      when E : AMV.Ks_Bad_Parameter_Exception | AMV.Ks_Exception =>
+         raise Ks_Flow_Exception with
+           Describe (Flow, Id) & " parameter " & Name & ": "
+           & Ada.Exceptions.Exception_Message (E);
+   end Set_Param_JSON;
+
    procedure From_JSON (Flow           : in out Ks_Flow;
                         Text           : String;
                         Base_Directory : String := "")
@@ -865,20 +939,7 @@ package body AMV.Flow.Graphs is
 
       function Param_Value (N : J_Node; P : Param_Descriptor)
                             return Ks_Flow_Value is
-      begin
-         case P.Kind is
-            when Real_Param =>
-               return From_Real (Number_Value (Doc, N));
-            when Integer_Param =>
-               return From_Integer (Whole (N, "the value"));
-            when Boolean_Param =>
-               return From_Boolean (Boolean_Value (Doc, N));
-            when Choice_Param | String_Param =>
-               return From_String (String_Value (Doc, N));
-            when Shape_Param =>
-               return From_Shape (Read_Shape (Doc, N));
-         end case;
-      end Param_Value;
+        (JSON_Param_Value (Doc, N, P));
 
       procedure Read_Interface (List_Name : String; Input : Boolean) is
          List : constant J_Node := Member (Doc, Root (Doc), List_Name);

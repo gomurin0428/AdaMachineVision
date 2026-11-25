@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow prove prove-aravis mutation mutation-diff clean
+	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow build-flow-c test-flow-c prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -107,6 +107,20 @@ build-flow:
 test-flow:
 	$(GPRBUILD) -p -P optional/flow/tests/amv_flow_tests.gpr
 	./build/bin/test_flow
+
+# The engine as the shared library amvflow with its C API
+# (optional/flow/include/amv_flow.h), and the C tests of that API (they
+# read the flow file that test-flow writes).
+build-flow-c:
+	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c.gpr
+
+test-flow-c: test-flow build-flow-c
+	$(GPRBUILD) -p -P optional/flow/capi/tests/amv_flow_c_tests.gpr
+ifeq ($(OS),Windows_NT)
+	@PATH="$(CURDIR)/build/flow-c-lib:$$PATH" ./build/bin/test_amvf.exe
+else
+	LD_LIBRARY_PATH="$(CURDIR)/build/flow-c-lib:$$LD_LIBRARY_PATH" ./build/bin/test_amvf
+endif
 
 example-aravis: build-aravis
 	@test -n "$(CAMERA_ID)" || { \

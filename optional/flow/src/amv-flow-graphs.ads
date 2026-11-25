@@ -97,6 +97,13 @@ package AMV.Flow.Graphs is
    --  Sets a parameter (AMV.Flow.Nodes.Set_Param_Checked) and prepares the
    --  node again (a ShapeMatch retrains).
 
+   procedure Set_Param_JSON (Flow       : in out Ks_Flow;
+                             Id         : Positive;
+                             Name       : String;
+                             Value_JSON : String);
+   --  Set_Param with the value written in JSON as in a flow file (a
+   --  number, true / false, a string or a shape object).
+
    procedure Prepare (Flow : in out Ks_Flow);
    --  Prepares every node (AMV.Flow.Nodes.Prepare) with Base_Directory.
 
@@ -151,6 +158,12 @@ package AMV.Flow.Graphs is
                         return AMV.Flow.Values.Ks_Flow_Value;
    --  After Run: the value of a flow output (No_Value when its source did
    --  not give one).
+
+   function Value_Into (Flow : Ks_Flow; Id : Positive; Port : String)
+                        return AMV.Flow.Values.Ks_Flow_Value;
+   --  What the link into the node's input port carries now: after a run,
+   --  what the node took. No_Value when the port has no link or its source
+   --  gave nothing.
 
    ---------------------------------------------------------------------
    --  Flow files (docs/FLOW_EDITOR_DESIGN.md 5)
