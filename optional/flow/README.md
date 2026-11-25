@@ -33,13 +33,17 @@ image each node made (PolarUnwrap's strip, Morphology's result, ...) into
 | `AMV.Flow.Values` | the values of ports and parameters; shapes in flow files |
 | `AMV.Flow.Nodes` | the node interface: ports, parameters, `Run`, status |
 | `AMV.Flow.Nodes.Vision` | ShapeMatch, Fixture, Caliper, Blob, Circularity |
-| `AMV.Flow.Nodes.Imaging` | PolarUnwrap (an annulus about a circle into a strip), Morphology (grey erosion, dilation, opening, closing and the top-hats) |
+| `AMV.Flow.Nodes.Imaging` | PolarUnwrap (an annulus about a circle into a strip), PolarPoint (a point of that strip back on the image), Morphology (grey erosion, dilation, opening, closing and the top-hats) |
 | `AMV.Flow.Circularity` | the cup measure (outer edge along 720 rays, roundness); also used by `examples/live_circularity` |
 | `AMV.Flow.Nodes.Camera` | Camera, in `camera/` (`amv_flow_camera.gpr`): needs Aravis |
-| `AMV.Flow.Nodes.Logic` | RangeCheck |
+| `AMV.Flow.Nodes.Logic` | RangeCheck; And, Or (In1 .. In4, Judge: a False verdict rejects the run), Not |
 | `AMV.Flow.Nodes.Logging` | CsvLog: a row per run, of the values linked into it (its inputs are of type Any) |
 | `AMV.Flow.Kinds` | the node kinds by name |
 | `AMV.Flow.Graphs` | `Ks_Flow`: nodes, links, checks, `Run`, flow files |
+
+A flow counts its runs by result (`Counts`, `Reset_Counts`; `"counts"` in
+the results JSON, `amvf_flow_reset_counts` in the C API): a pass / fail
+tally, which the editor shows.
 
 A flow runs its nodes in topological order (ties by ascending node id).
 A node whose source failed or gave no value is skipped (an optional
@@ -90,7 +94,9 @@ with the same pattern as locate, fixture and measure:
 | Blob | light blobs of at least 200 px at grey 14 and above: the lines on the wall |
 | RangeCheck | Count in [1, 1]: only the cup's seam |
 | RangeCheck | the largest line's Area in [0, 1400]: no line wider than the seam (a cut pulled open) |
-| CsvLog | a row a run into `build/cup_cut_log.csv`: the lines, the largest one's area, both checks and the rim's roundness, to set the limits from many cups |
+| CsvLog | a row a run into `build/cup_cut_log.csv`: the lines, the largest one's area, both checks, the rim's roundness and the verdict, to set the limits from many cups |
+| And | the verdict: both checks pass (output OK; Judge on) |
+| PolarPoint | the largest line, back on the camera image (select it in the editor to see the mark; LineAngle in radians) |
 
 A paper cup has one seam, a line down its wall, and from above it looks
 like a fresh cut: on the GE134GC frames the seam is a line of 1005 px

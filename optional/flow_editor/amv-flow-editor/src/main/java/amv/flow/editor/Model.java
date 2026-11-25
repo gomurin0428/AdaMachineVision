@@ -76,9 +76,15 @@ final class Model {
     record NodeResult(String state, String result, String message, double timeMs, Map<String, Object> outputs) {
     }
 
-    record Results(String result, String message, Map<Long, NodeResult> nodes, Map<String, Object> outputs) {
+    record Results(String result, String message, Map<Long, NodeResult> nodes, Map<String, Object> outputs,
+            Map<String, Object> counts) {
 
-        static final Results NONE = new Results("", "", Map.of(), Map.of());
+        static final Results NONE = new Results("", "", Map.of(), Map.of(), Map.of());
+
+        /** The runs counted with the given result ("runs", "accept", "warning", "reject", "error"). */
+        int count(String key) {
+            return counts.get(key) instanceof Double d ? d.intValue() : 0;
+        }
 
         static Results parse(String json) {
             Map<String, Object> root = Json.object(Json.parse(json));
@@ -91,7 +97,8 @@ final class Model {
                                 Json.object(n.get("outputs"))));
             }
             return new Results(Json.string(root.get("result")), Json.string(root.get("message")), nodes,
-                    Json.object(root.get("outputs")));
+                    Json.object(root.get("outputs")),
+                    root.get("counts") == null ? Map.of() : Json.object(root.get("counts")));
         }
     }
 

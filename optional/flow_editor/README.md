@@ -88,7 +88,8 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
   **Live** (F6) runs it again and again, so that a flow starting with a
   Camera node shows each new frame, or one with an image input steps
   through the folder (edits made meanwhile apply at once); add flow inputs
-  and outputs.
+  and outputs; the tally of the runs (OK: accepted or warned, NG: rejected
+  or failed) and **Reset counts**.
 * **Flow zoom**: Ctrl + wheel over the flow; Ctrl+0 back to 100 %.
 
 Not yet: a polygon region, the C API's
