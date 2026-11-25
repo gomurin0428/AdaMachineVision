@@ -2,9 +2,10 @@
   "format": 1,
   "name": "cup cut (camera)",
   "outputs": [
-    {"name": "Cuts", "type": "Integer"},
-    {"name": "CutArea", "type": "Real"},
-    {"name": "NoCut", "type": "Boolean"}
+    {"name": "Lines", "type": "Integer"},
+    {"name": "LargestArea", "type": "Real"},
+    {"name": "OnlyTheSeam", "type": "Boolean"},
+    {"name": "NoWideLine", "type": "Boolean"}
   ],
   "nodes": [
     {
@@ -41,14 +42,19 @@
       "params": {"Operation": "Dilate", "KernelWidth": 7, "KernelHeight": 7}
     },
     {
-      "id": 7, "kind": "Blob", "name": "Cuts",
+      "id": 7, "kind": "Blob", "name": "Lines",
       "ui": {"x": 440.0, "y": 80.0},
       "params": {"Threshold": 14, "Polarity": "Light", "MinArea": 200.0}
     },
     {
-      "id": 8, "kind": "RangeCheck", "name": "No cut",
-      "ui": {"x": 440.0, "y": 240.0},
-      "params": {"Low": 0.0, "High": 0.0}
+      "id": 8, "kind": "RangeCheck", "name": "Only the seam",
+      "ui": {"x": 440.0, "y": 235.0},
+      "params": {"Low": 1.0, "High": 1.0}
+    },
+    {
+      "id": 9, "kind": "RangeCheck", "name": "No wide line",
+      "ui": {"x": 220.0, "y": 255.0},
+      "params": {"Low": 0.0, "High": 1400.0}
     }
   ],
   "links": [
@@ -60,8 +66,10 @@
     {"from": "5.Image", "to": "6.Image"},
     {"from": "6.Image", "to": "7.Image"},
     {"from": "7.Count", "to": "8.Value"},
-    {"from": "7.Count", "to": "output.Cuts"},
-    {"from": "7.Area", "to": "output.CutArea"},
-    {"from": "8.Pass", "to": "output.NoCut"}
+    {"from": "7.Area", "to": "9.Value"},
+    {"from": "7.Count", "to": "output.Lines"},
+    {"from": "7.Area", "to": "output.LargestArea"},
+    {"from": "8.Pass", "to": "output.OnlyTheSeam"},
+    {"from": "9.Pass", "to": "output.NoWideLine"}
   ]
 }

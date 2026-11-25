@@ -85,15 +85,23 @@ with the same pattern as locate, fixture and measure:
 | PolarUnwrap | Region: an annulus in "Cup" (radii 326 to 414 px, all round) over the side wall and the rim, unwrapped into a strip |
 | Morphology | CloseMinusOriginal, 15 x 1: what is darker than its neighbours along the circle and narrower than 15 px (a cut crossing the wall) becomes light; shading round the cup and the edges of the rim and the bottom do not |
 | Morphology | Dilate, 7 x 7: joins the pieces of one cut (an opened cut has two edges, broken in places) |
-| Blob | light blobs of at least 200 px at grey 14 and above: the cuts |
-| RangeCheck | Count in [0, 0]: no cut, else Reject |
+| Blob | light blobs of at least 200 px at grey 14 and above: the lines on the wall |
+| RangeCheck | Count in [1, 1]: only the cup's seam |
+| RangeCheck | the largest line's Area in [0, 1400]: no line wider than the seam (a cut pulled open) |
 
-On a GE134GC frame of a cup with one cut, the cut is one blob of 936 px;
-on one with the cut pulled open and a second thin line from the rim down
-(a seam or a second cut), two blobs. Nothing else reached 100 px. The annulus must lie inside the image: for a cup that the image
-cuts off, drag the annulus' round handles in the editor to leave that
-part out. A seam or printing on the side wall would also be a dark line:
-check uncut cups before relying on the thresholds.
+A paper cup has one seam, a line down its wall, and from above it looks
+like a fresh cut: on the GE134GC frames the seam is a line of 1005 px
+(after the dilation), a fresh cut one of 936 px, and both mark the rim's
+edge (the seam even more, 11 px against 4). So the flow does not tell a
+line from a cut; it expects exactly one line, the seam: two or more is a
+cut, none means the seam was not seen (the light, the region) and is a
+reject too. A cut pulled open is wider (1748 px) and fails the second
+check even where it is the only line found; a fresh cut on the seam
+itself would join it and pass. Measured on a single cup: set
+the limits from a few uncut and cut cups before relying on them. The
+seam must be inside the annulus, so the annulus goes all round: the whole
+cup must be in the image (else PolarUnwrap stops with an error; a part of
+the cup left out could hide the seam, and one cut would pass for it).
 
 ## Not done yet
 
