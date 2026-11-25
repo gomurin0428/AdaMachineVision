@@ -131,6 +131,23 @@ int main(void) {
     check(strstr(results, "\"runs\": 2, \"accept\": 2") != NULL,
           "results: two runs counted");
     free(results);
+    {
+        /* A recipe round trip: the Blob's threshold changed, then put back. */
+        int64_t need = 0;
+        amvf_flow_recipe_json(flow, "A", NULL, 0, &need, &st);
+        check_ok(&st, "recipe size");
+        char *recipe = malloc((size_t)need);
+        amvf_flow_recipe_json(flow, "A", recipe, need, &need, &st);
+        check_ok(&st, "recipe");
+        check(strstr(recipe, "\"recipe\": \"A\"") != NULL, "recipe: named");
+        amvf_flow_apply_recipe(flow, "{\"format\": 1, \"params\": {\"1.Threshold\": 77}}", &st);
+        check_ok(&st, "apply a recipe");
+        amvf_flow_apply_recipe(flow, "{\"format\": 1, \"params\": {\"8.Low\": 1}}", &st);
+        check(st.failure == AMVF_FAILURE_FLOW, "apply a recipe for another flow fails");
+        amvf_flow_apply_recipe(flow, recipe, &st);
+        check_ok(&st, "apply the saved recipe");
+        free(recipe);
+    }
     amvf_flow_reset_counts(flow, &st);
     check_ok(&st, "reset the counts");
     results = fetch(amvf_flow_results_json, flow, "results");

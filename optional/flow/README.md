@@ -14,6 +14,7 @@ build/bin/amv_flow kinds         # the node kinds, their ports and parameters
 build/bin/amv_flow check part.amvflow
 build/bin/amv_flow run part.amvflow scene1.bmp scene2.bmp
 build/bin/amv_flow run --images out part.amvflow scene1.bmp   # and each node's image
+build/bin/amv_flow run --recipe productB.amvrecipe part.amvflow scene1.bmp
 ```
 
 `run` takes a flow with one `Image_8_Grey` input and prints one CSV line
@@ -41,6 +42,13 @@ image each node made (PolarUnwrap's strip, Morphology's result, ...) into
 | `AMV.Flow.Nodes.Logging` | CsvLog: a row per run, of the values linked into it (its inputs are of type Any) |
 | `AMV.Flow.Kinds` | the node kinds by name |
 | `AMV.Flow.Graphs` | `Ks_Flow`: nodes, links, checks, `Run`, flow files |
+
+A recipe is one product's settings for a flow: the value of every
+parameter of every node, `{"format": 1, "recipe", "flow", "params":
+{"<node id>.<parameter>": value}}` (`Recipe_JSON`). `Apply_Recipe` sets
+the parameters a recipe names, all or nothing, so that one flow serves
+several products (`amvf_flow_recipe_json`, `amvf_flow_apply_recipe`;
+`--recipe` for `amv_flow run`; Save / Load recipe in the editor).
 
 A flow counts its runs by result (`Counts`, `Reset_Counts`; `"counts"` in
 the results JSON, `amvf_flow_reset_counts` in the C API): a pass / fail

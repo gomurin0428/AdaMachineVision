@@ -89,7 +89,9 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
   Camera node shows each new frame, or one with an image input steps
   through the folder (edits made meanwhile apply at once); add flow inputs
   and outputs; the tally of the runs (OK: accepted or warned, NG: rejected
-  or failed) and **Reset counts**.
+  or failed) and **Reset counts**; **Save recipe…** writes every
+  parameter of every node to an `.amvrecipe` file (one product's
+  settings), **Load recipe…** sets them again (Undo takes it back).
 * **Flow zoom**: Ctrl + wheel over the flow; Ctrl+0 back to 100 %.
 
 Not yet: a polygon region, the C API's

@@ -202,6 +202,18 @@ package AMV.Flow.Graphs is
    --  Ks_Flow_Exception for anything that is not a valid flow (the message
    --  says where); the flow is then left as it was.
 
+   function Recipe_JSON (Flow : Ks_Flow; Name : String) return String;
+   --  A recipe: the value of every parameter of every node, to switch the
+   --  flow from one product to another without changing its nodes:
+   --  {"format": 1, "recipe": Name, "flow": the flow's name,
+   --   "params": {"<node id>.<parameter>": value, ...}}
+
+   procedure Apply_Recipe (Flow : in out Ks_Flow; Text : String);
+   --  Sets the parameters a recipe names (others keep their values). A
+   --  recipe that names a node or parameter the flow does not have, or a
+   --  value a node cannot take: Ks_Flow_Exception, and the flow is left
+   --  as it was.
+
    procedure Save (Flow : Ks_Flow; Path : String);
    procedure Load (Flow : in out Ks_Flow; Path : String);
    --  Load sets Base_Directory to the file's directory. Ks_Flow_Exception

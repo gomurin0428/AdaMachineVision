@@ -467,6 +467,38 @@ package body AMV.Flow.C_API is
          Fail_From (Status, E);
    end Flow_Reset_Counts;
 
+   procedure Flow_Recipe_JSON
+     (Flow   : System.Address; Name : chars_ptr; Buffer : System.Address;
+      Capacity : Integer_64; Needed : out Integer_64;
+      Status : out Amvf_Status)
+   is
+      Size : Integer_64 := 0;
+   begin
+      OK (Status);
+      declare
+         Text_Out : constant String :=
+           Get (Flow).Recipe_JSON (Text (Name, "the name"));
+      begin
+         Size := Integer_64 (Text_Out'Length) + 1;
+         Put_Text (Text_Out, Buffer, Capacity);
+      end;
+      Needed := Size;
+   exception
+      when E : others =>
+         Needed := Size;
+         Fail_From (Status, E);
+   end Flow_Recipe_JSON;
+
+   procedure Flow_Apply_Recipe
+     (Flow : System.Address; Text : chars_ptr; Status : out Amvf_Status) is
+   begin
+      OK (Status);
+      Get (Flow).Apply_Recipe (C_API.Text (Text, "the recipe"));
+   exception
+      when E : others =>
+         Fail_From (Status, E);
+   end Flow_Apply_Recipe;
+
    procedure Flow_Results_JSON
      (Flow   : System.Address; Buffer : System.Address;
       Capacity : Integer_64; Needed : out Integer_64;

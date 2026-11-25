@@ -1401,6 +1401,75 @@ procedure Test_Flow is
    end Test_Measure;
 
    ---------------------------------------------------------------------
+   --  Recipes
+   ---------------------------------------------------------------------
+
+   procedure Test_Recipe is
+      Flow   : AMV.Flow.Graphs.Ks_Flow;
+      Region : AMV.Shapes.Ks_Circle;
+
+      function Threshold return Long_Long_Integer is
+        (Flow.Node (1).Get_Param ("Threshold").As_Integer);
+
+      procedure Apply (Text : String) is
+      begin
+         Flow.Apply_Recipe (Text);
+      end Apply;
+
+      procedure Unknown_Node is
+      begin
+         Apply ("{""format"": 1, ""params"": {""1.Threshold"": 77, "
+                & """9.Low"": 1}}");
+      end Unknown_Node;
+
+      procedure Bad_Value is
+      begin
+         Apply ("{""format"": 1, ""params"": {""1.Threshold"": 77, "
+                & """2.Low"": ""high""}}");
+      end Bad_Value;
+
+      procedure Not_A_Recipe is
+      begin
+         Apply ("{""params"": {}}");
+      end Not_A_Recipe;
+   begin
+      Check (Flow.Add_Node ("Blob") = 1, "recipe: node 1");
+      Check (Flow.Add_Node ("RangeCheck") = 2, "recipe: node 2");
+      Flow.Set_Param (1, "Threshold", From_Integer (40));
+      Region.Set_Center_Radius (10.0, 20.0, 5.5);
+      Flow.Set_Param (1, "Region", From_Shape (Region));
+      Flow.Set_Param (2, "High", From_Real (3.5));
+      declare
+         A : constant String := Flow.Recipe_JSON ("product A");
+      begin
+         Check (Contains (A, """recipe"": ""product A""")
+                and then Contains (A, """1.Threshold"": 40")
+                and then Contains (A, """2.High"": 3.5")
+                and then Contains (A, """1.Region"": {""shape"": ""Circle"""),
+                "recipe: every parameter, by node id (" & A & ")");
+         Flow.Set_Param (1, "Threshold", From_Integer (90));
+         Flow.Set_Param (2, "High", From_Real (9.0));
+         Apply (A);
+         Check (Threshold = 40
+                and then Flow.Node (2).Get_Param ("High").As_Real = 3.5,
+                "recipe: applied, the values come back");
+      end;
+      Apply ("{""format"": 1, ""params"": {""1.Threshold"": 120}}");
+      Check (Threshold = 120
+             and then Flow.Node (2).Get_Param ("High").As_Real = 3.5,
+             "recipe: only the parameters it names change");
+
+      Expect_Flow_Error ("recipe: a node the flow does not have",
+                         Unknown_Node'Access, "no node 9");
+      Check (Threshold = 120, "recipe: all or nothing (a missing node)");
+      Expect_Flow_Error ("recipe: a value of the wrong type",
+                         Bad_Value'Access, "Low");
+      Check (Threshold = 120, "recipe: all or nothing (a bad value)");
+      Expect_Flow_Error ("recipe: not a recipe", Not_A_Recipe'Access,
+                         "format");
+   end Test_Recipe;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -1463,6 +1532,7 @@ begin
    Test_Kept;
    Test_Logic;
    Test_Measure;
+   Test_Recipe;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

@@ -15,7 +15,7 @@ package AMV.Flow.C_API is
    use Interfaces.C;
    use Interfaces.C.Strings;
 
-   C_ABI_Version      : constant := 2;  --  AMVF_ABI_VERSION
+   C_ABI_Version      : constant := 3;  --  AMVF_ABI_VERSION
    Max_Message_Length : constant := 1023;
 
    Failure_None          : constant := 0;
@@ -139,6 +139,16 @@ package AMV.Flow.C_API is
    procedure Flow_Reset_Counts
      (Flow : System.Address; Status : out Amvf_Status)
      with Export, Convention => C, External_Name => "amvf_flow_reset_counts";
+
+   procedure Flow_Recipe_JSON
+     (Flow   : System.Address; Name : chars_ptr; Buffer : System.Address;
+      Capacity : Integer_64; Needed : out Integer_64;
+      Status : out Amvf_Status)
+     with Export, Convention => C, External_Name => "amvf_flow_recipe_json";
+
+   procedure Flow_Apply_Recipe
+     (Flow : System.Address; Text : chars_ptr; Status : out Amvf_Status)
+     with Export, Convention => C, External_Name => "amvf_flow_apply_recipe";
 
    procedure Flow_Results_JSON
      (Flow   : System.Address; Buffer : System.Address;

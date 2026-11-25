@@ -26,7 +26,7 @@ import java.nio.file.Path;
 @SuppressWarnings("restricted")
 final class AmvFlowNative {
 
-    static final int ABI_VERSION = 2;
+    static final int ABI_VERSION = 3;
     static final int MAX_MESSAGE_LENGTH = 1023;
 
     static final StructLayout STATUS = MemoryLayout.structLayout(
@@ -100,6 +100,10 @@ final class AmvFlowNative {
     static final MethodHandle FLOW_RUN = find("amvf_flow_run", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
     static final MethodHandle FLOW_RESET_COUNTS =
             find("amvf_flow_reset_counts", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+    static final MethodHandle FLOW_RECIPE_JSON = find("amvf_flow_recipe_json",
+            FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS));
+    static final MethodHandle FLOW_APPLY_RECIPE =
+            find("amvf_flow_apply_recipe", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS));
     static final MethodHandle FLOW_RESULTS_JSON = find("amvf_flow_results_json", FLOW_TEXT);
     static final MethodHandle NODE_GRAPHICS_JSON = find("amvf_node_graphics_json",
             FunctionDescriptor.ofVoid(ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS));

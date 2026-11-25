@@ -355,6 +355,14 @@ public final class EditorApp extends Application {
         addInput.setOnAction(e -> addPort(true));
         Button addOutput = new Button("Add output…");
         addOutput.setOnAction(e -> addPort(false));
+        Button saveRecipe = new Button("Save recipe…");
+        saveRecipe.setTooltip(new javafx.scene.control.Tooltip(
+                "Save every parameter of every node as a recipe (one product's settings)"));
+        saveRecipe.setOnAction(e -> saveRecipe());
+        Button loadRecipe = new Button("Load recipe…");
+        loadRecipe.setTooltip(new javafx.scene.control.Tooltip(
+                "Set the parameters a recipe holds (another product's settings); Undo takes it back"));
+        loadRecipe.setOnAction(e -> loadRecipe());
         Button resetCounts = new Button("Reset counts");
         resetCounts.setTooltip(new javafx.scene.control.Tooltip("Count the runs from zero again"));
         resetCounts.setOnAction(e -> act(f -> {
@@ -366,7 +374,7 @@ public final class EditorApp extends Application {
         result.setPadding(new Insets(0, 0, 0, 16));
         return new ToolBar(newFlow, open, save, saveAs, new Separator(), undo, redo, new Separator(), image,
                 openFolder, previous, next, run, liveButton, new Separator(), addInput, addOutput,
-                new Separator(), tally, resetCounts, result);
+                new Separator(), saveRecipe, loadRecipe, new Separator(), tally, resetCounts, result);
     }
 
     private VBox palette() {
@@ -414,6 +422,53 @@ public final class EditorApp extends Application {
                 new FileChooser.ExtensionFilter("All files", "*.*"));
         chooser.setInitialDirectory(new File(System.getProperty("user.dir")));
         return chooser;
+    }
+
+    private FileChooser recipeChooser(String title) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(title);
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("AMV recipes (*.amvrecipe)", "*.amvrecipe"));
+        File dir = flowFile != null ? flowFile.getParent().toFile() : new File(System.getProperty("user.dir"));
+        if (dir.isDirectory()) {
+            chooser.setInitialDirectory(dir);
+        }
+        return chooser;
+    }
+
+    private void saveRecipe() {
+        File file = recipeChooser("Save a recipe").showSaveDialog(stage);
+        if (file == null) {
+            return;
+        }
+        Path path = file.toPath().toAbsolutePath();
+        String name = path.getFileName().toString().replaceFirst("\\.amvrecipe$", "");
+        act(f -> {
+            try {
+                Files.writeString(path, f.recipeJson(name));
+            } catch (java.io.IOException e) {
+                throw new AmvFlowException(0, "cannot write " + path + ": " + e.getMessage());
+            }
+            Platform.runLater(() -> showStatus("Saved the recipe " + path, false));
+            return null;
+        }, false, false);
+    }
+
+    private void loadRecipe() {
+        File file = recipeChooser("Load a recipe").showOpenDialog(stage);
+        if (file == null) {
+            return;
+        }
+        Path path = file.toPath().toAbsolutePath();
+        act(f -> {
+            String text;
+            try {
+                text = Files.readString(path);
+            } catch (java.io.IOException e) {
+                throw new AmvFlowException(0, "cannot read " + path + ": " + e.getMessage());
+            }
+            f.applyRecipe(text);
+            return null;
+        }, true);
     }
 
     private FileChooser csvChooser() {
