@@ -1,12 +1,15 @@
 pragma SPARK_Mode (Off);
 
+with AMV.GigE_Vision_Bayer;
 with AMV.Images.Kernel_Images;
 with AMV.Kernels.Images;
 with AMV.Kernels.GigE_Vision;
 
 package body AMV.GigE_Vision is
    package Engine renames AMV.Kernels.GigE_Vision;
+   package Bayer renames AMV.GigE_Vision_Bayer;
    package T renames AMV.GigE_Vision_Types;
+   use type T.Frame_Status;
 
    procedure Raise_Camera_Status (Status : T.Camera_Status) is
    begin
@@ -40,7 +43,8 @@ package body AMV.GigE_Vision is
          when T.Frame_Unsupported_Payload =>
             raise AMV.Ks_Exception with "Unsupported camera payload";
          when T.Frame_Unsupported_Format =>
-            raise AMV.Ks_Exception with "Only packed Mono8 frames are supported";
+            raise AMV.Ks_Exception with
+              "Only packed Mono8 and Bayer8 frames are supported";
          when T.Frame_Invalid_Dimensions =>
             raise AMV.Ks_Exception with "Camera frame dimensions are invalid";
          when T.Frame_Too_Large =>
@@ -101,6 +105,13 @@ package body AMV.GigE_Vision is
          Engine.Grab
            (Camera.State, Camera.Handle, Timeout_Milliseconds,
             Kernel_Image, Status, Observation);
+         --  The engine accepts Mono8 only; a frame it rejected for its
+         --  format alone may be Bayer8, which is converted to grey.
+         if Status = T.Frame_Unsupported_Format
+           and then Bayer.Is_Bayer_8 (Observation.Pixel_Format)
+         then
+            Bayer.Build_Grey (Observation, Kernel_Image, Status);
+         end if;
          Raise_Frame_Status (Status);
          declare
             Result : constant AMV.Images.Ks_Image_8_Grey :=

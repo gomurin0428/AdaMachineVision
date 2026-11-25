@@ -97,6 +97,18 @@ stop_acquisition(ArvCamera *camera, GError **error)
 	arv_camera_stop_acquisition(camera, error);
 }
 
+/* Mono8 frames go to the Ada engine as they are; the four packed 8-bit
+ * Bayer formats are converted to grey on the Ada side. */
+static gboolean
+supported_pixel_format(ArvPixelFormat pixel_format)
+{
+	return pixel_format == ARV_PIXEL_FORMAT_MONO_8 ||
+		pixel_format == ARV_PIXEL_FORMAT_BAYER_GR_8 ||
+		pixel_format == ARV_PIXEL_FORMAT_BAYER_RG_8 ||
+		pixel_format == ARV_PIXEL_FORMAT_BAYER_GB_8 ||
+		pixel_format == ARV_PIXEL_FORMAT_BAYER_BG_8;
+}
+
 static GInetAddress *
 get_local_ipv4_address(GInetAddress *device_address, GError **error)
 {
@@ -202,9 +214,9 @@ amv_aravis_open(const char *device_id, void **camera_out,
 		set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
 		goto done;
 	}
-	if (pixel_format != ARV_PIXEL_FORMAT_MONO_8) {
+	if (!supported_pixel_format(pixel_format)) {
 		set_error(error, error_size,
-			  "Unsupported pixel format; only Mono8 is supported");
+			  "Unsupported pixel format; only Mono8 and Bayer8 are supported");
 		status = AMV_ARAVIS_UNSUPPORTED;
 		goto done;
 	}
@@ -424,4 +436,101 @@ void
 amv_aravis_free_pixels(void *pixels)
 {
 	free(pixels);
+}
+
+static ArvCamera *
+open_camera(void *opaque_camera, char *error, size_t error_size)
+{
+	AmvAravisCamera *camera = opaque_camera;
+
+	if (camera == NULL || camera->camera == NULL) {
+		set_error(error, error_size, "Camera is not open");
+		return NULL;
+	}
+	return camera->camera;
+}
+
+int
+amv_aravis_set_exposure_time(void *opaque_camera, double exposure_us,
+			     char *error, size_t error_size)
+{
+	ArvCamera *camera = open_camera(opaque_camera, error, error_size);
+	GError *gerror = NULL;
+
+	if (camera == NULL)
+		return AMV_ARAVIS_BAD_PARAMETER;
+	arv_camera_set_exposure_time(camera, exposure_us, &gerror);
+	if (gerror != NULL)
+		return set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
+	return AMV_ARAVIS_SUCCESS;
+}
+
+int
+amv_aravis_get_exposure_time(void *opaque_camera, double *exposure_us,
+			     double *minimum, double *maximum,
+			     char *error, size_t error_size)
+{
+	ArvCamera *camera = open_camera(opaque_camera, error, error_size);
+	GError *gerror = NULL;
+
+	if (camera == NULL || exposure_us == NULL || minimum == NULL ||
+	    maximum == NULL)
+		return AMV_ARAVIS_BAD_PARAMETER;
+	*exposure_us = arv_camera_get_exposure_time(camera, &gerror);
+	if (gerror == NULL)
+		arv_camera_get_exposure_time_bounds(camera, minimum, maximum,
+						    &gerror);
+	if (gerror != NULL)
+		return set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
+	return AMV_ARAVIS_SUCCESS;
+}
+
+int
+amv_aravis_set_exposure_auto(void *opaque_camera, int enabled,
+			     char *error, size_t error_size)
+{
+	ArvCamera *camera = open_camera(opaque_camera, error, error_size);
+	GError *gerror = NULL;
+
+	if (camera == NULL)
+		return AMV_ARAVIS_BAD_PARAMETER;
+	arv_camera_set_exposure_time_auto
+		(camera, enabled ? ARV_AUTO_CONTINUOUS : ARV_AUTO_OFF, &gerror);
+	if (gerror != NULL)
+		return set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
+	return AMV_ARAVIS_SUCCESS;
+}
+
+int
+amv_aravis_set_gain(void *opaque_camera, double gain,
+		    char *error, size_t error_size)
+{
+	ArvCamera *camera = open_camera(opaque_camera, error, error_size);
+	GError *gerror = NULL;
+
+	if (camera == NULL)
+		return AMV_ARAVIS_BAD_PARAMETER;
+	arv_camera_set_gain(camera, gain, &gerror);
+	if (gerror != NULL)
+		return set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
+	return AMV_ARAVIS_SUCCESS;
+}
+
+int
+amv_aravis_get_gain(void *opaque_camera, double *gain,
+		    double *minimum, double *maximum,
+		    char *error, size_t error_size)
+{
+	ArvCamera *camera = open_camera(opaque_camera, error, error_size);
+	GError *gerror = NULL;
+
+	if (camera == NULL || gain == NULL || minimum == NULL ||
+	    maximum == NULL)
+		return AMV_ARAVIS_BAD_PARAMETER;
+	*gain = arv_camera_get_gain(camera, &gerror);
+	if (gerror == NULL)
+		arv_camera_get_gain_bounds(camera, minimum, maximum, &gerror);
+	if (gerror != NULL)
+		return set_gerror(AMV_ARAVIS_ERROR, &gerror, error, error_size);
+	return AMV_ARAVIS_SUCCESS;
 }

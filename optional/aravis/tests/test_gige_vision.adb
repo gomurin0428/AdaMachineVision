@@ -1,6 +1,8 @@
 with Ada.Text_IO;
 with AMV;
 with AMV.GigE_Vision;
+with AMV.GigE_Vision.Settings;
+with AMV.GigE_Vision_Bayer;
 with AMV.Images;
 with Interfaces.C;
 with Test_GigE_Vision_Fixtures;
@@ -25,6 +27,11 @@ procedure Test_GigE_Vision is
    function C_Fake_Set_Mono8 return Interfaces.C.int
      with Import, Convention => C,
        External_Name => "amv_test_fake_set_mono8";
+
+   function C_Fake_Set_Pixel_Format
+     (Pixel_Format : Interfaces.C.unsigned) return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "amv_test_fake_set_pixel_format";
 
    procedure C_Fake_Stop
      with Import, Convention => C, External_Name => "amv_test_fake_stop";
@@ -81,6 +88,37 @@ procedure Test_GigE_Vision is
       end;
       Check (Raised, Message);
    end Check_Stop_Failure;
+
+   --  The fake camera fills red 200, green 100 and blue 40, so every grey
+   --  pixel is (77 * 200 + 75 * 200 + 29 * 40 + 128) / 256 = 123; a
+   --  layout with red and blue exchanged would give 93.
+   Bayer_Grey : constant AMV.Images.Grey_8 := 123;
+
+   function Grab_Complete return AMV.Images.Ks_Image_8_Grey;
+
+   procedure Check_Bayer_Frame
+     (Pixel_Format : AMV.GigE_Vision_Bayer.T.Unsigned_32; Name : String) is
+      Grey : AMV.Images.Ks_Image_8_Grey;
+   begin
+      Check (C_Fake_Set_Pixel_Format
+               (Interfaces.C.unsigned (Pixel_Format)) = 0,
+             "set fake camera to " & Name);
+      Camera.Open ("127.0.0.1");
+      Camera.Start;
+      Grey := Grab_Complete;
+      Camera.Stop;
+      Camera.Close;
+      Check (AMV.Images.Width (Grey) = 64
+             and AMV.Images.Height (Grey) = 48,
+             Name & " frame converts to a 64x48 grey image");
+      for Y in 0 .. 47 loop
+         for X in 0 .. 63 loop
+            Check (Grey.Get_Pixel (X, Y) = Bayer_Grey,
+                   Name & " pixel is the luma of its 2x2 window");
+         end loop;
+      end loop;
+      Ada.Text_IO.Put_Line ("PASS: loopback " & Name & " frame to grey");
+   end Check_Bayer_Frame;
 
    function Grab_Complete return AMV.Images.Ks_Image_8_Grey is
    begin
@@ -226,7 +264,54 @@ begin
       end;
       Check (Raised, "unsupported pixel format is rejected");
       Check (not Camera.Is_Open, "failed Open leaves camera closed");
+
+      Check_Bayer_Frame
+        (AMV.GigE_Vision_Bayer.Arv_Pixel_Format_Bayer_RG_8, "BayerRG8");
+      Check_Bayer_Frame
+        (AMV.GigE_Vision_Bayer.Arv_Pixel_Format_Bayer_GR_8, "BayerGR8");
+      Check_Bayer_Frame
+        (AMV.GigE_Vision_Bayer.Arv_Pixel_Format_Bayer_GB_8, "BayerGB8");
+      Check_Bayer_Frame
+        (AMV.GigE_Vision_Bayer.Arv_Pixel_Format_Bayer_BG_8, "BayerBG8");
       Check (C_Fake_Set_Mono8 = 0, "restore fake camera to Mono8");
+
+      declare
+         package Settings renames AMV.GigE_Vision.Settings;
+         Value, Low, High : Long_Float;
+      begin
+         Raised := False;
+         begin
+            Settings.Set_Gain (Camera, 2.0);
+         exception
+            when AMV.Ks_Bad_Parameter_Exception =>
+               Raised := True;
+         end;
+         Check (Raised, "settings of a closed camera are rejected");
+
+         Camera.Open ("127.0.0.1");
+         Camera.Start;
+         Settings.Set_Exposure_Time (Camera, 5_000.0);
+         Settings.Get_Exposure_Time (Camera, Value, Low, High);
+         Check (abs (Value - 5_000.0) < 1.0 and then Low <= Value
+                and then Value <= High,
+                "exposure time is set while streaming");
+         Settings.Set_Gain (Camera, 3.0);
+         Settings.Get_Gain (Camera, Value, Low, High);
+         Check (abs (Value - 3.0) < 0.5 and then Low <= Value
+                and then Value <= High,
+                "gain is set while streaming");
+         Raised := False;
+         begin
+            Settings.Set_Auto_Exposure (Camera, True);
+         exception
+            when AMV.Ks_Exception =>
+               Raised := True;
+         end;
+         Check (Raised, "a missing ExposureAuto feature is reported");
+         Frame := Grab_Complete;
+         Camera.Close;
+         Ada.Text_IO.Put_Line ("PASS: loopback exposure and gain settings");
+      end;
    exception
       when others =>
          Camera.Close;

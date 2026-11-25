@@ -32,8 +32,10 @@ package AMV.GigE_Vision is
      (Camera : in out Ks_GigE_Camera;
       Timeout_Milliseconds : Natural)
       return AMV.Images.Ks_Image_8_Grey;
-   --  Requires a streaming camera and a positive finite timeout. The returned
-   --  Mono8 image owns its pixels independently of the camera stream.
+   --  Requires a streaming camera and a positive finite timeout. A Mono8
+   --  frame is returned as is; a Bayer8 frame (BayerGR8, BayerRG8, BayerGB8
+   --  or BayerBG8) is converted to grey (AMV.GigE_Vision_Bayer). The
+   --  returned image owns its pixels independently of the camera stream.
 
 private
    type Ks_GigE_Camera is new Ada.Finalization.Limited_Controlled with record

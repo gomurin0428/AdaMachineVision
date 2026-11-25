@@ -156,7 +156,7 @@ docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
 - `examples/README.md` と `examples/real_images/README.md`:サンプルと、その検出結果の画像(英語)。
 - `tests/real_images/README.md`:実画像テストの画像とライセンス、調整用と評価用を分ける手順。
 - `docs/images/README.md`:結果画像の一覧と、元の写真の出典とライセンス(英語)。
-- `optional/aravis/README.md`:任意の Mono8 GigE Vision アダプタ、Aravis 依存、ライフサイクル、loopback 限定テスト(英語)。
+- `optional/aravis/README.md`:任意の Mono8/Bayer8 GigE Vision アダプタ、Aravis 依存、ライフサイクル、loopback 限定テスト(英語)。
 
 ## ライセンス
 

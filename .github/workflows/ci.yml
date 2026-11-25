@@ -209,6 +209,14 @@ jobs:
           pkg-config --modversion aravis-0.8
           "$HOME/.local/bin/alr.exe" -n exec -- make test-aravis
 
+      # Builds only (it needs a camera and a desktop to run): keeps the
+      # Win32 bindings and the link of the live window checked.
+      - name: Build the Windows live circularity example
+        run: |
+          set -euo pipefail
+          export PATH="$MINGW_PREFIX/bin:$PATH"
+          "$HOME/.local/bin/alr.exe" -n exec -- make build-live-circularity
+
   prove:
     name: prove (${{ matrix.group }})
     runs-on: ubuntu-24.04

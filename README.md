@@ -179,7 +179,7 @@ docs/            DESIGN.md (binding rules), PROOF.md,
   licences, and the tuning and evaluation protocol.
 * `docs/images/README.md`: the result pictures, and the source and
   licence of the photograph under each.
-* `optional/aravis/README.md`: the optional Mono8 GigE Vision adapter,
+* `optional/aravis/README.md`: the optional Mono8/Bayer8 GigE Vision adapter,
   its Aravis dependency, lifecycle, and loopback-only tests.
 
 ## License
