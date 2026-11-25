@@ -36,6 +36,7 @@ image each node made (PolarUnwrap's strip, Morphology's result, ...) into
 | `AMV.Flow.Nodes.Imaging` | PolarUnwrap (an annulus about a circle into a strip), PolarPoint (a point of that strip back on the image), Morphology (grey erosion, dilation, opening, closing and the top-hats) |
 | `AMV.Flow.Circularity` | the cup measure (outer edge along 720 rays, roundness); also used by `examples/live_circularity` |
 | `AMV.Flow.Nodes.Camera` | Camera, in `camera/` (`amv_flow_camera.gpr`): needs Aravis |
+| `AMV.Flow.Nodes.Measure` | FindCircle (calipers round an expected circle; a Pose for a Fixture), Distance (two points), Histogram (grey statistics and Otsu's threshold in a region) |
 | `AMV.Flow.Nodes.Logic` | RangeCheck; And, Or (In1 .. In4, Judge: a False verdict rejects the run), Not |
 | `AMV.Flow.Nodes.Logging` | CsvLog: a row per run, of the values linked into it (its inputs are of type Any) |
 | `AMV.Flow.Kinds` | the node kinds by name |
@@ -114,8 +115,7 @@ the cup left out could hide the seam, and one cut would pass for it).
 
 ## Not done yet
 
-From the first phase of the design: the FindCircle, Distance and Histogram
-nodes, the place of a cut on the camera image (Blob gives it
+From the first phase of the design: the place of a cut on the camera image (Blob gives it
 in PolarUnwrap's strip), `Ks_Flow_Tool` (a saved flow as an AMV tool), saving
 trained patterns (ShapeMatch trains from its `TrainImage` when the flow
 loads), and a camera build of `amv_flow`.
