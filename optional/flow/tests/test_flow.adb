@@ -543,11 +543,15 @@ procedure Test_Flow is
       for N in Scenes'Range (1) loop
          declare
             Label : constant String := "align scene" & N'Image;
+            Image : constant AMV.Images.Ks_Image_8_Grey :=
+              Scene (Scenes (N, 1), Scenes (N, 2), Scenes (N, 3));
          begin
-            Flow.Set_Input
-              ("Image",
-               From_Image (Scene (Scenes (N, 1), Scenes (N, 2),
-                                  Scenes (N, 3))));
+            --  Kept for trying amv_flow and the editor on.
+            AMV.Image_File.Write_Image
+              (Test_Dir & "/align_scene_"
+               & Ada.Strings.Fixed.Trim (N'Image, Ada.Strings.Both) & ".bmp",
+               Image);
+            Flow.Set_Input ("Image", From_Image (Image));
             Flow.Run;
             Check (Flow.Result = AMV.Tools.Accept_Result,
                    Label & ": accepted (" & Flow.Message & ")");

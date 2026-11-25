@@ -48,10 +48,18 @@ kinds, ports and parameters are errors. The test flow
 `build/flow-test/align.amvflow` (written by `make test-flow`) is the
 locate, fixture and measure chain of `examples/align_and_measure.adb`.
 
+## C API
+
+`capi/` builds the engine as the shared library `amvflow`
+(`make build-flow-c`, into `build/flow-c-lib`) with the C API of
+[`include/amv_flow.h`](include/amv_flow.h): flows, edits, runs, and the
+node kinds, problems, results and node graphics as JSON, a node's image
+as BGRA. `make test-flow-c` runs its C tests. The JavaFX editor in
+[`optional/flow_editor`](../flow_editor/README.md) uses it.
+
 ## Not done yet
 
 From the first phase of the design: the FindCircle, Distance, Histogram,
 CSV Log and Circularity nodes, `Ks_Flow_Tool` (a saved flow as an AMV
 tool), saving trained patterns (ShapeMatch trains from its `TrainImage`
-when the flow loads) and the image folder playback. The C API and the
-JavaFX editor are the second phase.
+when the flow loads) and the image folder playback.
