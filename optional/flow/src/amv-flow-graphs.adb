@@ -165,6 +165,9 @@ package body AMV.Flow.Graphs is
       elsif Find_Interface (List, Name) /= 0 then
          raise Ks_Flow_Exception with
            "the flow already has an " & What & " """ & Name & """";
+      elsif Value_Type = Any_Type then
+         raise Ks_Flow_Exception with
+           "the flow's " & What & " """ & Name & """ cannot be of type Any";
       end if;
       List.Append (Interface_Port'(Name => U (Name), Value_Type => Value_Type,
                                    Value => No_Value));
@@ -652,14 +655,20 @@ package body AMV.Flow.Graphs is
                exit when Length (Reason) > 0;
                if L.To.Node = Id then
                   declare
+                     Why   : Unbounded_String;
                      Value : constant Ks_Flow_Value :=
-                       Source_Value (Flow, L.From, Reason);
+                       Source_Value (Flow, L.From, Why);
                      Port  : constant String := To_String (L.To.Port);
                      P     : constant Port_Descriptor :=
                        All_Ports (Find_Port (N.all, Port, Input));
                   begin
-                     if Length (Reason) > 0 then
-                        null;
+                     if Length (Why) > 0 then
+                        --  The source failed or did not run: a node that
+                        --  needs the input is skipped; an optional input
+                        --  just has no value (a log still records the run).
+                        if P.Required then
+                           Reason := Why;
+                        end if;
                      elsif Value.Has_Value then
                         N.Set_Input (Port, Converted (Value, P.Value_Type));
                      elsif P.Required then

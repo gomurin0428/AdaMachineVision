@@ -5,6 +5,7 @@ with Ada.Containers.Vectors;
 
 with AMV.Flow.Nodes.Imaging;
 with AMV.Flow.Nodes.Logic;
+with AMV.Flow.Nodes.Logging;
 with AMV.Flow.Nodes.Vision;
 
 package body AMV.Flow.Kinds is
@@ -58,4 +59,5 @@ begin
              AMV.Flow.Nodes.Imaging.Create_Polar_Unwrap'Access);
    Register ("Morphology", AMV.Flow.Nodes.Imaging.Create_Morphology'Access);
    Register ("RangeCheck", AMV.Flow.Nodes.Logic.Create_Range_Check'Access);
+   Register ("CsvLog", AMV.Flow.Nodes.Logging.Create_Csv_Log'Access);
 end AMV.Flow.Kinds;

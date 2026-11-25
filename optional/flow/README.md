@@ -37,11 +37,13 @@ image each node made (PolarUnwrap's strip, Morphology's result, ...) into
 | `AMV.Flow.Circularity` | the cup measure (outer edge along 720 rays, roundness); also used by `examples/live_circularity` |
 | `AMV.Flow.Nodes.Camera` | Camera, in `camera/` (`amv_flow_camera.gpr`): needs Aravis |
 | `AMV.Flow.Nodes.Logic` | RangeCheck |
+| `AMV.Flow.Nodes.Logging` | CsvLog: a row per run, of the values linked into it (its inputs are of type Any) |
 | `AMV.Flow.Kinds` | the node kinds by name |
 | `AMV.Flow.Graphs` | `Ks_Flow`: nodes, links, checks, `Run`, flow files |
 
 A flow runs its nodes in topological order (ties by ascending node id).
-A node whose source failed or gave no value is skipped; the flow's result
+A node whose source failed or gave no value is skipped (an optional
+input, such as CsvLog's, just has no value then); the flow's result
 is the worst result of the nodes that ran, and at least Reject when one
 was skipped.
 
@@ -88,6 +90,7 @@ with the same pattern as locate, fixture and measure:
 | Blob | light blobs of at least 200 px at grey 14 and above: the lines on the wall |
 | RangeCheck | Count in [1, 1]: only the cup's seam |
 | RangeCheck | the largest line's Area in [0, 1400]: no line wider than the seam (a cut pulled open) |
+| CsvLog | a row a run into `build/cup_cut_log.csv`: the lines, the largest one's area, both checks and the rim's roundness, to set the limits from many cups |
 
 A paper cup has one seam, a line down its wall, and from above it looks
 like a fresh cut: on the GE134GC frames the seam is a line of 1005 px
@@ -105,8 +108,8 @@ the cup left out could hide the seam, and one cut would pass for it).
 
 ## Not done yet
 
-From the first phase of the design: the FindCircle, Distance, Histogram
-and CSV Log nodes, the place of a cut on the camera image (Blob gives it
+From the first phase of the design: the FindCircle, Distance and Histogram
+nodes, the place of a cut on the camera image (Blob gives it
 in PolarUnwrap's strip), `Ks_Flow_Tool` (a saved flow as an AMV tool), saving
 trained patterns (ShapeMatch trains from its `TrainImage` when the flow
 loads), and a camera build of `amv_flow`.

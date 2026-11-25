@@ -14,6 +14,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -37,6 +39,9 @@ final class PropertiesView extends VBox {
         void setParam(long id, String name, String json);
 
         void chooseFile(long id, String param);
+
+        /** Draws a new region of the shape type for the parameter on the image. */
+        void drawRegion(long id, String param, String shapeType);
     }
 
     private final Listener listener;
@@ -198,14 +203,29 @@ final class PropertiesView extends VBox {
                 field.setPromptText("{\"shape\": \"RectangleAffine\", \"centerX\": ...}");
                 field.setTooltip(new Tooltip(help + "\nRectangle: centerX, centerY, width, height\n"
                         + "RectangleAffine: centerX, centerY, sideX, sideY, rotation, skew\n"
-                        + "Circle: centerX, centerY, radius; \"space\": \".\" or \"@\\\\Part\""));
+                        + "Circle: centerX, centerY, radius\n"
+                        + "CircularAnnulusSection: centerX, centerY, radius, radialScale, angleStart, angleSpan\n"
+                        + "\"space\": \".\" or \"@\\\\Part\"; angles in radians"));
                 commitOn(field, () -> listener.setParam(node.id(), p.name(), field.getText()));
-                return row(label, field, help);
+                MenuButton draw = new MenuButton("Draw");
+                draw.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+                draw.setTooltip(new Tooltip("Draw a new region on the image: drag from corner to corner, "
+                        + "or from the centre out"));
+                for (String[] type : new String[][] {{"Rectangle", "Rectangle"},
+                        {"Rotated rectangle", "RectangleAffine"}, {"Circle", "Circle"},
+                        {"Annulus", "CircularAnnulusSection"}}) {
+                    MenuItem item = new MenuItem(type[0]);
+                    item.setOnAction(e -> listener.drawRegion(node.id(), p.name(), type[1]));
+                    draw.getItems().add(item);
+                }
+                HBox both = new HBox(4, field, draw);
+                HBox.setHgrow(field, Priority.ALWAYS);
+                return row(label, both, help);
             }
             case "String" -> {
                 TextField field = new TextField(Json.string(value));
                 commitOn(field, () -> listener.setParam(node.id(), p.name(), Json.quote(field.getText())));
-                if (p.name().endsWith("Image")) {
+                if (p.name().endsWith("Image") || p.name().endsWith("Path")) {
                     Button choose = new Button("…");
                     choose.setOnAction(e -> listener.chooseFile(node.id(), p.name()));
                     HBox both = new HBox(4, field, choose);

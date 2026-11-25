@@ -902,6 +902,136 @@ procedure Test_Flow is
    end Test_Cut;
 
    ---------------------------------------------------------------------
+   --  CsvLog, and inputs of type Any
+   ---------------------------------------------------------------------
+
+   procedure Test_Log is
+      Path : constant String := Test_Dir & "/log.csv";
+      Flow : AMV.Flow.Graphs.Ks_Flow;
+      Disc : AMV.Images.Ks_Image_8_Grey :=
+        AMV.Images.Create (200, 150, Value => 30);
+      Log  : Positive;
+
+      --  The lines of the log file.
+      function Lines return AMV.Flow.Graphs.String_Vectors.Vector is
+         File   : Ada.Text_IO.File_Type;
+         Result : AMV.Flow.Graphs.String_Vectors.Vector;
+      begin
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+         while not Ada.Text_IO.End_Of_File (File) loop
+            Result.Append (Ada.Text_IO.Get_Line (File));
+         end loop;
+         Ada.Text_IO.Close (File);
+         return Result;
+      end Lines;
+
+      --  Line without its first cell (the time).
+      function After_Time (Line : String) return String is
+        (Line (Ada.Strings.Fixed.Index (Line, ",") + 1 .. Line'Last));
+
+      procedure Output_Of_Type_Any is
+         Other : AMV.Flow.Graphs.Ks_Flow;
+      begin
+         Other.Add_Output ("Anything", Any_Type);
+      end Output_Of_Type_Any;
+
+      procedure Nine_Columns is
+      begin
+         Flow.Set_Param (Log, "Columns", From_String ("a,b,c,d,e,f,g,h,i"));
+      end Nine_Columns;
+   begin
+      if Ada.Directories.Exists (Path) then
+         Ada.Directories.Delete_File (Path);
+      end if;
+      for Y in 0 .. 149 loop
+         for X in 0 .. 199 loop
+            if (Real (X) - 100.0) ** 2 + (Real (Y) - 75.0) ** 2 <= 40.0 ** 2
+            then
+               Disc.Set_Pixel (X, Y, 220);
+            end if;
+         end loop;
+      end loop;
+
+      --  Circularity, a range check on its roundness, and a log of both.
+      Flow.Add_Input ("Image", Image_8_Grey_Type);
+      Flow.Add_Output ("Rows", Integer_Type);
+      Check (Flow.Add_Node ("Circularity") = 1, "log: node 1");
+      Check (Flow.Add_Node ("RangeCheck") = 2, "log: node 2");
+      Log := Flow.Add_Node ("CsvLog");
+      Flow.Set_Param (2, "Low", From_Real (0.9));
+      Flow.Set_Param (2, "High", From_Real (1.0));
+      Flow.Set_Param (Log, "Path", From_String (Path));
+      Flow.Set_Param (Log, "Columns",
+                      From_String ("Found, Roundness, Round, Image"));
+      Flow.Link ("input.Image", "1.Image");
+      Flow.Link ("1.Roundness", "2.Value");
+      --  Any input takes a Boolean, a Real and an image alike.
+      Flow.Link ("1.Found", "3.Value1");
+      Flow.Link ("1.Roundness", "3.Value2");
+      Flow.Link ("2.Pass", "3.Value3");
+      Flow.Link ("input.Image", "3.Value4");
+      Flow.Link ("3.Rows", "output.Rows");
+      Check (Flow.Problems.Is_Empty,
+             "log: no problems (its inputs need no links)");
+
+      Flow.Set_Input ("Image", From_Image (Disc));
+      Flow.Run;
+      Check (Flow.Result = AMV.Tools.Accept_Result,
+             "log: a round disc accepted (" & Flow.Message & ")");
+      --  Nothing found: the range check is skipped, the log still runs.
+      Flow.Set_Input
+        ("Image", From_Image (AMV.Images.Create (100, 80, Value => 30)));
+      Flow.Run;
+      Check (Flow.Node (2).State = AMV.Flow.Nodes.Skipped
+             and then Flow.Node (Log).State = AMV.Flow.Nodes.Ran
+             and then Flow.Node (Log).Result = AMV.Tools.Accept_Result,
+             "log: runs although a source was skipped");
+      Check (Flow.Get_Output ("Rows").Has_Value
+             and then Flow.Get_Output ("Rows").As_Integer = 2,
+             "log: two rows written");
+      declare
+         L : constant AMV.Flow.Graphs.String_Vectors.Vector := Lines;
+      begin
+         Check (Natural (L.Length) = 3
+                and then L (1) = "time,Found,Roundness,Round,Image",
+                "log: the header, then a row a run ("
+                & (if L.Is_Empty then "" else L (1)) & ")");
+         if Natural (L.Length) = 3 then
+            Check (Contains (L (2), ",true,0.9")
+                   and then Contains (L (2), ",true,image 200x150"),
+                   "log: the first run's values (" & L (2) & ")");
+            Check (After_Time (L (3)) = "false,,,image 100x80",
+                   "log: empty cells for no value (" & L (3) & ")");
+            Check (L (2) (1 .. 2) = "20" and then L (2) (11) = ' ',
+                   "log: the row starts with the date and time ("
+                   & L (2) & ")");
+         end if;
+      end;
+
+      Flow.Set_Param (Log, "Enabled", From_Boolean (False));
+      Flow.Run;
+      Check (Natural (Lines.Length) = 3, "log: nothing written when disabled");
+      Flow.Set_Param (Log, "Enabled", From_Boolean (True));
+      Flow.Set_Param (Log, "Path", From_String (Test_Dir & "/no/such/" & BS
+                                                  & BS & "?:bad*.csv"));
+      Flow.Run;
+      Check (Flow.Node (Log).Result = AMV.Tools.Error
+             and then Contains (Flow.Node (Log).Message, "cannot write"),
+             "log: a file that cannot be written is an error ("
+             & Flow.Node (Log).Message & ")");
+
+      Expect_Flow_Error ("log: a flow output cannot be of type Any",
+                         Output_Of_Type_Any'Access, "type Any");
+      Expect_Flow_Error ("log: at most 8 columns", Nine_Columns'Access,
+                         "at most");
+      Check (Can_Link (Boolean_Type, Any_Type)
+             and then Can_Link (Image_8_Grey_Type, Any_Type)
+             and then not Can_Link (Any_Type, Real_Type)
+             and then not Can_Link (Any_Type, Any_Type),
+             "log: anything links into Any, Any into nothing");
+   end Test_Log;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -963,6 +1093,7 @@ begin
    Test_Blob;
    Test_Circularity;
    Test_Cut;
+   Test_Log;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

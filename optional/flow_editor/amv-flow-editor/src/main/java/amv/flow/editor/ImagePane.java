@@ -65,6 +65,15 @@ final class ImagePane extends Pane {
     private double panX;
     private double panY;
 
+    // The image's selected space "." to pixels (a, b, c, d, tx, ty): where a drawn region goes.
+    private double[] selectedToPixel = {1, 0, 0, 1, 0, 0};
+
+    // A region being drawn: its parameter, its shape type, where the drag started (in ".").
+    private String drawParam;
+    private String drawKind;
+    private double[] drawStart;
+    private Map<String, Object> drawDraft;
+
     // A region being edited.
     private Region editing;
     private Handle handle;
@@ -118,8 +127,16 @@ final class ImagePane extends Pane {
     private void parse(String json, Map<String, Object> params) {
         List<Item> newItems = new ArrayList<>();
         List<Region> newRegions = new ArrayList<>();
+        selectedToPixel = new double[] {1, 0, 0, 1, 0, 0};
         if (json != null) {
-            for (Object o : Json.array(Json.object(Json.parse(json)).get("items"))) {
+            Map<String, Object> graphics = Json.object(Json.parse(json));
+            if (graphics.get("toPixel") != null) {
+                List<Object> t = Json.array(graphics.get("toPixel"));
+                for (int i = 0; i < 6; i++) {
+                    selectedToPixel[i] = Json.number(t.get(i));
+                }
+            }
+            for (Object o : Json.array(graphics.get("items"))) {
                 Map<String, Object> item = Json.object(o);
                 if ("polygon".equals(item.get("kind"))) {
                     List<Object> points = Json.array(item.get("points"));
@@ -365,8 +382,75 @@ final class ImagePane extends Pane {
         e.consume();
     }
 
+    /** Draws a new region of the given shape type for the parameter with the next drag on the image. */
+    void startDrawing(String param, String kind) {
+        drawParam = param;
+        drawKind = kind;
+        drawStart = null;
+        drawDraft = null;
+        redraw();
+    }
+
+    private void stopDrawing() {
+        drawParam = null;
+        drawKind = null;
+        drawStart = null;
+        drawDraft = null;
+    }
+
+    /** The shape a drag from a to b draws, in the selected space. */
+    private Map<String, Object> drawn(double[] a, double[] b) {
+        Map<String, Object> s = new LinkedHashMap<>();
+        s.put("shape", drawKind);
+        s.put("space", ".");
+        double dx = b[0] - a[0];
+        double dy = b[1] - a[1];
+        switch (drawKind) {
+            case "Rectangle", "RectangleAffine" -> {
+                // From one corner to the opposite one.
+                s.put("centerX", round(a[0] + dx / 2));
+                s.put("centerY", round(a[1] + dy / 2));
+                boolean affine = drawKind.equals("RectangleAffine");
+                s.put(affine ? "sideX" : "width", round(Math.max(1, Math.abs(dx))));
+                s.put(affine ? "sideY" : "height", round(Math.max(1, Math.abs(dy))));
+                if (affine) {
+                    s.put("rotation", 0.0);
+                    s.put("skew", 0.0);
+                }
+            }
+            case "Circle" -> {
+                // From the centre out.
+                s.put("centerX", round(a[0]));
+                s.put("centerY", round(a[1]));
+                s.put("radius", round(Math.max(1, Math.hypot(dx, dy))));
+            }
+            default -> {
+                // An annulus from the centre out to its outer radius; the inner one at 60 %.
+                double outer = Math.max(2, Math.hypot(dx, dy));
+                double inner = round(0.6 * outer);
+                s.put("centerX", round(a[0]));
+                s.put("centerY", round(a[1]));
+                s.put("radius", inner);
+                s.put("radialScale", Math.round(outer / inner * 1e6) / 1e6);
+                s.put("angleStart", 0.0);
+                s.put("angleSpan", Math.round(2 * Math.PI * 1e9) / 1e9);
+            }
+        }
+        return s;
+    }
+
     private void press(MouseEvent e) {
         if (image == null) {
+            return;
+        }
+        if (drawParam != null) {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                drawStart = toShape(selectedToPixel, e.getX(), e.getY());
+            } else {
+                stopDrawing();  // another button cancels the drawing
+                redraw();
+            }
+            e.consume();
             return;
         }
         if (e.getButton() != MouseButton.PRIMARY) {
@@ -414,6 +498,15 @@ final class ImagePane extends Pane {
             panY = e.getY();
             fit = false;
             redraw();
+            return;
+        }
+        if (drawStart != null) {
+            double[] p = toShape(selectedToPixel, e.getX(), e.getY());
+            if (p != null) {
+                drawDraft = drawn(drawStart, p);
+                redraw();
+            }
+            e.consume();
             return;
         }
         if (editing == null) {
@@ -493,6 +586,17 @@ final class ImagePane extends Pane {
     }
 
     private void release(MouseEvent e) {
+        if (drawStart != null && e.getButton() == MouseButton.PRIMARY) {
+            String param = drawParam;
+            Map<String, Object> shape = drawDraft;
+            stopDrawing();
+            if (shape != null) {
+                listener.regionEdited(param, Json.write(shape));
+            }
+            redraw();
+            e.consume();
+            return;
+        }
         if (editing != null && e.getButton() == MouseButton.PRIMARY) {
             Region region = editing;
             Map<String, Object> shape = draft;
@@ -594,8 +698,24 @@ final class ImagePane extends Pane {
                 }
             }
         }
+        if (drawDraft != null) {
+            double[][] shape = outline(drawDraft);
+            double[] xs = new double[shape.length];
+            double[] ys = new double[shape.length];
+            for (int i = 0; i < shape.length; i++) {
+                double[] q = toScreen(selectedToPixel, shape[i][0], shape[i][1]);
+                xs[i] = q[0];
+                ys[i] = q[1];
+            }
+            gc.setStroke(Color.web("#fff176"));
+            gc.setLineWidth(2);
+            gc.setLineDashes(6, 4);
+            gc.strokePolygon(xs, ys, xs.length);
+            gc.setLineDashes();
+        }
         gc.setFill(Color.web("#ccd"));
-        gc.fillText(caption + String.format("   (%d x %d, %.0f%%)", (int) iw, (int) ih, scale * 100)
-                + (regions.isEmpty() ? "" : "   drag a region to edit it"), 8, 16);
+        String hint = drawParam != null ? "   drag on the image to draw " + drawParam + " (another button cancels)"
+                : regions.isEmpty() ? "" : "   drag a region to edit it";
+        gc.fillText(caption + String.format("   (%d x %d, %.0f%%)", (int) iw, (int) ih, scale * 100) + hint, 8, 16);
     }
 }

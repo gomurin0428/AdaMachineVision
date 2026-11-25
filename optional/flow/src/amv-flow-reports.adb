@@ -356,6 +356,22 @@ package body AMV.Flow.Reports is
          W.Value (Long_Long_Integer (Image.Width));
          W.Key ("height");
          W.Value (Long_Long_Integer (Image.Height));
+         declare
+            --  The image's selected space to pixels: where a region drawn
+            --  in the editor goes.
+            To_Px : constant AMV.Transforms.Ks_Transform_2D_Linear :=
+              Image.Get_Transform ("#", ".");
+         begin
+            W.Key ("toPixel");
+            W.Begin_Array;
+            W.Value (To_Px.Get_Matrix_Element (0, 0));
+            W.Value (To_Px.Get_Matrix_Element (0, 1));
+            W.Value (To_Px.Get_Matrix_Element (1, 0));
+            W.Value (To_Px.Get_Matrix_Element (1, 1));
+            W.Value (To_Px.Translation_X);
+            W.Value (To_Px.Translation_Y);
+            W.End_Array;
+         end;
          W.Key ("items");
          W.Begin_Array;
          for P of N.Params loop

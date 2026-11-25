@@ -68,7 +68,12 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
   a circle's edge for its radius; an annulus (PolarUnwrap's region) has a
   square handle on each of its two arcs for the radii and round ones where
   it starts and ends (a full annulus has one: drag it to open the
-  annulus). The drag works in the region's own space
+  annulus). **Draw** next to a region parameter (in the properties)
+  draws a new one: pick a rectangle, a rotated rectangle, a circle or an
+  annulus, then drag on the image, from corner to corner or from the
+  centre out (another mouse button cancels); it is placed in the image's
+  selected space, so after a Fixture it follows the part. The drag works
+  in the region's own space
   (a region in a fixtured space turns with the part), and on release the
   flow runs again.
 * **Properties** (right): the node's name and parameters, with an editor
@@ -86,7 +91,5 @@ amv-flow-editor build\flow-test\align.amvflow build\flow-test\align_scene_1.bmp
   and outputs.
 * **Flow zoom**: Ctrl + wheel over the flow; Ctrl+0 back to 100 %.
 
-Not yet: drawing a new region on the image (a region parameter is set
-first as JSON, then dragged; a new PolarUnwrap has an annulus to drag),
-a polygon region, the C API's
+Not yet: a polygon region, the C API's
 image transfer without a copy (`PixelBuffer`).

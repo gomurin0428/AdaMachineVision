@@ -159,6 +159,8 @@ package body AMV.Flow.Values is
             return "transform";
          when Shape_Type =>
             return Shape_Type_Name (Value.Shape_V.Element);
+         when Any_Type =>
+            return "";  --  no value has this type
       end case;
    end Image;
 

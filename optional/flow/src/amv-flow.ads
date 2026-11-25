@@ -23,21 +23,25 @@ package AMV.Flow is
 
    type Ks_Flow_Value_Type is
      (Real_Type, Integer_Type, Boolean_Type, String_Type,
-      Image_8_Grey_Type, Transform_Type, Shape_Type);
-   --  The type of a port or of a flow input or output.
+      Image_8_Grey_Type, Transform_Type, Shape_Type, Any_Type);
+   --  The type of a port or of a flow input or output. Any_Type is for
+   --  input ports that take a value of any type (CsvLog's); no value has
+   --  it, and a flow's inputs and outputs cannot.
 
    function Type_Name (Value_Type : Ks_Flow_Value_Type) return String;
    --  "Real", "Integer", "Boolean", "String", "Image_8_Grey", "Transform",
-   --  "Shape": the names used in flow files.
+   --  "Shape", "Any": the names used in flow files.
 
    function Type_Of (Name : String) return Ks_Flow_Value_Type;
    --  The type named Name (as Type_Name gives it); Ks_Flow_Exception for
    --  another name.
 
    function Can_Link (From, To : Ks_Flow_Value_Type) return Boolean is
-     (From = To or else (From = Integer_Type and then To = Real_Type));
+     (From /= Any_Type
+      and then (From = To or else To = Any_Type
+                or else (From = Integer_Type and then To = Real_Type)));
    --  Whether an output of type From may feed an input of type To: the
-   --  same type, or an integer into a real.
+   --  same type, an integer into a real, or anything into an Any.
 
    Max_Name_Length : constant := 64;
    --  The longest name of a flow, node, port or flow input or output.

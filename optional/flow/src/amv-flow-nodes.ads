@@ -71,7 +71,8 @@ package AMV.Flow.Nodes is
 
    type Node_State is (Not_Run, Ran, Skipped);
    --  Skipped: an input it needs had no value (its source failed or did
-   --  not run).
+   --  not run). An optional input (Required False) whose source failed
+   --  only has no value: the node runs.
 
    ---------------------------------------------------------------------
    --  Ks_Flow_Node

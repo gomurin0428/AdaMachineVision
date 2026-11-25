@@ -55,6 +55,13 @@
       "id": 9, "kind": "RangeCheck", "name": "No wide line",
       "ui": {"x": 220.0, "y": 255.0},
       "params": {"Low": 0.0, "High": 1400.0}
+    },
+    {
+      "id": 10, "kind": "CsvLog", "name": "Log",
+      "ui": {"x": 660.0, "y": 100.0},
+      "params": {"Path": "../../../build/cup_cut_log.csv",
+                 "Columns": "Lines, LargestArea, OnlyTheSeam, NoWideLine, Roundness",
+                 "Enabled": true}
     }
   ],
   "links": [
@@ -70,6 +77,11 @@
     {"from": "7.Count", "to": "output.Lines"},
     {"from": "7.Area", "to": "output.LargestArea"},
     {"from": "8.Pass", "to": "output.OnlyTheSeam"},
-    {"from": "9.Pass", "to": "output.NoWideLine"}
+    {"from": "9.Pass", "to": "output.NoWideLine"},
+    {"from": "7.Count", "to": "10.Value1"},
+    {"from": "7.Area", "to": "10.Value2"},
+    {"from": "8.Pass", "to": "10.Value3"},
+    {"from": "9.Pass", "to": "10.Value4"},
+    {"from": "2.Roundness", "to": "10.Value5"}
   ]
 }

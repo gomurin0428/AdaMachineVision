@@ -12,6 +12,7 @@ package body AMV.Flow is
          when Image_8_Grey_Type => return "Image_8_Grey";
          when Transform_Type    => return "Transform";
          when Shape_Type        => return "Shape";
+         when Any_Type          => return "Any";
       end case;
    end Type_Name;
 

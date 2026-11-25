@@ -287,6 +287,7 @@ final class GraphView extends ScrollPane {
             case "Boolean" -> Color.web("#59b35a");
             case "Transform" -> Color.web("#a565c8");
             case "Shape" -> Color.web("#3cb4b4");
+            case "Any" -> Color.web("#e8e8e8");  // takes any value (CsvLog)
             default -> Color.web("#9a9a9a");
         };
     }

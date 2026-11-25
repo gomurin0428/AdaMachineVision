@@ -39,7 +39,8 @@ package AMV.Flow.Reports is
                            Id   : Positive) return String;
    --  What to draw over Node_Image, in its pixel coordinates (the centre
    --  of pixel (i, j) at (i, j)):
-   --  {"width", "height",
+   --  {"width", "height", "toPixel": [a, b, c, d, tx, ty] (the image's
+   --   selected space "." to pixels, as below; not without an image),
    --   "items": [{"kind": "polygon", "role": "region" | "found",
    --              "param": "<shape parameter>", "toPixel": [a, b, c, d,
    --              tx, ty] (regions: x' = a x + b y + tx, y' = c x + d y + ty

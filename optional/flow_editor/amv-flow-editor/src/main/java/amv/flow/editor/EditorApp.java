@@ -213,11 +213,22 @@ public final class EditorApp extends Application {
 
             @Override
             public void chooseFile(long id, String param) {
-                File file = imageChooser("Train image").showOpenDialog(stage);
+                // A path parameter names a file to write (CsvLog's), an image one a file to read.
+                File file = param.endsWith("Path") ? csvChooser().showSaveDialog(stage)
+                        : imageChooser("Train image").showOpenDialog(stage);
                 if (file != null) {
                     String path = relativeToFlow(file.toPath());
                     setParam(id, param, Json.quote(path));
                 }
+            }
+
+            @Override
+            public void drawRegion(long id, String param, String shapeType) {
+                if (selected == null || selected != id) {
+                    return;
+                }
+                imagePane.startDrawing(param, shapeType);
+                showStatus("Drag on the image to draw " + param + "; another mouse button cancels", false);
             }
         });
         imagePane = new ImagePane((param, shapeJson) -> {
@@ -390,6 +401,15 @@ public final class EditorApp extends Application {
                 new FileChooser.ExtensionFilter("Images (*.bmp, *.pgm, *.pnm)", "*.bmp", "*.pgm", "*.pnm"),
                 new FileChooser.ExtensionFilter("All files", "*.*"));
         chooser.setInitialDirectory(new File(System.getProperty("user.dir")));
+        return chooser;
+    }
+
+    private FileChooser csvChooser() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Log file");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv"));
+        chooser.setInitialDirectory(flowFile != null ? flowFile.getParent().toFile()
+                : new File(System.getProperty("user.dir")));
         return chooser;
     }
 
