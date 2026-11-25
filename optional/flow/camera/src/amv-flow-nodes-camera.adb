@@ -120,32 +120,50 @@ package body AMV.Flow.Nodes.Camera is
    function Grab_Latest (Node : in out Camera_Node)
                          return AMV.Images.Ks_Image_8_Grey
    is
-      --  One Grab that waits up to the timeout, then quick Grabs that
-      --  empty the stream's queue: frames that arrived while the flow ran
-      --  are dropped, and a frame that came with no free buffer (returned
-      --  at once, incomplete) is skipped.
+      --  Grabs until a complete frame comes, within the timeout (an
+      --  incomplete frame, returned at once, is skipped), then quick Grabs
+      --  that empty the stream's queue: frames that arrived while the flow
+      --  ran are dropped for the newest.
       use type Ada.Real_Time.Time;
       use type Ada.Real_Time.Time_Span;
-      Result  : AMV.Images.Ks_Image_8_Grey;
-      Got     : Boolean := False;
-      Started : Ada.Real_Time.Time;
-      Last    : Ada.Exceptions.Exception_Occurrence;
+      Deadline : constant Ada.Real_Time.Time :=
+        Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (Node.Timeout_Ms);
+      Result   : AMV.Images.Ks_Image_8_Grey;
+      Got      : Boolean := False;
+      Started  : Ada.Real_Time.Time;
+      Last     : Ada.Exceptions.Exception_Occurrence;
    begin
-      for Attempt in 1 .. 8 loop
-         Started := Ada.Real_Time.Clock;
+      loop
          begin
             Result := Node.Device.Grab
-              (if Attempt = 1 then Node.Timeout_Ms else 1);
+              (Integer'Max
+                 (1, Integer (Ada.Real_Time.To_Duration
+                                (Deadline - Ada.Real_Time.Clock) * 1000.0)));
             Got := True;
+            exit;
          exception
             when E : AMV.GigE_Vision.Ks_GigE_Vision_Timeout_Exception
                    | AMV.Ks_Exception =>
+               --  Also a "timeout" comes at once for a frame whose packets
+               --  timed out: wait on until the deadline.
                Ada.Exceptions.Save_Occurrence (Last, E);
-               exit when Attempt > 1
-                 and then Ada.Real_Time.Clock - Started
-                          > Ada.Real_Time.Milliseconds (1);
+               exit when Ada.Real_Time.Clock >= Deadline;
          end;
       end loop;
+      if Got then
+         for Attempt in 1 .. 8 loop
+            Started := Ada.Real_Time.Clock;
+            begin
+               Result := Node.Device.Grab (1);
+            exception
+               when AMV.GigE_Vision.Ks_GigE_Vision_Timeout_Exception
+                  | AMV.Ks_Exception =>
+                  --  None queued (it waited), or an incomplete one (at once).
+                  exit when Ada.Real_Time.Clock - Started
+                              > Ada.Real_Time.Milliseconds (1);
+            end;
+         end loop;
+      end if;
       if not Got then
          raise Ks_Flow_Exception with
            "no frame from the camera within" & Node.Timeout_Ms'Image

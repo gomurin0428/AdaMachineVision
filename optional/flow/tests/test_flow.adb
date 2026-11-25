@@ -1012,8 +1012,8 @@ procedure Test_Flow is
       Flow.Run;
       Check (Natural (Lines.Length) = 3, "log: nothing written when disabled");
       Flow.Set_Param (Log, "Enabled", From_Boolean (True));
-      Flow.Set_Param (Log, "Path", From_String (Test_Dir & "/no/such/" & BS
-                                                  & BS & "?:bad*.csv"));
+      --  A folder that is a file: written nowhere, on any system.
+      Flow.Set_Param (Log, "Path", From_String (Path & "/x.csv"));
       Flow.Run;
       Check (Flow.Node (Log).Result = AMV.Tools.Error
              and then Contains (Flow.Node (Log).Message, "cannot write"),
@@ -1079,6 +1079,37 @@ procedure Test_Flow is
              and then Flow.Node (1).State = AMV.Flow.Nodes.Not_Run,
              "kept: a run that cannot start clears the last results ("
              & Flow.Message & ")");
+
+      --  A train image that cannot be read: the parameter keeps its old
+      --  value; in a flow file, the flow loads and says what is wrong.
+      declare
+         Matcher : constant Positive := Flow.Add_Node ("ShapeMatch");
+         procedure Bad_Image is
+         begin
+            Flow.Set_Param (Matcher, "TrainImage",
+                            From_String ("no_such_image.bmp"));
+         end Bad_Image;
+      begin
+         Expect_Flow_Error ("kept: a train image that cannot be read",
+                            Bad_Image'Access, "train image");
+         Check (Flow.Node (Matcher).Get_Param ("TrainImage").As_String = "",
+                "kept: the parameter keeps its old value");
+      end;
+      declare
+         Other : AMV.Flow.Graphs.Ks_Flow;
+         Found : Boolean := False;
+      begin
+         Other.From_JSON
+           ("{""format"": 1, ""nodes"": [{""id"": 1, ""kind"": "
+            & """ShapeMatch"", ""params"": {""TrainImage"": "
+            & """no_such_image.bmp""}}]}");
+         for P of Other.Problems loop
+            Found := Found or else Contains (P, "cannot read the train image");
+         end loop;
+         Check (Other.Node_Count = 1 and then Found,
+                "kept: a flow whose train image is missing loads, with the "
+                & "problem");
+      end;
    end Test_Kept;
 
    ---------------------------------------------------------------------
@@ -1096,7 +1127,7 @@ procedure Test_Flow is
       begin
          Expect_Flow_Error ("bad flow " & Text, Try'Access, Why);
          Check (Flow.Node_Count = 0 and then Flow.Input_Count = 0,
-                "bad flow leaves the flow empty: " & Text);
+                "bad flow leaves the flow as it was (empty): " & Text);
       end Bad;
 
       Head : constant String := "{""format"": 1, ""inputs"": [{""name"": "
@@ -1123,9 +1154,6 @@ procedure Test_Flow is
       Bad (Head & """nodes"": [{""id"": 1, ""kind"": ""Blob""}], ""links"": "
            & "[{""from"": ""input.Image"", ""to"": ""1.Image"", ""x"": 1}]}",
            "unknown member");
-      Bad (Head & """nodes"": [{""id"": 1, ""kind"": ""ShapeMatch"", "
-           & """params"": {""TrainImage"": ""missing.bmp""}}]}",
-           "cannot read the train image");
       Bad ("{""format"": 1, ""inputs"": [{""name"": ""a.b"", ""type"": "
            & """Real""}]}", "not a valid");
       Bad ("{""format"": 1, ""inputs"": [{""name"": ""A"", ""type"": "

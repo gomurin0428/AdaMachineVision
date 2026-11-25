@@ -95,7 +95,9 @@ package AMV.Flow.Graphs is
                         Name  : String;
                         Value : AMV.Flow.Values.Ks_Flow_Value);
    --  Sets a parameter (AMV.Flow.Nodes.Set_Param_Checked) and prepares the
-   --  node again (a ShapeMatch retrains).
+   --  node again (a ShapeMatch retrains). When the node cannot be prepared
+   --  with the new value, the old one is put back and the exception goes
+   --  on.
 
    procedure Set_Param_JSON (Flow       : in out Ks_Flow;
                              Id         : Positive;
@@ -105,7 +107,10 @@ package AMV.Flow.Graphs is
    --  number, true / false, a string or a shape object).
 
    procedure Prepare (Flow : in out Ks_Flow);
-   --  Prepares every node (AMV.Flow.Nodes.Prepare) with Base_Directory.
+   --  Prepares every node (AMV.Flow.Nodes.Prepare) with Base_Directory. A
+   --  node that cannot be prepared (a train image that cannot be read)
+   --  does not raise: why is one of the flow's Problems until a parameter
+   --  of the node is set again.
 
    ---------------------------------------------------------------------
    --  Links
@@ -215,6 +220,10 @@ private
    package Interface_Vectors is new Ada.Containers.Vectors
      (Positive, Interface_Port);
 
+   package Message_Maps is new Ada.Containers.Ordered_Maps
+     (Positive, Unbounded_String);
+   --  By node id: why the node could not be prepared.
+
    type Ks_Flow is new Ada.Finalization.Limited_Controlled with record
       Flow_Name : Unbounded_String;
       Base_Dir  : Unbounded_String;
@@ -224,6 +233,7 @@ private
       Outputs   : Interface_Vectors.Vector;
       Outcome   : AMV.Tools.Ks_Tool_Result_Constants := AMV.Tools.Accept_Result;
       Why       : Unbounded_String;
+      Unprepared : Message_Maps.Map;
    end record;
 
    overriding procedure Finalize (Flow : in out Ks_Flow);

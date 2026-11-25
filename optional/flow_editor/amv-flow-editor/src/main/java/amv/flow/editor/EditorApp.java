@@ -127,8 +127,9 @@ public final class EditorApp extends Application {
                 // Arguments: [flow file [image file or folder]]
                 List<String> args = getParameters().getRaw();
                 if (!args.isEmpty()) {
-                    flowFile = Path.of(args.get(0)).toAbsolutePath();
-                    flow.load(flowFile);
+                    Path first = Path.of(args.get(0)).toAbsolutePath();
+                    flow.load(first);
+                    flowFile = first;  // only once loaded: Save must not write over it otherwise
                 } else {
                     flow.fromJson(EMPTY_FLOW, null);
                 }
@@ -488,34 +489,56 @@ public final class EditorApp extends Application {
         Path oldDir = flowFile != null ? flowFile.getParent() : Path.of(System.getProperty("user.dir"));
         act(f -> {
             Path newDir = path.getParent();
-            if (!newDir.equals(oldDir)) {
-                // Relative file parameters are taken from the flow file's folder:
-                // rewrite them so that they name the same files from the new one.
-                Map<Long, Map<String, String>> moved = new java.util.LinkedHashMap<>();
-                for (NodeInfo node : FlowInfo.parse(f.toJson()).nodes().values()) {
-                    node.params().forEach((name, value) -> {
-                        if ((name.endsWith("Image") || name.endsWith("Path")) && value instanceof String v
-                                && !v.isEmpty() && !Path.of(v).isAbsolute()) {
-                            Path target = oldDir.resolve(v).normalize();
-                            String rewritten;
-                            try {
-                                rewritten = newDir.relativize(target).toString().replace('\\', '/');
-                            } catch (IllegalArgumentException e) {
-                                rewritten = target.toString();  // another drive
-                            }
-                            moved.computeIfAbsent(node.id(), k -> new java.util.LinkedHashMap<>())
-                                    .put(name, rewritten);
-                        }
-                    });
-                }
-                f.setBaseDirectory(newDir);
-                moved.forEach((id, params) -> params.forEach((name, value) ->
-                        f.setParamJson(id, name, Json.quote(value))));
+            String before = f.toJson();
+            try {
+                saveInto(f, path, oldDir, newDir);
+            } catch (RuntimeException e) {
+                f.fromJson(before, oldDir);  // as it was, paths and folder
+                throw e;
             }
-            f.save(path);
+            if (!newDir.equals(oldDir)) {
+                // The undo entries hold paths relative to the old folder.
+                undoStack.clear();
+                redoStack.clear();
+            }
             flowFile = path;
             return null;
-        }, false);
+        }, false, false);
+    }
+
+    /** Engine thread: saves the flow at path, its relative file parameters made relative to newDir. */
+    private static void saveInto(Flow f, Path path, Path oldDir, Path newDir) {
+        if (!newDir.equals(oldDir)) {
+            // Relative file parameters are taken from the flow file's folder:
+            // rewrite them so that they name the same files from the new one.
+            Map<Long, Map<String, String>> moved = new java.util.LinkedHashMap<>();
+            for (NodeInfo node : FlowInfo.parse(f.toJson()).nodes().values()) {
+                node.params().forEach((name, value) -> {
+                    if ((name.endsWith("Image") || name.endsWith("Path")) && value instanceof String v
+                            && !v.isEmpty() && !Path.of(v).isAbsolute()) {
+                        Path target = oldDir.resolve(v).normalize();
+                        String rewritten;
+                        try {
+                            rewritten = newDir.relativize(target).toString().replace('\\', '/');
+                        } catch (IllegalArgumentException e) {
+                            rewritten = target.toString();  // another drive
+                        }
+                        moved.computeIfAbsent(node.id(), k -> new java.util.LinkedHashMap<>())
+                                .put(name, rewritten);
+                    }
+                });
+            }
+            f.setBaseDirectory(newDir);
+            moved.forEach((id, params) -> params.forEach((name, value) -> {
+                try {
+                    f.setParamJson(id, name, Json.quote(value));
+                } catch (AmvFlowException e) {
+                    // A file that is not there from either folder: the engine
+                    // keeps the old value; the node shows the problem.
+                }
+            }));
+        }
+        f.save(path);
     }
 
     private void openImage() {

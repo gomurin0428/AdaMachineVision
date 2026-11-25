@@ -118,6 +118,7 @@ package body AMV.Flow.Graphs is
          end;
       end loop;
       Flow.Nodes.Clear;
+      Flow.Unprepared.Clear;
       Flow.Links.Clear;
       Flow.Inputs.Clear;
       Flow.Outputs.Clear;
@@ -239,6 +240,7 @@ package body AMV.Flow.Graphs is
       end loop;
       N := Flow.Nodes.Element (Id);
       Flow.Nodes.Delete (Id);
+      Flow.Unprepared.Exclude (Id);
       Free (N);
    end Remove_Node;
 
@@ -274,24 +276,47 @@ package body AMV.Flow.Graphs is
                         Name  : String;
                         Value : AMV.Flow.Values.Ks_Flow_Value)
    is
-      N : constant Node_Access := Node (Flow, Id);
+      N   : constant Node_Access := Node (Flow, Id);
+      Old : constant Ks_Flow_Value := N.Get_Param (Name);
    begin
       Set_Param_Checked (N.all, Name, Value);
-      N.Prepare (Base_Directory (Flow));
+      begin
+         N.Prepare (Base_Directory (Flow));
+         Flow.Unprepared.Exclude (Id);
+      exception
+         when others =>
+            --  A value the node cannot work with (a train image that
+            --  cannot be read) is not kept: the flow stays as it was.
+            if Old.Has_Value then
+               Set_Param_Checked (N.all, Name, Old);
+               begin
+                  N.Prepare (Base_Directory (Flow));
+               exception
+                  when others =>
+                     null;  --  as unprepared as before
+               end;
+            end if;
+            raise;
+      end;
    end Set_Param;
 
    procedure Prepare (Flow : in out Ks_Flow) is
    begin
+      --  A node that cannot be prepared (its train image is missing) does
+      --  not keep the flow from loading: it is a problem of that node, so
+      --  that the flow can be opened and the path set right.
+      Flow.Unprepared.Clear;
       for C in Flow.Nodes.Iterate loop
          declare
             Id : constant Positive := Node_Maps.Key (C);
          begin
             Node_Maps.Element (C).Prepare (Base_Directory (Flow));
          exception
-            when E : Ks_Flow_Exception =>
-               raise Ks_Flow_Exception with
-                 Describe (Flow, Id) & ": "
-                 & Ada.Exceptions.Exception_Message (E);
+            when E : Ks_Flow_Exception | AMV.Ks_Exception
+                   | AMV.Ks_Bad_Parameter_Exception
+                   | AMV.Ks_Image_File_Exception =>
+               Flow.Unprepared.Insert
+                 (Id, U (Ada.Exceptions.Exception_Message (E)));
          end;
       end loop;
    end Prepare;
@@ -515,7 +540,10 @@ package body AMV.Flow.Graphs is
                                  & To_String (P.Name) & " is not linked");
                end if;
             end loop;
-            if Problem /= "" then
+            if Flow.Unprepared.Contains (Id) then
+               Result.Append (Describe (Flow, Id) & ": "
+                              & To_String (Flow.Unprepared.Element (Id)));
+            elsif Problem /= "" then
                Result.Append (Describe (Flow, Id) & ": " & Problem);
             end if;
          end;
@@ -1159,6 +1187,7 @@ package body AMV.Flow.Graphs is
       Flow.Flow_Name := Fresh.Flow_Name;
       Flow.Base_Dir := Fresh.Base_Dir;
       Flow.Nodes.Move (Source => Fresh.Nodes);
+      Flow.Unprepared.Move (Source => Fresh.Unprepared);
       Flow.Links.Move (Source => Fresh.Links);
       Flow.Inputs.Move (Source => Fresh.Inputs);
       Flow.Outputs.Move (Source => Fresh.Outputs);
