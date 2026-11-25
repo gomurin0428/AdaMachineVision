@@ -284,9 +284,11 @@ package body AMV.Flow.Graphs is
          N.Prepare (Base_Directory (Flow));
          Flow.Unprepared.Exclude (Id);
       exception
-         when others =>
+         when E : others =>
             --  A value the node cannot work with (a train image that
-            --  cannot be read) is not kept: the flow stays as it was.
+            --  cannot be read) is not kept: the flow stays as it was. A
+            --  parameter that had no value cannot go back: the node is
+            --  then unprepared, with the reason among the problems.
             if Old.Has_Value then
                Set_Param_Checked (N.all, Name, Old);
                begin
@@ -295,6 +297,9 @@ package body AMV.Flow.Graphs is
                   when others =>
                      null;  --  as unprepared as before
                end;
+            else
+               Flow.Unprepared.Include
+                 (Id, U (Ada.Exceptions.Exception_Message (E)));
             end if;
             raise;
       end;

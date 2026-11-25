@@ -494,6 +494,7 @@ public final class EditorApp extends Application {
                 saveInto(f, path, oldDir, newDir);
             } catch (RuntimeException e) {
                 f.fromJson(before, oldDir);  // as it was, paths and folder
+                setImageInput(f);
                 throw e;
             }
             if (!newDir.equals(oldDir)) {

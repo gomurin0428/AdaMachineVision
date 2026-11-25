@@ -148,6 +148,7 @@ package body AMV.Flow.Nodes.Camera is
                --  timed out: wait on until the deadline.
                Ada.Exceptions.Save_Occurrence (Last, E);
                exit when Ada.Real_Time.Clock >= Deadline;
+               delay 0.002;  --  a camera that fails at once: do not spin
          end;
       end loop;
       if Got then
