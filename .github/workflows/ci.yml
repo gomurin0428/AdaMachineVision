@@ -283,7 +283,7 @@ jobs:
       - name: Test the Java binding and build the editor
         shell: pwsh
         working-directory: optional/flow_editor
-        run: gradle --no-daemon :amv-flow-native:test :amv-flow-editor:installDist
+        run: gradle --no-daemon :amv-flow-native:test :amv-flow-editor:test :amv-flow-editor:installDist
 
       # The editor as a self-contained package (a Java runtime, the jars,
       # libamvflow): unzip and run "AMV Flow Editor.exe". Without the

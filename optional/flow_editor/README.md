@@ -40,7 +40,8 @@ gradle :amv-flow-editor:installDist   # amv-flow-editor/build/install/amv-flow-e
 `build/flow-c-lib`; give another with `-PamvFlowLibrary=<path>`. The
 installed launcher takes the library from `-Damv.flow.library=<path>` in
 `JAVA_OPTS` (or `libamvflow` in the working directory) and the arguments
-`[flow file [image file or folder of images]]`:
+`[--operator] [--live] [--display NODE] [flow file [image file or folder
+of images]]` (the options: see the operator screen below):
 
 ```sh
 set JAVA_OPTS=-Damv.flow.library=D:\...\build\flow-c-lib\libamvflow.dll
@@ -109,6 +110,32 @@ and tested on Windows so far.
   parameter of every node to an `.amvrecipe` file (one product's
   settings), **Load recipe…** sets them again (Undo takes it back).
 * **Flow zoom**: Ctrl + wheel over the flow; Ctrl+0 back to 100 %.
+
+## The operator screen
+
+The screen for the line: the verdict in large letters (**OK** green, OK
+amber for a warning, **NG** red, ERROR, CANNOT RUN with the problems),
+the message that goes with it, the image of one node with its regions and
+what it found, the counts (inspected, OK, NG, OK rate) and the flow's
+output values. An operator can start and stop live mode (F6), run once
+(F5), step through a folder (Page Up / Page Down), change the recipe,
+reset the counts (after asking), pick the node whose image is shown and
+go full screen (F11); nothing else of the flow can be changed, and the
+editor's keys do nothing there.
+
+* From the editor: **Operator screen** in the toolbar (it shows the
+  selected node's image when the node has one); **Back to editor**
+  returns. Both screens share the flow: live mode and the counts go on.
+* Alone, for the line's computer:
+
+  ```sh
+  amv-flow-editor --operator [--live] [--display NODE] FLOW [IMAGE | FOLDER]
+  ```
+
+  `--live` starts live mode at once; `--display` names the node whose
+  image is shown (its id or name), else it is the last node with an
+  image (the highest id). A flow that cannot be opened is an error
+  dialog and the program ends: the operator has nothing to put right.
 
 Not yet: a polygon region, the C API's
 image transfer without a copy (`PixelBuffer`).
