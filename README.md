@@ -9,7 +9,11 @@ example) holds its input image and run parameters; `Run` leaves its
 results and a run status in it.
 
 The logic is written in SPARK and proved free of run-time errors, and
-the same kernels are the C API. AMV uses no other library.
+the same kernels are the C API. The core uses no other library. The
+optional Linux and Windows GigE Vision adapter is outside the SPARK kernels
+and C API; it uses Aravis 0.8 (see
+[`optional/aravis/README.md`](optional/aravis/README.md) for platform-specific
+dependencies and setup).
 
 ## What it finds
 
@@ -125,7 +129,9 @@ are available as `ks_transform_2d_linear_*` functions (`include/amv.h`).
 
 Requirements: GNAT 16.1 and gprbuild 26 (for example the GNAT FSF builds or
 Alire), and gnatprove 16.1 for the proofs. GNAT 14 builds and tests the
-Ada code too. There are no other dependencies.
+Ada code too. The core has no other dependencies. The optional GigE Vision
+adapter requires Aravis 0.8 and pkg-config; platform-specific dependencies
+and setup are documented in `optional/aravis/README.md`.
 
 ```
 make build       # the library: build/lib/libamv.a
@@ -138,6 +144,9 @@ make run-examples  # run the examples and check their reports
 make test-real-images  # fetch public images and run the real-image tests
 make run-real-image-examples  # run the examples on those images
 make pictures    # write the result pictures of docs/images again
+make build-aravis  # optional Aravis camera adapter and example
+make test-aravis   # fake camera and client, isolated to loopback
+# make example-aravis CAMERA_ID=192.168.1.20 IMAGE=capture.pgm
 ```
 
 Run the tests from the repository root (some write under `tests/output/`).
@@ -152,6 +161,7 @@ tests/           Ada tests (test_suite runs them all with every contract
                  and tests/c (C API)
 examples/        example programs; examples/real_images runs on photographs
 tools/           development tools (the thin-API check)
+optional/aravis/ the optional Aravis GigE Vision adapter and tests
 docs/            DESIGN.md (binding rules), PROOF.md,
                  images/ (the result pictures the READMEs show),
                  handoff/ (plans and notes, in Japanese)
@@ -169,6 +179,8 @@ docs/            DESIGN.md (binding rules), PROOF.md,
   licences, and the tuning and evaluation protocol.
 * `docs/images/README.md`: the result pictures, and the source and
   licence of the photograph under each.
+* `optional/aravis/README.md`: the optional Mono8/Bayer8 GigE Vision adapter,
+  its Aravis dependency, lifecycle, and loopback-only tests.
 
 ## License
 

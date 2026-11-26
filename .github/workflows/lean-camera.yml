@@ -1,0 +1,91 @@
+name: Lean camera lifecycle agreement
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'verification/lean-camera/**'
+      - 'optional/aravis/src/**/*.ads'
+      - 'src/**/*.ads'
+      - 'optional/aravis/src/amv-gige_vision_types.ads'
+      - 'optional/aravis/src/amv-kernels-gige_vision.adb'
+      - 'optional/aravis/src/amv-spec-gige_vision.ads'
+      - 'optional/aravis/src/amv-kernels-gige_vision.ads'
+      - 'optional/aravis/src/amv-gige_vision_native.ads'
+      - 'src/amv-kernels-images.ads'
+      - 'src/amv-kernels.ads'
+      - 'contracts.adc'
+      - 'optional/aravis/amv_gige_vision.gpr'
+      - 'optional/aravis/amv_gige_vision_proof.gpr'
+      - '.github/actions/toolchain/action.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/lean-camera.yml'
+  pull_request:
+    paths:
+      - 'verification/lean-camera/**'
+      - 'optional/aravis/src/**/*.ads'
+      - 'src/**/*.ads'
+      - 'optional/aravis/src/amv-gige_vision_types.ads'
+      - 'optional/aravis/src/amv-kernels-gige_vision.adb'
+      - 'optional/aravis/src/amv-spec-gige_vision.ads'
+      - 'optional/aravis/src/amv-kernels-gige_vision.ads'
+      - 'optional/aravis/src/amv-gige_vision_native.ads'
+      - 'src/amv-kernels-images.ads'
+      - 'src/amv-kernels.ads'
+      - 'contracts.adc'
+      - 'optional/aravis/amv_gige_vision.gpr'
+      - 'optional/aravis/amv_gige_vision_proof.gpr'
+      - '.github/actions/toolchain/action.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/lean-camera.yml'
+
+permissions:
+  contents: read
+
+env:
+  GNAT_RELEASE: gnat-16.1.0-1
+  GNAT_ASSET: gnat-x86_64-linux-16.1.0-1.tar.gz
+  GPRBUILD_RELEASE: gprbuild-26.0.0-1
+  GPRBUILD_ASSET: gprbuild-x86_64-linux-26.0.0-1.tar.gz
+  GNATPROVE_RELEASE: gnatprove-16.1.0-1
+  GNATPROVE_ASSET: gnatprove-x86_64-linux-16.1.0-1.tar.gz
+
+jobs:
+  lean-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: verification/lean-camera
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: ./.github/actions/toolchain
+
+      - name: Install Elan and the pinned Lean toolchain
+        run: |
+          curl https://elan.lean-lang.org/elan-init.sh -sSf -o "$RUNNER_TEMP/elan-init.sh"
+          sh "$RUNNER_TEMP/elan-init.sh" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" toolchain install leanprover/lean4:v4.19.0
+
+      - name: Check GNAT-generated Pixel_At semantics
+        run: |
+          gcc --version | sed -n 1p
+          gcc -dumpmachine
+          python3 tools/extract_pixel_compiler.py --check
+
+      - name: Check GNAT-generated Grab_Status frame-size semantics
+        run: python3 tools/extract_frame_size_compiler.py --check
+
+      - name: Check generated contracts and parser integration tests
+        run: |
+          python3 tools/extract_contracts.py --check
+          python3 tools/extract_grab_contracts.py --check
+          python3 -m unittest discover -s tests -v
+
+      - name: Build kernel-checked Lean proofs
+        run: lake build CameraLifecycle
+
+      - name: Audit proof assumptions
+        run: python3 tools/check_axioms.py

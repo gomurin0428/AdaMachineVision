@@ -220,6 +220,10 @@ package AMV.Kernels.Images with SPARK_Mode, Preelaborate is
              and then Status.Failure
                         in Failure_None | Failure_Bad_Parameter
                          | Failure_Out_Of_Memory
+             and then (if Width >= 1 and then Height >= 1
+                          and then Int64 (Width) * Int64 (Height) <= Max_Pixels
+                       then Status.Failure /= Failure_Bad_Parameter
+                       else Status.Failure = Failure_Bad_Parameter)
              and then (if Succeeded (Status)
                        then Valid_Image (Image)
                             and then Image.Width = Width

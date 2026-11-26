@@ -606,7 +606,7 @@ procedure Test_IP_Geometry is
          Inside : Natural := 0;
          Holes  : Natural := 0;
       begin
-         for Case_Number in 1 .. 4 loop
+         for Case_Number in 1 .. 6 loop
             Tool.Run_Params := (others => <>);
             case Case_Number is
                when 1 => null;
@@ -617,6 +617,15 @@ procedure Test_IP_Geometry is
                when 3 =>
                   CR.Set_Fill_Bounding_Box (Tool.Run_Params, False);
                when 4 =>
+                  Tool.Run_Params.Region_Mode := CR.Pixel_Aligned_Bounding_Box;
+               when 5 =>
+                  CR.Set_Fill_Region (Tool.Run_Params, True);
+                  Tool.Run_Params.Fill_Region_Value := 200;
+                  CR.Set_Fill_Bounding_Box (Tool.Run_Params, False);
+               when 6 =>
+                  CR.Set_Fill_Region (Tool.Run_Params, True);
+                  Tool.Run_Params.Fill_Region_Value := 200;
+                  Tool.Run_Params.Fill_Bounding_Box_Value := 9;
                   Tool.Run_Params.Region_Mode := CR.Pixel_Aligned_Bounding_Box;
             end case;
             Tool.Run;
@@ -637,7 +646,9 @@ procedure Test_IP_Geometry is
                           (case Case_Number is
                               when 1 => (if In_Region then Input else 0),
                               when 2 => (if In_Region then 200 else 9),
-                              when 3 | 4 => Input);
+                              when 3 | 4 => Input,
+                              when 5 => (if In_Region then 200 else Input),
+                              when 6 => 200);
                      begin
                         Good := Good
                           and then Tool.Output_Image.Get_Pixel (I, J)

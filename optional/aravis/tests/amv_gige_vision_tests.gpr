@@ -1,0 +1,17 @@
+with "amv_gige_vision_test_library.gpr";
+
+project AMV_GigE_Vision_Tests is
+   for Source_Dirs use (".");
+   for Object_Dir use "../../../build/aravis-test-obj";
+   for Exec_Dir use "../../../build/bin";
+   for Main use ("test_gige_vision.adb");
+   for Languages use ("Ada", "C");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-gnatwe", "-gnata", "-O2");
+      for Default_Switches ("C") use
+        ("-std=c11", "-Wall", "-Wextra", "-Werror", "-O2");
+   end Compiler;
+end AMV_GigE_Vision_Tests;

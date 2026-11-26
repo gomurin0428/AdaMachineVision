@@ -1,0 +1,19 @@
+with "../amv_flow.gpr";
+
+project AMV_Flow_Tests is
+   for Source_Dirs use (".");
+   for Object_Dir use "../../../build/flow-tests-obj";
+   for Exec_Dir use "../../../build/bin";
+   for Main use ("test_flow.adb");
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-gnatwe", "-gnata", "-g", "-O1");
+   end Compiler;
+
+   package Binder is
+      for Default_Switches ("Ada") use ("-E");
+   end Binder;
+end AMV_Flow_Tests;

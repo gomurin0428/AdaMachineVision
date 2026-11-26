@@ -1,0 +1,19 @@
+with "../amv_flow.gpr";
+with "../../aravis/amv_gige_vision.gpr";
+
+--  The Camera node of AMV Flow (AMV.Flow.Nodes.Camera), apart from the
+--  engine because it needs Aravis (optional/aravis).
+library project AMV_Flow_Camera is
+   for Source_Dirs use ("src");
+   for Object_Dir use "../../../build/flow-camera-obj";
+   for Library_Dir use "../../../build/flow-camera-lib";
+   for Library_Name use "amv_flow_camera";
+   for Library_Kind use "static";
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatW8", "-ffp-contract=off",
+         "-gnatwa", "-gnatVa", "-gnatwe", "-O2");
+   end Compiler;
+end AMV_Flow_Camera;

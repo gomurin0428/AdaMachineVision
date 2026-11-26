@@ -37,7 +37,7 @@ MUTATION_RUN = mkdir -p $(MUTATION_CACHE) && \
 
 .PHONY: all build test test-ada test-c examples run-examples fetch-real-images \
 	test-real-images run-real-image-examples pictures check shell-check \
-	prove mutation mutation-diff clean
+	build-aravis test-aravis example-aravis build-live-circularity build-flow test-flow build-flow-c test-flow-c build-flow-c-camera prove prove-aravis mutation mutation-diff clean
 
 all: build
 
@@ -59,6 +59,84 @@ test-ada:
 test-c:
 	$(GPRBUILD) -p -P amv_c_tests.gpr
 	./build/bin/test_c_api
+
+ARAVIS_PKG ?= aravis-0.8
+ARAVIS_CFLAGS = $(shell pkg-config --cflags $(ARAVIS_PKG) 2>/dev/null)
+ARAVIS_LIBS = $(shell pkg-config --libs $(ARAVIS_PKG) 2>/dev/null)
+
+build-aravis:
+	@pkg-config --exists $(ARAVIS_PKG) || { \
+	  echo "Aravis development files not found (pkg-config $(ARAVIS_PKG))" >&2; \
+	  exit 1; }
+	$(GPRBUILD) -p -P optional/aravis/amv_gige_vision.gpr \
+	  -cargs:C $(ARAVIS_CFLAGS)
+	$(GPRBUILD) -p -P optional/aravis/examples/capture_one_image.gpr \
+	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
+
+# Both endpoints use the explicit loopback address 127.0.0.1 and never scan
+# devices. Linux runs them in a fresh network namespace; Windows runs locally.
+test-aravis: build-aravis
+	$(GPRBUILD) -p -P optional/aravis/tests/amv_gige_vision_tests.gpr \
+	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
+ifeq ($(OS),Windows_NT)
+	@PATH="$(MINGW_PREFIX)/bin:$$PATH" ./build/bin/test_gige_vision.exe
+else
+	@set -eu; \
+	test_cmd='ip link set lo up && "$(CURDIR)/build/bin/test_gige_vision"'; \
+	if unshare --user --map-root-user --net /bin/sh -c ':' 2>/dev/null; then \
+	  unshare --user --map-root-user --net /bin/sh -eu -c "$$test_cmd"; \
+	elif sudo -n unshare --net /bin/sh -c ':' 2>/dev/null; then \
+	  sudo -n unshare --net /bin/sh -eu -c "$$test_cmd"; \
+	else \
+	  echo "Cannot create an isolated network namespace; refusing to run the fake camera outside one" >&2; \
+	  exit 1; \
+	fi
+endif
+
+# Windows only: the live circularity window (optional/aravis/examples/
+# live_circularity).
+build-live-circularity: build-aravis
+	$(GPRBUILD) -p -P optional/aravis/examples/live_circularity/live_circularity.gpr \
+	  -cargs:C $(ARAVIS_CFLAGS) -largs $(ARAVIS_LIBS)
+
+# AMV Flow (optional/flow, docs/FLOW_EDITOR_DESIGN.md): the engine, the
+# amv_flow command-line runner and its tests. Needs AMV only.
+build-flow:
+	$(GPRBUILD) -p -P optional/flow/cli/amv_flow_cli.gpr
+
+test-flow:
+	$(GPRBUILD) -p -P optional/flow/tests/amv_flow_tests.gpr
+	./build/bin/test_flow
+
+# The engine as the shared library amvflow with its C API
+# (optional/flow/include/amv_flow.h), and the C tests of that API (they
+# read the flow file that test-flow writes).
+build-flow-c:
+	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c.gpr
+
+# amvflow with the Camera node (needs Aravis, like build-aravis), into
+# build/flow-c-camera-lib; on Windows the Aravis and GLib DLLs it needs
+# are copied next to it, where the editor finds them.
+build-flow-c-camera: build-aravis
+	$(GPRBUILD) -p -P optional/flow/capi/amv_flow_c_camera.gpr \
+	  -XARAVIS_LIBS="$(ARAVIS_LIBS)" -cargs:C $(ARAVIS_CFLAGS)
+ifeq ($(OS),Windows_NT)
+	ldd build/flow-c-camera-lib/libamvflow.dll | awk '/mingw64/ {print $$3}' \
+	  | xargs -I{} cp {} build/flow-c-camera-lib/
+endif
+
+test-flow-c: test-flow build-flow-c
+	$(GPRBUILD) -p -P optional/flow/capi/tests/amv_flow_c_tests.gpr
+ifeq ($(OS),Windows_NT)
+	@PATH="$(CURDIR)/build/flow-c-lib:$$PATH" ./build/bin/test_amvf.exe
+else
+	LD_LIBRARY_PATH="$(CURDIR)/build/flow-c-lib:$$LD_LIBRARY_PATH" ./build/bin/test_amvf
+endif
+
+example-aravis: build-aravis
+	@test -n "$(CAMERA_ID)" || { \
+	  echo "Set CAMERA_ID to an explicit camera IP or device ID" >&2; exit 2; }
+	./build/bin/capture_one_image "$(CAMERA_ID)" "$(or $(IMAGE),capture.pgm)"
 
 # Downloads the open images of the manifests tests/real_images/*.txt
 # (checked by SHA-256) and converts them to BMP in build/real-images;
@@ -137,6 +215,13 @@ prove:
 	$(GNATPROVE) -P amv.gpr -j$(PROVE_JOBS) --checks-as-errors=on \
 	  --warnings=error --report=fail $(PROVE_CACHE_SWITCH) \
 	  $(foreach u,$(PROVE_UNITS),-u $(u))
+
+# Proves only the optional GigE specification and its production engine.
+ARAVIS_PROVE_UNITS ?= amv-spec-gige_vision.ads amv-kernels-gige_vision.adb
+prove-aravis:
+	$(GNATPROVE) -P optional/aravis/amv_gige_vision_proof.gpr -j$(PROVE_JOBS) \
+	  --checks-as-errors=on --warnings=error --report=fail \
+	  $(foreach u,$(ARAVIS_PROVE_UNITS),-u $(u))
 
 # Mutation testing: every small change of a body (a mutant) is run with
 # the areas of test_suite that execute its place and, if they pass, the
