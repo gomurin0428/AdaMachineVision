@@ -1257,6 +1257,150 @@ procedure Test_Flow is
    end Test_Logic;
 
    ---------------------------------------------------------------------
+   --  FindCircle, Distance, Histogram
+   ---------------------------------------------------------------------
+
+   procedure Test_Measure is
+      use Ada.Numerics.Long_Elementary_Functions;
+      Disc : AMV.Images.Ks_Image_8_Grey :=
+        AMV.Images.Create (200, 150, Value => 30);
+      Expected : AMV.Shapes.Ks_Circle;
+      Middle   : AMV.Shapes.Ks_Circle;
+   begin
+      for Y in 0 .. 149 loop
+         for X in 0 .. 199 loop
+            if (Real (X) - 100.3) ** 2 + (Real (Y) - 74.6) ** 2 <= 40.0 ** 2
+            then
+               Disc.Set_Pixel (X, Y, 220);
+            end if;
+         end loop;
+      end loop;
+
+      --  FindCircle: a disc of radius 40 looked for from radius 48.
+      declare
+         Flow : AMV.Flow.Graphs.Ks_Flow;
+      begin
+         Flow.Add_Input ("Image", Image_8_Grey_Type);
+         Flow.Add_Output ("X", Real_Type);
+         Flow.Add_Output ("Y", Real_Type);
+         Flow.Add_Output ("R", Real_Type);
+         Flow.Add_Output ("Found", Boolean_Type);
+         Check (Flow.Add_Node ("FindCircle") = 1, "measure: node 1");
+         Expected.Set_Center_Radius (98.0, 76.0, 48.0);
+         Flow.Set_Param (1, "Expected", From_Shape (Expected));
+         Flow.Set_Param (1, "SearchLength", From_Real (30.0));
+         Flow.Set_Param (1, "Polarity", From_String ("DarkToLight"));
+         Flow.Set_Param (1, "SearchDirection", From_String ("Inward"));
+         Flow.Link ("input.Image", "1.Image");
+         Flow.Link ("1.CenterX", "output.X");
+         Flow.Link ("1.CenterY", "output.Y");
+         Flow.Link ("1.Radius", "output.R");
+         Flow.Link ("1.Found", "output.Found");
+         Flow.Set_Input ("Image", From_Image (Disc));
+         Flow.Run;
+         Check (Flow.Result = AMV.Tools.Accept_Result
+                and then Boolean_Output (Flow, "Found"),
+                "measure: the circle found (" & Flow.Message & ")");
+         Check_Near (Real_Output (Flow, "X"), 100.3, 0.3, "measure: its x");
+         Check_Near (Real_Output (Flow, "Y"), 74.6, 0.3, "measure: its y");
+         Check_Near (Real_Output (Flow, "R"), 40.0, 0.6, "measure: its radius");
+         Check (Contains (AMV.Flow.Reports.Graphics_JSON (Flow, 1),
+                          """role"": ""found"""),
+                "measure: the editor gets the circle found");
+         Flow.Set_Input ("Image", From_Image
+           (AMV.Images.Create (200, 150, Value => 30)));
+         Flow.Run;
+         Check (Flow.Result = AMV.Tools.Reject
+                and then not Boolean_Output (Flow, "Found")
+                and then not Flow.Get_Output ("R").Has_Value,
+                "measure: no circle is a reject (" & Flow.Message & ")");
+         --  Too many outliers to ignore for 12 calipers... a setting the
+         --  tool refuses is an Error, not a part that failed.
+         Flow.Set_Param (1, "NumToIgnore", From_Integer (10));
+         Flow.Set_Input ("Image", From_Image (Disc));
+         Flow.Run;
+         Check (Flow.Result = AMV.Tools.Error
+                and then Contains (Flow.Message, "NumToIgnore"),
+                "measure: bad settings are an error that says which ("
+                & Flow.Message & ")");
+      end;
+
+      --  Distance: a 3-4-5 triangle.
+      declare
+         Flow : AMV.Flow.Graphs.Ks_Flow;
+      begin
+         Flow.Add_Input ("A", Real_Type);
+         Flow.Add_Input ("B", Real_Type);
+         Flow.Add_Output ("D", Real_Type);
+         Flow.Add_Output ("Angle", Real_Type);
+         Check (Flow.Add_Node ("Distance") = 1, "measure: distance node");
+         Flow.Link ("input.A", "1.X1");
+         Flow.Link ("input.A", "1.Y1");
+         Flow.Link ("input.B", "1.X2");
+         Flow.Link ("input.A", "1.Y2");
+         Flow.Link ("1.Distance", "output.D");
+         Flow.Link ("1.Angle", "output.Angle");
+         Flow.Set_Input ("A", From_Real (1.0));
+         Flow.Set_Input ("B", From_Real (4.0));
+         Flow.Run;
+         Check_Near (Real_Output (Flow, "D"), 3.0, 1.0E-9,
+                     "measure: the distance");
+         Check_Near (Real_Output (Flow, "Angle"), 0.0, 1.0E-9,
+                     "measure: its angle");
+         Flow.Unlink ("1.Y2");
+         Flow.Link ("input.B", "1.Y2");
+         Flow.Run;
+         Check_Near (Real_Output (Flow, "D"), 3.0 * Sqrt (2.0), 1.0E-9,
+                     "measure: a diagonal");
+         Check_Near (Real_Output (Flow, "Angle"), Pi / 4.0, 1.0E-9,
+                     "measure: at 45 degrees");
+      end;
+
+      --  Histogram: the whole image, then inside the disc.
+      declare
+         Flow : AMV.Flow.Graphs.Ks_Flow;
+      begin
+         Flow.Add_Input ("Image", Image_8_Grey_Type);
+         Flow.Add_Output ("Mean", Real_Type);
+         Flow.Add_Output ("Min", Integer_Type);
+         Flow.Add_Output ("Max", Integer_Type);
+         Flow.Add_Output ("Threshold", Integer_Type);
+         Flow.Add_Output ("Samples", Integer_Type);
+         Check (Flow.Add_Node ("Histogram") = 1, "measure: histogram node");
+         Flow.Link ("input.Image", "1.Image");
+         Flow.Link ("1.Mean", "output.Mean");
+         Flow.Link ("1.Minimum", "output.Min");
+         Flow.Link ("1.Maximum", "output.Max");
+         Flow.Link ("1.Threshold", "output.Threshold");
+         Flow.Link ("1.Samples", "output.Samples");
+         Flow.Set_Input ("Image", From_Image (Disc));
+         Flow.Run;
+         Check (Flow.Get_Output ("Min").As_Integer = 30
+                and then Flow.Get_Output ("Max").As_Integer = 220
+                and then Flow.Get_Output ("Samples").As_Integer = 30_000
+                and then Flow.Get_Output ("Threshold").As_Integer in 31 .. 220,
+                "measure: the whole image's statistics");
+         Middle.Set_Center_Radius (100.0, 75.0, 20.0);
+         Flow.Set_Param (1, "Region", From_Shape (Middle));
+         Flow.Run;
+         Check_Near (Real_Output (Flow, "Mean"), 220.0, 1.0E-9,
+                     "measure: inside the disc");
+         Middle.Set_Center_Radius (-100.0, -100.0, 5.0);
+         Flow.Set_Param (1, "Region", From_Shape (Middle));
+         Flow.Run;
+         Check (Flow.Node (1).Result = AMV.Tools.Reject
+                and then not Flow.Get_Output ("Mean").Has_Value,
+                "measure: a region off the image is a reject ("
+                & Flow.Node (1).Message & ")");
+         --  null clears the region: the whole image again.
+         Flow.Set_Param_JSON (1, "Region", "null");
+         Flow.Run;
+         Check (Flow.Get_Output ("Samples").As_Integer = 30_000,
+                "measure: the region cleared, the whole image");
+      end;
+   end Test_Measure;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -1318,6 +1462,7 @@ begin
    Test_Log;
    Test_Kept;
    Test_Logic;
+   Test_Measure;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

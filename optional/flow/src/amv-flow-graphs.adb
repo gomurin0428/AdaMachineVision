@@ -981,11 +981,19 @@ package body AMV.Flow.Graphs is
       end if;
       AMV.Flow.JSON.Parse (Doc, Value_JSON);
       declare
+         use type AMV.Flow.JSON.Kind_Type;
          All_Params : constant Param_Array := N.Params;
+         Root       : constant AMV.Flow.JSON.Node := AMV.Flow.JSON.Root (Doc);
       begin
-         Set_Param (Flow, Id, Name,
-                    JSON_Param_Value (Doc, AMV.Flow.JSON.Root (Doc),
-                                      All_Params (Index)));
+         if AMV.Flow.JSON.Kind (Doc, Root) = AMV.Flow.JSON.Null_Kind
+           and then All_Params (Index).Kind = Shape_Param
+         then
+            --  null clears a shape (a region: the whole image).
+            Set_Param (Flow, Id, Name, No_Value);
+         else
+            Set_Param (Flow, Id, Name,
+                       JSON_Param_Value (Doc, Root, All_Params (Index)));
+         end if;
       end;
    exception
       when E : AMV.Ks_Bad_Parameter_Exception | AMV.Ks_Exception =>

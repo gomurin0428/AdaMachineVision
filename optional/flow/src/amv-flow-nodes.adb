@@ -124,6 +124,12 @@ package body AMV.Flow.Nodes is
            Node.Kind_Id & " has no parameter """ & Name & """";
       end if;
       if not Value.Has_Value then
+         --  A shape parameter can be cleared (a region: the whole image);
+         --  the node says whether it can do without one.
+         if Node.Params (Index).Kind = Shape_Param then
+            Node.Set_Param (Name, Value);
+            return;
+         end if;
          Fail ("no value");
       end if;
       declare

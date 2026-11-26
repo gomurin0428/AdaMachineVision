@@ -5,6 +5,7 @@ with Ada.Containers.Vectors;
 
 with AMV.Flow.Nodes.Imaging;
 with AMV.Flow.Nodes.Logic;
+with AMV.Flow.Nodes.Measure;
 with AMV.Flow.Nodes.Logging;
 with AMV.Flow.Nodes.Vision;
 
@@ -53,6 +54,9 @@ begin
    Register ("Fixture", AMV.Flow.Nodes.Vision.Create_Fixture'Access);
    Register ("Caliper", AMV.Flow.Nodes.Vision.Create_Caliper'Access);
    Register ("Blob", AMV.Flow.Nodes.Vision.Create_Blob'Access);
+   Register ("FindCircle", AMV.Flow.Nodes.Measure.Create_Find_Circle'Access);
+   Register ("Distance", AMV.Flow.Nodes.Measure.Create_Distance'Access);
+   Register ("Histogram", AMV.Flow.Nodes.Measure.Create_Histogram'Access);
    Register ("Circularity",
              AMV.Flow.Nodes.Vision.Create_Circularity'Access);
    Register ("PolarUnwrap",
