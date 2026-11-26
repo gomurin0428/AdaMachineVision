@@ -97,6 +97,11 @@ public final class EditorApp extends Application {
     private volatile Path imageFile;
     private volatile boolean ranOnce;
     private volatile boolean liveOn;
+    // Why the image file could not be set (the flow still holds the last
+    // image read): kept until an image is read, and no run meanwhile.
+    private volatile String imageError;
+    // Live mode's state changes (FX thread) and its stops (engine thread).
+    private final Object liveLock = new Object();
     // Each start of live mode is numbered: a step of an earlier one stops.
     private final java.util.concurrent.atomic.AtomicInteger liveRun = new java.util.concurrent.atomic.AtomicInteger();
     private final java.util.concurrent.atomic.AtomicBoolean uiBusy =
@@ -447,14 +452,18 @@ public final class EditorApp extends Application {
     /** Switches live mode on or off, from either screen's button or F6. */
     private void setLive(boolean on) {
         showLive(on);
-        if (on == liveOn) {
-            return;
+        int run;
+        synchronized (liveLock) {
+            if (on == liveOn) {
+                return;
+            }
+            liveOn = on;
+            if (!on) {
+                return;
+            }
+            run = liveRun.incrementAndGet();
         }
-        liveOn = on;
-        if (on) {
-            int run = liveRun.incrementAndGet();
-            engine.execute(() -> liveStep(run));
-        }
+        engine.execute(() -> liveStep(run));
     }
 
     private void showLive(boolean on) {
@@ -488,6 +497,7 @@ public final class EditorApp extends Application {
                 ranOnce = false;
                 recipe = null;
                 displayNode = null;
+                imageError = null;
                 undoStack.clear();
                 redoStack.clear();
                 return NONE;
@@ -772,6 +782,7 @@ public final class EditorApp extends Application {
             ranOnce = false;
             recipe = null;
             displayNode = null;
+            imageError = null;
             undoStack.clear();
             redoStack.clear();
             setImageInput(f);
@@ -978,7 +989,13 @@ public final class EditorApp extends Application {
         if (input.isEmpty()) {
             f.addInput(name, "Image_8_Grey");
         }
-        f.setInputImageFile(name, imageFile);
+        try {
+            f.setInputImageFile(name, imageFile);
+            imageError = null;
+        } catch (RuntimeException e) {
+            imageError = message(e);
+            throw e;
+        }
     }
 
     private void addPort(boolean input) {
@@ -1079,8 +1096,9 @@ public final class EditorApp extends Application {
         if (!Json.array(Json.parse(problemsJson)).isEmpty()) {
             return false;
         }
-        return imageFile != null
-                || FlowInfo.parse(flow.toJson()).links().stream().noneMatch(l -> l.from().startsWith("input."));
+        boolean takesImage = FlowInfo.parse(flow.toJson()).links().stream().anyMatch(l -> l.from().startsWith("input."));
+        // Not the image before one that could not be read, again.
+        return !takesImage || (imageFile != null && imageError == null);
     }
 
     /** Engine thread: runs the flow; the error, or null. */
@@ -1097,6 +1115,9 @@ public final class EditorApp extends Application {
     /** Engine thread: what the editor shows. */
     private Snapshot snapshot(Long select, String problemsJson, String error) {
         boolean operator = operatorShowing;
+        if (error == null) {
+            error = imageError;
+        }
         String flowJson = flow.toJson();
         FlowInfo info = FlowInfo.parse(flowJson);
         Long shown = select != null && info.nodes().containsKey(select) ? select : null;
@@ -1136,16 +1157,24 @@ public final class EditorApp extends Application {
             error = canRun(problemsJson) ? runOnce()
                     : "Live stopped: the flow cannot run (see the problems, or open an image)";
         }
-        if (error != null && run == liveRun.get()) {
+        boolean current = true;
+        if (error != null) {
             // Only this run stops itself: not one started since.
-            liveOn = false;
-            Platform.runLater(() -> {
-                if (run == liveRun.get()) {
-                    showLive(false);
+            synchronized (liveLock) {
+                current = run == liveRun.get();
+                if (current) {
+                    liveOn = false;
                 }
-            });
+            }
+            if (current) {
+                Platform.runLater(() -> {
+                    if (run == liveRun.get()) {
+                        showLive(false);
+                    }
+                });
+            }
         }
-        if (uiBusy.compareAndSet(false, true) || (error != null && run == liveRun.get())) {
+        if (uiBusy.compareAndSet(false, true) || (error != null && current)) {
             Snapshot snapshot = snapshot(selected, problemsJson, error);
             Platform.runLater(() -> {
                 apply(snapshot);
@@ -1175,6 +1204,10 @@ public final class EditorApp extends Application {
         }
         List<String> problemList = Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList();
         if (s.operator()) {
+            if (imageFile == null && model.links().stream().anyMatch(l -> l.from().startsWith("input."))) {
+                problemList = new java.util.ArrayList<>(problemList);
+                problemList.add("The flow takes an image and has none: open an image or a folder in the editor");
+            }
             List<OperatorView.Choice> choices = Model.imageNodes(model, kinds).stream()
                     .map(n -> new OperatorView.Choice(n.id(), n.id() + "  "
                             + (n.name().isEmpty() ? n.kind() : n.name() + " (" + n.kind() + ")")))
