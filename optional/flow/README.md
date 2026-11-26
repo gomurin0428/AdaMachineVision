@@ -60,7 +60,9 @@ used, so a flow can be shipped with its pattern only; a region or origin
 other than the pattern's is then a problem, as there is nothing to train
 from. A pattern that cannot be saved (a read-only folder) does not stop
 the node: its runs warn instead. A file at `PatternPath` that is not a
-saved pattern is never written over.
+saved pattern is never written over. The pattern is written only once
+the flow keeps it (`Commit`, after `Prepare`): a recipe that is refused
+leaves the file as it was.
 
 A flow counts its runs by result (`Counts`, `Reset_Counts`; `"counts"` in
 the results JSON, `amvf_flow_reset_counts` in the C API): a pass / fail

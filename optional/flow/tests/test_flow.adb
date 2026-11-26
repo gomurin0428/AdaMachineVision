@@ -698,6 +698,47 @@ procedure Test_Flow is
                 "pattern: another file is not written over ("
                 & Again.Node (1).Message & ")");
          Again.Set_Param (1, "PatternPath", From_String (""));
+
+         --  A recipe that is refused leaves the saved pattern as it was
+         --  (the copy it was tried on trained, but did not save).
+         declare
+            Two_Path    : constant String := Test_Dir & "/two_patterns.amvflow";
+            Two_Pattern : constant String := Test_Dir & "/two.pattern";
+            Two         : AMV.Flow.Graphs.Ks_Flow;
+         begin
+            if Ada.Directories.Exists (Two_Pattern) then
+               Ada.Directories.Delete_File (Two_Pattern);
+            end if;
+            Write_Text
+              (Two_Path,
+               "{""format"": 1, ""name"": ""two"", ""inputs"": [], "
+               & """outputs"": [], ""links"": [], ""nodes"": ["
+               & "{""id"": 1, ""kind"": ""ShapeMatch"", ""params"": "
+               & "{""TrainImage"": ""align_model.bmp"", ""OriginX"": 100.0, "
+               & """OriginY"": 80.0, ""PatternPath"": ""two.pattern""}}, "
+               & "{""id"": 2, ""kind"": ""ShapeMatch"", ""params"": "
+               & "{""TrainImage"": ""align_model.bmp""}}]}");
+            Two.Load (Two_Path);
+            Check (Ada.Directories.Exists (Two_Pattern),
+                   "pattern: saved when the flow loads");
+            GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Two_Pattern, Long_Ago);
+            begin
+               Two.Apply_Recipe
+                 ("{""format"": 1, ""params"": {""1.OriginX"": 120.0, "
+                  & """2.TrainImage"": ""not_a_pattern.txt""}}");
+               Check (False, "pattern: the recipe is refused");
+            exception
+               when AMV.Flow.Ks_Flow_Exception =>
+                  Check (GNAT.OS_Lib.File_Time_Stamp (Two_Pattern) = Long_Ago
+                         and then Two.Node (1).Get_Param ("OriginX").As_Real
+                                  = 100.0,
+                         "pattern: a refused recipe leaves the saved pattern");
+            end;
+            Two.Apply_Recipe
+              ("{""format"": 1, ""params"": {""1.OriginX"": 120.0}}");
+            Check (GNAT.OS_Lib.File_Time_Stamp (Two_Pattern) /= Long_Ago,
+                   "pattern: an applied recipe saves the pattern");
+         end;
       end;
 
       --  No part: Shape Match rejects, everything after it is skipped.

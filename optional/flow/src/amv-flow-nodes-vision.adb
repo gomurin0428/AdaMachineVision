@@ -80,6 +80,11 @@ package body AMV.Flow.Nodes.Vision is
       Train_Region      : Ks_Flow_Value;
       Pattern_Path      : Unbounded_String;
       Save_Error        : Unbounded_String;  --  why the pattern was not saved
+      --  A pattern trained by Prepare, to be saved by Commit.
+      Pending           : Boolean := False;
+      Pending_File      : Unbounded_String;
+      Pending_Digest    : Unbounded_String;
+      Pending_Settings  : Unbounded_String;
       Origin_X          : Real := 0.0;
       Origin_Y          : Real := 0.0;
       Origin_Rotation   : Real := 0.0;
@@ -107,6 +112,7 @@ package body AMV.Flow.Nodes.Vision is
    overriding procedure Clear_Inputs (Node : in out Shape_Match_Node);
    overriding procedure Prepare
      (Node : in out Shape_Match_Node; Base_Directory : String);
+   overriding procedure Commit (Node : in out Shape_Match_Node);
    overriding function Problem (Node : Shape_Match_Node) return String;
    overriding procedure Execute (Node : in out Shape_Match_Node);
    overriding function Get_Output
@@ -441,6 +447,7 @@ package body AMV.Flow.Nodes.Vision is
       --  Nothing of an earlier pattern is kept (its settings included).
       Node.Tool.Pattern := Fresh;
       Node.Save_Error := Null_Unbounded_String;
+      Node.Pending := False;
       if Full = "" or else not Is_File (Full) then
          --  No train image (a flow shipped with its saved pattern only):
          --  the saved pattern, trained from whatever image, if it was
@@ -496,7 +503,11 @@ package body AMV.Flow.Nodes.Vision is
                  & Ada.Exceptions.Exception_Message (E);
          end;
          if Digest /= "" then
-            Save_Pattern (Node, Saved, Digest, Settings);
+            --  Saved by Commit, once the flow keeps this pattern.
+            Node.Pending := True;
+            Node.Pending_File := To_Unbounded_String (Saved);
+            Node.Pending_Digest := To_Unbounded_String (Digest);
+            Node.Pending_Settings := To_Unbounded_String (Settings);
          end if;
       end;
    exception
@@ -507,6 +518,16 @@ package body AMV.Flow.Nodes.Vision is
          raise Ks_Flow_Exception with
            "ShapeMatch: " & Ada.Exceptions.Exception_Message (E);
    end Prepare;
+
+   overriding procedure Commit (Node : in out Shape_Match_Node) is
+   begin
+      if Node.Pending then
+         Node.Pending := False;
+         Save_Pattern (Node, To_String (Node.Pending_File),
+                       To_String (Node.Pending_Digest),
+                       To_String (Node.Pending_Settings));
+      end if;
+   end Commit;
 
    overriding function Problem (Node : Shape_Match_Node) return String is
      (if Node.Tool.Pattern.Trained then ""

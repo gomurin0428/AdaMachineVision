@@ -283,6 +283,7 @@ package body AMV.Flow.Graphs is
       begin
          N.Prepare (Base_Directory (Flow));
          Flow.Unprepared.Exclude (Id);
+         N.Commit;
       exception
          when E : others =>
             --  A value the node cannot work with (a train image that
@@ -293,6 +294,7 @@ package body AMV.Flow.Graphs is
                Set_Param_Checked (N.all, Name, Old);
                begin
                   N.Prepare (Base_Directory (Flow));
+                  N.Commit;
                exception
                   when others =>
                      null;  --  as unprepared as before
@@ -305,7 +307,8 @@ package body AMV.Flow.Graphs is
       end;
    end Set_Param;
 
-   procedure Prepare (Flow : in out Ks_Flow) is
+   --  Prepare without Commit: for a copy that may yet be thrown away.
+   procedure Prepare_Uncommitted (Flow : in out Ks_Flow) is
    begin
       --  A node that cannot be prepared (its train image is missing) does
       --  not keep the flow from loading: it is a problem of that node, so
@@ -324,6 +327,22 @@ package body AMV.Flow.Graphs is
                  (Id, U (Ada.Exceptions.Exception_Message (E)));
          end;
       end loop;
+   end Prepare_Uncommitted;
+
+   --  Commit for every node that was prepared.
+   procedure Commit_Prepared (Flow : in out Ks_Flow) is
+   begin
+      for C in Flow.Nodes.Iterate loop
+         if not Flow.Unprepared.Contains (Node_Maps.Key (C)) then
+            Node_Maps.Element (C).Commit;
+         end if;
+      end loop;
+   end Commit_Prepared;
+
+   procedure Prepare (Flow : in out Ks_Flow) is
+   begin
+      Prepare_Uncommitted (Flow);
+      Commit_Prepared (Flow);
    end Prepare;
 
    ---------------------------------------------------------------------
@@ -1471,7 +1490,7 @@ package body AMV.Flow.Graphs is
       --  so does an untouched one that was prepared in the flow (its train
       --  image gone since): the recipe must not leave a flow that worked
       --  unable to run.
-      Prepare (Fresh);
+      Prepare_Uncommitted (Fresh);
       for C in Fresh.Unprepared.Iterate loop
          declare
             Id  : constant Positive := Message_Maps.Key (C);
@@ -1487,6 +1506,8 @@ package body AMV.Flow.Graphs is
             end if;
          end;
       end loop;
+      --  Accepted: only now do the nodes write their files.
+      Commit_Prepared (Fresh);
       --  The flow's inputs keep their values (an image already set).
       for I in 1 .. Natural (Flow.Inputs.Length) loop
          Fresh.Inputs (I).Value := Flow.Inputs (I).Value;

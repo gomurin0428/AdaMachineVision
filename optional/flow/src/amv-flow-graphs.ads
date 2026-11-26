@@ -107,7 +107,8 @@ package AMV.Flow.Graphs is
    --  number, true / false, a string or a shape object).
 
    procedure Prepare (Flow : in out Ks_Flow);
-   --  Prepares every node (AMV.Flow.Nodes.Prepare) with Base_Directory. A
+   --  Prepares every node (AMV.Flow.Nodes.Prepare) with Base_Directory,
+   --  then commits those prepared (AMV.Flow.Nodes.Commit). A
    --  node that cannot be prepared (a train image that cannot be read)
    --  does not raise: why is one of the flow's Problems until a parameter
    --  of the node is set again.
