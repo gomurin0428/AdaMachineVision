@@ -1,7 +1,9 @@
 package amv.flow.editor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import amv.flow.editor.Model.FlowInfo;
 import amv.flow.editor.Model.KindInfo;
@@ -41,6 +43,13 @@ class ModelTest {
     void theNodesWithAnImage() {
         FlowInfo info = FlowInfo.parse(FLOW);
         assertEquals(List.of(1L, 2L, 5L), Model.imageNodes(info, KINDS).stream().map(NodeInfo::id).toList());
+    }
+
+    @Test
+    void whetherTheFlowTakesAnImage() {
+        assertTrue(Model.takesImage(FlowInfo.parse(FLOW)), "node 5 takes the input image");
+        String rewired = FLOW.replace("\"from\": \"input.Image\"", "\"from\": \"1.Image\"");
+        assertFalse(Model.takesImage(FlowInfo.parse(rewired)), "node 5 rewired to the camera");
     }
 
     @Test

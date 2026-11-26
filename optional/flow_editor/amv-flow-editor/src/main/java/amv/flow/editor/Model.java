@@ -134,6 +134,11 @@ final class Model {
         return kinds;
     }
 
+    /** Whether the flow takes an image from its inputs (a link from "input."), not only from a camera. */
+    static boolean takesImage(FlowInfo info) {
+        return info.links().stream().anyMatch(l -> l.from().startsWith("input."));
+    }
+
     /**
      * The nodes that can have an image to show: an image source (a camera),
      * or a node whose input Image is linked.

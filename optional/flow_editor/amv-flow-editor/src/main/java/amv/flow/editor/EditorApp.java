@@ -1096,9 +1096,8 @@ public final class EditorApp extends Application {
         if (!Json.array(Json.parse(problemsJson)).isEmpty()) {
             return false;
         }
-        boolean takesImage = FlowInfo.parse(flow.toJson()).links().stream().anyMatch(l -> l.from().startsWith("input."));
         // Not the image before one that could not be read, again.
-        return !takesImage || (imageFile != null && imageError == null);
+        return !Model.takesImage(FlowInfo.parse(flow.toJson())) || (imageFile != null && imageError == null);
     }
 
     /** Engine thread: runs the flow; the error, or null. */
@@ -1115,11 +1114,11 @@ public final class EditorApp extends Application {
     /** Engine thread: what the editor shows. */
     private Snapshot snapshot(Long select, String problemsJson, String error) {
         boolean operator = operatorShowing;
-        if (error == null) {
-            error = imageError;
-        }
         String flowJson = flow.toJson();
         FlowInfo info = FlowInfo.parse(flowJson);
+        if (error == null && Model.takesImage(info)) {
+            error = imageError;
+        }
         Long shown = select != null && info.nodes().containsKey(select) ? select : null;
         Long imageOf = operator ? Model.displayed(info, kinds, displayNode) : shown;
         Flow.NodeImage image = null;
