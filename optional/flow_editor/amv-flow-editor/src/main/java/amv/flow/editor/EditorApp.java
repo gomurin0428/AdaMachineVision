@@ -221,8 +221,7 @@ public final class EditorApp extends Application {
                 if (displayError != null) {
                     throw new AmvFlowException(0, displayError);
                 }
-                if (operatorOnly && imageFile == null
-                        && FlowInfo.parse(flow.toJson()).links().stream().anyMatch(l -> l.from().startsWith("input."))) {
+                if (operatorOnly && imageFile == null && Model.takesImage(FlowInfo.parse(flow.toJson()))) {
                     throw new AmvFlowException(0, "the flow takes an image: give an image file or a folder of images"
                             + (args.size() >= 2 ? " (no .bmp, .pgm or .pnm images in " + args.get(1) + ")" : ""));
                 }
@@ -968,8 +967,7 @@ public final class EditorApp extends Application {
     /** Engine thread, live mode: the next image of the folder, when the flow takes an image. */
     private void nextFolderImage() {
         List<Path> images = folder;
-        if (images.isEmpty() || FlowInfo.parse(flow.toJson()).links().stream()
-                .noneMatch(l -> l.from().startsWith("input."))) {
+        if (images.isEmpty() || !Model.takesImage(FlowInfo.parse(flow.toJson()))) {
             return;
         }
         int i = Math.floorMod(folderIndex.incrementAndGet(), images.size());
@@ -1116,8 +1114,8 @@ public final class EditorApp extends Application {
         boolean operator = operatorShowing;
         String flowJson = flow.toJson();
         FlowInfo info = FlowInfo.parse(flowJson);
-        if (error == null && Model.takesImage(info)) {
-            error = imageError;
+        if (error == null) {
+            error = Model.imageErrorShown(info, imageError);
         }
         Long shown = select != null && info.nodes().containsKey(select) ? select : null;
         Long imageOf = operator ? Model.displayed(info, kinds, displayNode) : shown;
@@ -1203,7 +1201,7 @@ public final class EditorApp extends Application {
         }
         List<String> problemList = Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList();
         if (s.operator()) {
-            if (imageFile == null && model.links().stream().anyMatch(l -> l.from().startsWith("input."))) {
+            if (imageFile == null && Model.takesImage(model)) {
                 problemList = new java.util.ArrayList<>(problemList);
                 problemList.add("The flow takes an image and has none: open an image or a folder in the editor");
             }
@@ -1257,11 +1255,10 @@ public final class EditorApp extends Application {
             List<Path> images = folder;
             String place = images.isEmpty() || imageFile == null || !images.contains(imageFile) ? ""
                     : "  (" + (images.indexOf(imageFile) + 1) + " of " + images.size() + ")";
-            boolean camera = model != null
-                    && model.links().stream().noneMatch(l -> l.from().startsWith("input."))
+            boolean camera = model != null && !Model.takesImage(model)
                     && model.nodes().values().stream().anyMatch(n -> n.kind().equals("Camera"));
-            String source = imageFile != null ? "Image: " + imageFile + place
-                    : camera ? "Images from the flow's camera"
+            String source = camera ? "Images from the flow's camera"
+                    : imageFile != null ? "Image: " + imageFile + place
                     : "No image file (Open image…, or a Camera node)";
             showStatus(source + (liveOn ? "   — live" : ""), false);
         }

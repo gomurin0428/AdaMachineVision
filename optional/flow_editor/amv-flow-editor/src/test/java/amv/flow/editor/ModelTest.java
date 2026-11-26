@@ -53,6 +53,16 @@ class ModelTest {
     }
 
     @Test
+    void theImageErrorShown() {
+        assertEquals("cannot read b.bmp", Model.imageErrorShown(FlowInfo.parse(FLOW), "cannot read b.bmp"),
+                "shown while the flow takes the image");
+        String rewired = FLOW.replace("\"from\": \"input.Image\"", "\"from\": \"1.Image\"");
+        assertNull(Model.imageErrorShown(FlowInfo.parse(rewired), "cannot read b.bmp"),
+                "not once the flow is rewired to the camera");
+        assertNull(Model.imageErrorShown(FlowInfo.parse(FLOW), null), "no error, none shown");
+    }
+
+    @Test
     void theShownNode() {
         FlowInfo info = FlowInfo.parse(FLOW);
         assertEquals(5L, Model.displayed(info, KINDS, null), "by default the last node with an image");

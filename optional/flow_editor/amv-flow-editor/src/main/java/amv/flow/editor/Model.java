@@ -140,6 +140,15 @@ final class Model {
     }
 
     /**
+     * The error to show for an image file that could not be set (null for
+     * none): only while the flow takes its image from its inputs; rewired
+     * to a camera, its runs are real again.
+     */
+    static String imageErrorShown(FlowInfo info, String imageError) {
+        return imageError != null && takesImage(info) ? imageError : null;
+    }
+
+    /**
      * The nodes that can have an image to show: an image source (a camera),
      * or a node whose input Image is linked.
      */
