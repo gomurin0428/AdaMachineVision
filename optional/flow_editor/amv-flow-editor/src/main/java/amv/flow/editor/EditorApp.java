@@ -76,7 +76,7 @@ public final class EditorApp extends Application {
      * node imageOf (the selected node in the editor).
      */
     private record Snapshot(boolean operator, String flowJson, String problemsJson, String resultsJson,
-            Long selected, Long imageOf, Flow.NodeImage image, String graphicsJson, String error) {
+            Long selected, Long imageOf, Flow.NodeImage image, String graphicsJson, String error, String recipe) {
     }
 
     private final ExecutorService engine = Executors.newSingleThreadExecutor(r -> {
@@ -186,6 +186,17 @@ public final class EditorApp extends Application {
                 } else {
                     flow.fromJson(EMPTY_FLOW, null);
                 }
+                if (displayArg != null) {
+                    FlowInfo info = FlowInfo.parse(flow.toJson());
+                    long id = info.nodes().values().stream()
+                            .filter(n -> displayArg.equals(String.valueOf(n.id())) || displayArg.equals(n.name()))
+                            .map(NodeInfo::id).findFirst()
+                            .orElseThrow(() -> new AmvFlowException(0, "--display: no node " + displayArg));
+                    if (Model.imageNodes(info, kinds).stream().noneMatch(n -> n.id() == id)) {
+                        throw new AmvFlowException(0, "--display: node " + displayArg + " has no image to show");
+                    }
+                    displayNode = id;
+                }
                 if (args.size() >= 2) {
                     // An image file, or a folder of images to play through.
                     Path second = Path.of(args.get(1)).toAbsolutePath();
@@ -199,11 +210,10 @@ public final class EditorApp extends Application {
                     }
                     setImageInput(flow);
                 }
-                if (displayArg != null) {
-                    displayNode = FlowInfo.parse(flow.toJson()).nodes().values().stream()
-                            .filter(n -> displayArg.equals(String.valueOf(n.id())) || displayArg.equals(n.name()))
-                            .map(NodeInfo::id).findFirst()
-                            .orElseThrow(() -> new AmvFlowException(0, "--display: no node " + displayArg));
+                if (operatorOnly && imageFile == null
+                        && FlowInfo.parse(flow.toJson()).links().stream().anyMatch(l -> l.from().startsWith("input."))) {
+                    throw new AmvFlowException(0, "the flow takes an image: give an image file or a folder of images"
+                            + (args.size() >= 2 ? " (no .bmp, .pgm or .pnm images in " + args.get(1) + ")" : ""));
                 }
                 return null;
             }).get(30, TimeUnit.SECONDS);
@@ -634,6 +644,7 @@ public final class EditorApp extends Application {
                     "The recipe changes these files:\n\n" + String.join("\n", moved) + "\n\nApply it?",
                     ButtonType.OK, ButtonType.CANCEL);
             ask.setHeaderText("Load recipe " + path.getFileName());
+            ask.initOwner(stage);
             if (ask.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
                 return;
             }
@@ -1095,7 +1106,7 @@ public final class EditorApp extends Application {
             }
         }
         return new Snapshot(operator, flowJson, problemsJson, flow.resultsJson(), shown, imageOf, image, graphics,
-                error);
+                error, recipeText(flowJson));
     }
 
     /**
@@ -1108,22 +1119,25 @@ public final class EditorApp extends Application {
             return;
         }
         long started = System.nanoTime();
+        String error = null;
         try {
             nextFolderImage();
         } catch (RuntimeException e) {
-            liveOn = false;
-            Platform.runLater(() -> showLive(false));
+            error = "Live stopped: " + message(e);
         }
         String problemsJson = flow.problemsJson();
-        String error;
-        if (canRun(problemsJson)) {
-            error = runOnce();
-        } else {
-            error = "Live stopped: the flow cannot run (see the problems, or open an image)";
+        if (error == null) {
+            error = canRun(problemsJson) ? runOnce()
+                    : "Live stopped: the flow cannot run (see the problems, or open an image)";
         }
-        if (error != null) {
+        if (error != null && run == liveRun.get()) {
+            // Only this run stops itself: not one started since.
             liveOn = false;
-            Platform.runLater(() -> showLive(false));
+            Platform.runLater(() -> {
+                if (run == liveRun.get()) {
+                    showLive(false);
+                }
+            });
         }
         if (uiBusy.compareAndSet(false, true) || error != null) {
             Snapshot snapshot = snapshot(selected, problemsJson, error);
@@ -1159,8 +1173,8 @@ public final class EditorApp extends Application {
                     .map(n -> new OperatorView.Choice(n.id(), n.id() + "  "
                             + (n.name().isEmpty() ? n.kind() : n.name() + " (" + n.kind() + ")")))
                     .toList();
-            operatorView.show(new OperatorView.State(model.name(), recipeText(s.flowJson()), choices,
-                    s.imageOf(), s.image(), s.graphicsJson(), results, problemList));
+            operatorView.show(new OperatorView.State(model.name(), s.recipe(), choices,
+                    s.imageOf(), s.image(), s.graphicsJson(), results, problemList, s.error()));
             showRunStatus(s.error());
             return;
         }

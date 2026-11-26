@@ -59,11 +59,12 @@ final class OperatorView extends BorderPane {
     /**
      * What the screen shows: the flow's name, the recipe (or null), the nodes
      * whose image can be shown and the one shown, its image and graphics,
-     * the results of the last run (Results.NONE before one) and the
-     * problems that keep the flow from running.
+     * the results of the last run (Results.NONE before one), the problems
+     * that keep the flow from running, and what went wrong in the step
+     * that led here (a new image that could not be read), or null.
      */
     record State(String flowName, String recipe, List<Choice> choices, Long displayed, Flow.NodeImage image,
-            String graphicsJson, Results results, List<String> problems) {
+            String graphicsJson, Results results, List<String> problems, String error) {
     }
 
     private static final Font BIG = Font.font("System", FontWeight.BOLD, 96);
@@ -208,6 +209,10 @@ final class OperatorView extends BorderPane {
         if (!s.problems().isEmpty()) {
             showVerdict("CANNOT RUN", "#c62828", MEDIUM);
             message.setText(String.join("\n", s.problems()));
+        } else if (s.error() != null) {
+            // Not the last run's verdict: that was for another image, or from before.
+            showVerdict("ERROR", "#37474f", MEDIUM);
+            message.setText(s.error());
         } else if (r.result().isEmpty()) {
             showVerdict("READY", "#607d8b", BIG);
             message.setText("Start, or Run once");
