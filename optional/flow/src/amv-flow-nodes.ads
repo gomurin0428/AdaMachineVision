@@ -98,7 +98,10 @@ package AMV.Flow.Nodes is
    procedure Set_Input (Node  : in out Ks_Flow_Node;
                         Port  : String;
                         Value : AMV.Flow.Values.Ks_Flow_Value) is abstract;
-   --  Port is one of the node's input ports and Value has its type.
+   --  Port is one of the node's input ports and Value has its type. Run
+   --  calls it for each linked input that has a value, and with No_Value
+   --  for a linked optional input whose source gave none (an input that
+   --  is not linked gets no call).
 
    procedure Clear_Inputs (Node : in out Ks_Flow_Node) is abstract;
    --  Forgets the input values and the outputs of the last run (before a

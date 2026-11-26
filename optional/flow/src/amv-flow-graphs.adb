@@ -634,6 +634,14 @@ package body AMV.Flow.Graphs is
       end;
    end Source_Value;
 
+   --  A count that stops at its largest value (years of runs).
+   procedure Bump (Count : in out Natural) is
+   begin
+      if Count < Natural'Last then
+         Count := Count + 1;
+      end if;
+   end Bump;
+
    procedure Run (Flow : in out Ks_Flow) is
       Ordered  : Id_Vectors.Vector;
       Complete : Boolean;
@@ -683,11 +691,14 @@ package body AMV.Flow.Graphs is
          when E : Ks_Flow_Exception =>
             Flow.Outcome := AMV.Tools.Error;
             Flow.Why := U (Ada.Exceptions.Exception_Message (E));
+            Bump (Flow.Tally.Runs);
+            Bump (Flow.Tally.Failed);
             raise;
       end;
 
       Order (Flow, Ordered, Complete);
 
+      begin
       for Id of Ordered loop
          declare
             N         : constant Node_Access := Flow.Nodes.Element (Id);
@@ -717,6 +728,13 @@ package body AMV.Flow.Graphs is
                      elsif P.Required then
                         Reason := U ("its input " & Port & " got no value from "
                                      & Endpoint_Text (L.From, True));
+                     end if;
+                     if Length (Why) > 0 or else not Value.Has_Value then
+                        if not P.Required then
+                           --  Linked, but no value: the node can tell this
+                           --  from an input that is not linked (And).
+                           N.Set_Input (Port, No_Value);
+                        end if;
                      end if;
                   end;
                end if;
@@ -755,10 +773,37 @@ package body AMV.Flow.Graphs is
             end if;
          end;
       end loop;
+
+      Bump (Flow.Tally.Runs);
+      case Flow.Outcome is
+         when AMV.Tools.Accept_Result =>
+            Bump (Flow.Tally.Accepted);
+         when AMV.Tools.Warning =>
+            Bump (Flow.Tally.Warned);
+         when AMV.Tools.Reject =>
+            Bump (Flow.Tally.Rejected);
+         when AMV.Tools.Error =>
+            Bump (Flow.Tally.Failed);
+      end case;
+      exception
+         when others =>
+            --  A run that broke off is counted as failed.
+            Flow.Outcome := AMV.Tools.Error;
+            Bump (Flow.Tally.Runs);
+            Bump (Flow.Tally.Failed);
+            raise;
+      end;
    end Run;
 
    function Result (Flow : Ks_Flow) return AMV.Tools.Ks_Tool_Result_Constants
    is (Flow.Outcome);
+
+   function Counts (Flow : Ks_Flow) return Run_Counts is (Flow.Tally);
+
+   procedure Reset_Counts (Flow : in out Ks_Flow) is
+   begin
+      Flow.Tally := (others => 0);
+   end Reset_Counts;
 
    function Message (Flow : Ks_Flow) return String is (To_String (Flow.Why));
 
@@ -1188,7 +1233,12 @@ package body AMV.Flow.Graphs is
       Fresh : Ks_Flow;
    begin
       Read_JSON (Fresh, Text, Base_Directory);
-      Clear (Flow);
+      declare
+         Kept : constant Run_Counts := Flow.Tally;
+      begin
+         Clear (Flow);
+         Flow.Tally := Kept;
+      end;
       Flow.Flow_Name := Fresh.Flow_Name;
       Flow.Base_Dir := Fresh.Base_Dir;
       Flow.Nodes.Move (Source => Fresh.Nodes);
@@ -1242,6 +1292,7 @@ package body AMV.Flow.Graphs is
          From_JSON (Flow, Text.all,
                     Ada.Directories.Containing_Directory
                       (Ada.Directories.Full_Name (Path)));
+         Reset_Counts (Flow);
       exception
          when others =>
             Free (Text);

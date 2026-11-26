@@ -57,7 +57,12 @@ begin
              AMV.Flow.Nodes.Vision.Create_Circularity'Access);
    Register ("PolarUnwrap",
              AMV.Flow.Nodes.Imaging.Create_Polar_Unwrap'Access);
+   Register ("PolarPoint",
+             AMV.Flow.Nodes.Imaging.Create_Polar_Point'Access);
    Register ("Morphology", AMV.Flow.Nodes.Imaging.Create_Morphology'Access);
    Register ("RangeCheck", AMV.Flow.Nodes.Logic.Create_Range_Check'Access);
+   Register ("And", AMV.Flow.Nodes.Logic.Create_And'Access);
+   Register ("Or", AMV.Flow.Nodes.Logic.Create_Or'Access);
+   Register ("Not", AMV.Flow.Nodes.Logic.Create_Not'Access);
    Register ("CsvLog", AMV.Flow.Nodes.Logging.Create_Csv_Log'Access);
 end AMV.Flow.Kinds;

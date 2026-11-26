@@ -25,6 +25,8 @@ package AMV.Flow.Reports is
    --   "message": "...",
    --   "nodes": [{"id", "state": "not run" | "ran" | "skipped", "result",
    --              "message", "timeMs", "outputs": {"<port>": value}}],
+   --   "counts": {"runs", "accept", "warning", "reject", "error"} (the
+   --   flow's Counts),
    --   "outputs": {"<flow output>": value}}
    --  A value is a number, true / false, a string, the short text of an
    --  image, transform or shape ("image 400x300"), or null for no value.

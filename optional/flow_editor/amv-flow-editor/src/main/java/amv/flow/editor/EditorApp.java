@@ -112,6 +112,7 @@ public final class EditorApp extends Application {
     private final ListView<String> problems = new ListView<>();
     private final Label status = new Label();
     private final Label result = new Label();
+    private final Label tally = new Label();
 
     @Override
     public void start(Stage primary) {
@@ -120,7 +121,7 @@ public final class EditorApp extends Application {
         try {
             startError = engine.submit(() -> {
                 if (!Flow.abiMatches()) {
-                    return "the AMV Flow library has ABI version " + Flow.abiVersion() + "; this editor needs 1";
+                    return "the AMV Flow library has ABI version " + Flow.abiVersion() + "; this editor needs " + amv.flow.nativeapi.Flow.ABI_VERSION;
                 }
                 flow = new Flow();
                 kinds = Model.parseKinds(Flow.kindsJson());
@@ -309,6 +310,7 @@ public final class EditorApp extends Application {
             flowFile = null;
             act(f -> {
                 f.fromJson(EMPTY_FLOW, null);
+                f.resetCounts();
                 ranOnce = false;
                 undoStack.clear();
                 redoStack.clear();
@@ -353,9 +355,18 @@ public final class EditorApp extends Application {
         addInput.setOnAction(e -> addPort(true));
         Button addOutput = new Button("Add output…");
         addOutput.setOnAction(e -> addPort(false));
+        Button resetCounts = new Button("Reset counts");
+        resetCounts.setTooltip(new javafx.scene.control.Tooltip("Count the runs from zero again"));
+        resetCounts.setOnAction(e -> act(f -> {
+            f.resetCounts();
+            return null;
+        }, false, false));
+        tally.setTooltip(new javafx.scene.control.Tooltip(
+                "Runs since the flow was opened: OK (accepted or warned) and NG (rejected or failed)"));
         result.setPadding(new Insets(0, 0, 0, 16));
         return new ToolBar(newFlow, open, save, saveAs, new Separator(), undo, redo, new Separator(), image,
-                openFolder, previous, next, run, liveButton, new Separator(), addInput, addOutput, result);
+                openFolder, previous, next, run, liveButton, new Separator(), addInput, addOutput,
+                new Separator(), tally, resetCounts, result);
     }
 
     private VBox palette() {
@@ -847,9 +858,14 @@ public final class EditorApp extends Application {
         }
         problems.getItems().setAll(Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList());
         if (results.result().isEmpty()) {
+            tally.setText("");
             result.setText("not run");
             result.setTextFill(Color.GRAY);
         } else {
+            int runs = results.count("runs");
+            int ok = results.count("accept") + results.count("warning");
+            tally.setText(runs == 0 ? "OK 0  NG 0"
+                    : String.format("OK %d  NG %d  (%.1f %% OK)", ok, runs - ok, 100.0 * ok / runs));
             result.setText("Result: " + results.result().toUpperCase()
                     + (results.message().isEmpty() ? "" : "  —  " + results.message()));
             result.setTextFill(switch (results.result()) {

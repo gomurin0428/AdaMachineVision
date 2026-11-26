@@ -20,6 +20,9 @@ public final class Flow implements AutoCloseable {
     public record NodeImage(int width, int height, byte[] bgra) {
     }
 
+    /** The version of the C API this binding was written for (AMVF_ABI_VERSION). */
+    public static final int ABI_VERSION = AmvFlowNative.ABI_VERSION;
+
     private MemorySegment handle;
 
     /** A new, empty flow. */
@@ -162,6 +165,11 @@ public final class Flow implements AutoCloseable {
 
     public void run() {
         call((arena, status) -> AmvFlowNative.FLOW_RUN.invoke(handle(), status));
+    }
+
+    /** The pass / fail tally of the results ("counts") back to zero. */
+    public void resetCounts() {
+        call((arena, status) -> AmvFlowNative.FLOW_RESET_COUNTS.invoke(handle(), status));
     }
 
     /** The results of the last run (AMV.Flow.Reports.Results_JSON). */

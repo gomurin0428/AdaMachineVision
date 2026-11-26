@@ -15,8 +15,9 @@ pragma SPARK_Mode (Off);
 --     CLI prints it (an empty cell for an input with no value: its
 --     source failed or did not run, which does not keep the log from
 --     running). A new or empty file gets the header line first; an
---     existing one is appended to as it is. A file that cannot be
---     written is an Error.
+--     existing one is appended to when its header is the same, and is an
+--     Error otherwise (an older log with other columns). A file that
+--     cannot be written is an Error.
 
 package AMV.Flow.Nodes.Logging is
 

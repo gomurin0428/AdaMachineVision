@@ -179,6 +179,23 @@ package body AMV.Flow.Reports is
          end;
       end loop;
       W.End_Array;
+      declare
+         C : constant AMV.Flow.Graphs.Run_Counts := Flow.Counts;
+      begin
+         W.Key ("counts");
+         W.Begin_Object (Inline => True);
+         W.Key ("runs");
+         W.Value (Long_Long_Integer (C.Runs));
+         W.Key ("accept");
+         W.Value (Long_Long_Integer (C.Accepted));
+         W.Key ("warning");
+         W.Value (Long_Long_Integer (C.Warned));
+         W.Key ("reject");
+         W.Value (Long_Long_Integer (C.Rejected));
+         W.Key ("error");
+         W.Value (Long_Long_Integer (C.Failed));
+         W.End_Object;
+      end;
       W.Key ("outputs");
       W.Begin_Object;
       for I in 1 .. Flow.Output_Count loop

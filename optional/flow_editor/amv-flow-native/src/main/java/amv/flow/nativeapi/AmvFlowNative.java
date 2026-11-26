@@ -26,7 +26,7 @@ import java.nio.file.Path;
 @SuppressWarnings("restricted")
 final class AmvFlowNative {
 
-    static final int ABI_VERSION = 1;
+    static final int ABI_VERSION = 2;
     static final int MAX_MESSAGE_LENGTH = 1023;
 
     static final StructLayout STATUS = MemoryLayout.structLayout(
@@ -98,6 +98,8 @@ final class AmvFlowNative {
             FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS));
     static final MethodHandle FLOW_SET_INPUT_IMAGE_FILE = find("amvf_flow_set_input_image_file", FLOW_STRING_2);
     static final MethodHandle FLOW_RUN = find("amvf_flow_run", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+    static final MethodHandle FLOW_RESET_COUNTS =
+            find("amvf_flow_reset_counts", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
     static final MethodHandle FLOW_RESULTS_JSON = find("amvf_flow_results_json", FLOW_TEXT);
     static final MethodHandle NODE_GRAPHICS_JSON = find("amvf_node_graphics_json",
             FunctionDescriptor.ofVoid(ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS));
@@ -123,8 +125,16 @@ final class AmvFlowNative {
     }
 
     private static MethodHandle find(String name, FunctionDescriptor descriptor) {
-        return LINKER.downcallHandle(
-                LOOKUP.find(name).orElseThrow(() -> new UnsatisfiedLinkError("no " + name + " in the AMV Flow library")),
-                descriptor);
+        var symbol = LOOKUP.find(name);
+        if (symbol.isEmpty()) {
+            // An older library: fail when called, so that abiVersion() can
+            // still say which version it is.
+            var type = descriptor.toMethodType();
+            MethodHandle thrower = java.lang.invoke.MethodHandles
+                    .throwException(type.returnType(), UnsatisfiedLinkError.class)
+                    .bindTo(new UnsatisfiedLinkError("no " + name + " in the AMV Flow library"));
+            return java.lang.invoke.MethodHandles.dropArguments(thrower, 0, type.parameterList());
+        }
+        return LINKER.downcallHandle(symbol.get(), descriptor);
     }
 }

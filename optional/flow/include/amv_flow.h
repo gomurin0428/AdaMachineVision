@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define AMVF_ABI_VERSION 1
+#define AMVF_ABI_VERSION 2
 #define AMVF_MAX_MESSAGE_LENGTH 1023
 
 #define AMVF_OK                    0
@@ -88,6 +88,8 @@ void amvf_flow_set_input_image_8(amvf_flow *flow, const char *input,
 void amvf_flow_set_input_image_file(amvf_flow *flow, const char *input,
                                     const char *path, amvf_status *status);
 void amvf_flow_run(amvf_flow *flow, amvf_status *status);
+/* The pass / fail tally ("counts" in the results JSON) back to zero. */
+void amvf_flow_reset_counts(amvf_flow *flow, amvf_status *status);
 
 /* Results of the last run */
 void amvf_flow_results_json(amvf_flow *flow, char *buffer, int64_t capacity,
