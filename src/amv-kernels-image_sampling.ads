@@ -38,17 +38,12 @@ private package AMV.Kernels.Image_Sampling with SPARK_Mode, Preelaborate is
 
    function Usable_Image
      (Image : access constant KI.Ks_Image_8_Grey_Data) return Boolean
-   is
-     (KI.Valid_Image (Image)
-      and then Int64 (Image.Width) * Int64 (Image.Height) <= KI.Max_Pixels);
-   --  A valid handle whose size is within the limit of the image kernel
-   --  (every handle ks_image_8_grey_create returns).
-
+     renames KI.Usable_Image;
    function Usable_Image
      (Image : access constant KI.Ks_Image_16_Grey_Data) return Boolean
-   is
-     (KI.Valid_Image (Image)
-      and then Int64 (Image.Width) * Int64 (Image.Height) <= KI.Max_Pixels);
+     renames KI.Usable_Image;
+   --  A valid handle whose size is within the limit of the image kernel
+   --  (every handle ks_image_8_grey_create returns).
 
    type Image_Role is
      (Input_Image, Input_Image_A, Input_Image_B);
@@ -61,9 +56,7 @@ private package AMV.Kernels.Image_Sampling with SPARK_Mode, Preelaborate is
       Status : out Ks_Status)
    with
      Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter
+             and then Status.Failure = KI.Input_Image_Failure (Image)
              and then (if Succeeded (Status) then Usable_Image (Image));
    --  Image_No_Pixels for null ("InputImage has no pixels"), Bad_Parameter
    --  for a record that is not a usable handle ("InputImage is not a valid

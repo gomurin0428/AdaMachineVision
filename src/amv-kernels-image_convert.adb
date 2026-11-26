@@ -28,6 +28,42 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
                          Long_Float (B), Max_Weight, 255.0));
    end Weighted_Intensity;
 
+   function High_Byte (V : KI.Grey_16) return KI.Grey_8 is
+     (KI.Grey_8 (V / 256))
+   with Post => High_Byte'Result = Spec.High_Byte (V);
+   --  The intensity of a 16-bit pixel.
+
+   function Intensity_Of (R, G, B : KI.Grey_8) return KI.Grey_8 is
+     (KI.Grey_8 ((299 * Natural (R) + 587 * Natural (G) + 114 * Natural (B)
+                  + 500) / 1000))
+   with Post => Intensity_Of'Result = Spec.Intensity (R, G, B);
+   --  round (0.299 R + 0.587 G + 0.114 B), halves up, exactly.
+
+   function Colour_Pixel
+     (Params  : Ks_Image_Convert_Run_Params;
+      R, G, B : KI.Grey_8) return KI.Grey_8
+   is
+     (case Params.Run_Mode is
+         when Run_Mode_Plane_0 => R,
+         when Run_Mode_Plane_1 => G,
+         when Run_Mode_Plane_2 => B,
+         when Run_Mode_Intensity_From_Weighted_RGB =>
+            Weighted_Intensity (Params, R, G, B),
+         when others => Intensity_Of (R, G, B))
+   with Pre  => Params.Run_Mode
+                  in Run_Mode_Intensity | Run_Mode_Plane_0 | Run_Mode_Plane_1
+                   | Run_Mode_Plane_2 | Run_Mode_Intensity_From_Weighted_RGB
+                and then Valid_Weights (Params),
+        Post => Colour_Pixel'Result
+                  = (if Params.Run_Mode
+                          = Run_Mode_Intensity_From_Weighted_RGB
+                     then Weighted_Intensity (Params, R, G, B)
+                     else Spec.Colour (Integer (Params.Run_Mode), R, G, B));
+   --  The output pixel for a colour input. Its precondition is only what
+   --  it needs (a colour mode, and the weights of the weighted mode), not
+   --  all of Valid_Params: the library checks preconditions, and this one
+   --  runs for every pixel.
+
    ---------------------------------------------------------------------
    --  Checks
    ---------------------------------------------------------------------
@@ -43,8 +79,7 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
    with
      Post => Valid (Status)
              and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter
+                        = Input_Failure (Grey_8, Grey_16, Red, Green, Blue)
              and then
                (if Succeeded (Status)
                 then (case Kind is
@@ -151,15 +186,9 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
       Status : out Ks_Status)
    with
      Post => Valid (Status)
-             and then Status.Failure in Failure_None | Failure_Bad_Parameter
-             and then (if Succeeded (Status)
-                       then Valid_Weights (Params)
-                            and then Params.Run_Mode
-                                       in Run_Mode_Intensity
-                                        | Run_Mode_Plane_0
-                                        | Run_Mode_Plane_1
-                                        | Run_Mode_Plane_2
-                                        | Run_Mode_Intensity_From_Weighted_RGB);
+             and then Status.Failure
+                        = (if Valid_Params (Params) then Failure_None
+                           else Failure_Bad_Parameter);
 
    procedure Check_Params
      (Params : Ks_Image_Convert_Run_Params;
@@ -331,7 +360,7 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
       Status           : out Ks_Status)
    with
      Pre  => Same_Planes (Red, Green, Blue) and then SM.Usable_Image (Red)
-             and then Valid_Weights (Params),
+             and then Valid_Params (Params),
      Post => Valid (Status)
              and then Status.Failure in Failure_None | Failure_Out_Of_Memory
              and then

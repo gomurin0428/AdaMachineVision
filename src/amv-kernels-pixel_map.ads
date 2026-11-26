@@ -11,18 +11,22 @@
 --  the input, and pixels of the region outside the image are ignored.
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any handles; no
---  memory leaks; Gold: every output pixel inside the region is Map (input
---  pixel) and every other output pixel is the input pixel.
+--  memory leaks; Platinum: every output pixel is the one that the
+--  specification AMV.Spec.Pixel_Map gives, and the failure is that of the
+--  first check that fails, in the order below (Out_Of_Memory, which the
+--  allocation decides, is the only one left open).
 
 pragma Validity_Checks ("F");
 
 with AMV.Kernels.Images;
 with AMV.Kernels.Regions;
+with AMV.Spec.Pixel_Map;
 
 package AMV.Kernels.Pixel_Map with SPARK_Mode, Preelaborate is
 
    package KI renames AMV.Kernels.Images;
    package KR renames AMV.Kernels.Regions;
+   package Spec renames AMV.Spec.Pixel_Map;
 
    use type KI.Grey_8;
    use type KI.Ks_Image_8_Grey;
@@ -51,16 +55,6 @@ package AMV.Kernels.Pixel_Map with SPARK_Mode, Preelaborate is
      Post => Params.Map = Identity_Map;
    --  The default run parameters (the identity map). Cannot fail.
 
-   function Map_Pixel
-     (Map    : Pixel_Map_Table;
-      Region : access constant KR.Ks_Pixel_Region_Data;
-      Value  : KI.Grey_8;
-      X, Y   : Natural) return KI.Grey_8
-   is
-     (if KR.Contains (Region, Int32 (X), Int32 (Y)) then Map (Value)
-      else Value);
-   --  The output pixel at (X, Y) for the input value Value.
-
    ---------------------------------------------------------------------
    --  Entry point
    ---------------------------------------------------------------------
@@ -74,9 +68,12 @@ package AMV.Kernels.Pixel_Map with SPARK_Mode, Preelaborate is
    with
      Export, Convention => C, External_Name => "ks_pixel_map_execute",
      Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Out_Of_Memory
+             and then
+               (if KI.Input_Image_Failure (Image) /= Failure_None
+                then Status.Failure = KI.Input_Image_Failure (Image)
+                elsif Region /= null and then not KR.Valid_Region (Region)
+                then Status.Failure = Failure_Bad_Parameter
+                else Status.Failure in Failure_None | Failure_Out_Of_Memory)
              and then
                (if Succeeded (Status)
                 then KI.Valid_Image (Image)
@@ -87,10 +84,13 @@ package AMV.Kernels.Pixel_Map with SPARK_Mode, Preelaborate is
                        (for all Y in Output.Pixels'Range (1)
                         => (for all X in Output.Pixels'Range (2)
                             => Output.Pixels (Y, X)
-                                 = Map_Pixel (Params.Map, Region,
-                                              Image.Pixels (Y, X), X, Y)))
+                                 = Spec.Mapped
+                                     (Spec.Table (Params.Map),
+                                      KR.Contains
+                                        (Region, Int32 (X), Int32 (Y)),
+                                      Image.Pixels (Y, X))))
                 else Output = null);
-   --  The mapped image (Gold, see above). The checks, in order: the image
+   --  The mapped image (Platinum, see above). The checks, in order: the image
    --  (Image_No_Pixels "InputImage has no pixels", Bad_Parameter "InputImage
    --  is not a valid image handle"), the region (Bad_Parameter "Region is
    --  not a valid pixel region handle"), then Out_Of_Memory. Output is a
@@ -104,9 +104,7 @@ package AMV.Kernels.Pixel_Map with SPARK_Mode, Preelaborate is
      (Image  : access constant KI.Ks_Image_8_Grey_Data;
       Status : out Ks_Status)
    with Post => Valid (Status)
-                and then Status.Failure
-                           in Failure_None | Failure_Image_No_Pixels
-                            | Failure_Bad_Parameter;
+                and then Status.Failure = KI.Input_Image_Failure (Image);
    --  The image check of Execute, made by the Ada API before it
    --  rasterises the region.
 

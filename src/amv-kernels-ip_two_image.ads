@@ -24,17 +24,20 @@
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any image
 --  handles that are null or came from the image kernel and any codes; no
---  memory leaks; Gold: every output pixel is exactly the formula of the
---  tool applied to the two input pixels at its position, as
---  AMV.Kernels.Images proves its fills.
+--  memory leaks; Platinum: the output and the status are exactly those
+--  that AMV.Spec.IP_Two_Image (the formulas) and Input_Failure (the order
+--  of the checks) give, but for the text of a message and for
+--  Out_Of_Memory, which only the allocation decides.
 
 pragma Validity_Checks ("F");
 
 with AMV.Kernels.Images;
+with AMV.Spec.IP_Two_Image;
 
 package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
 
    package KI renames AMV.Kernels.Images;
+   package Spec renames AMV.Spec.IP_Two_Image;
 
    use type KI.Grey_8;
    use type KI.Ks_Image_8_Grey;
@@ -60,6 +63,14 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    Min_Max_Operation_Max : constant Int32 := 1;
    --  The Operation of the min/max tool (C:
    --  KS_IP_TWO_IMAGE_MIN_MAX_OPERATION_*).
+
+   subtype Add_Overflow_Mode is Int32
+     range Add_Overflow_Mode_Bounded .. Add_Overflow_Mode_Shift;
+   subtype Subtract_Overflow_Mode is Int32
+     range Subtract_Overflow_Mode_Bounded .. Subtract_Overflow_Mode_Absolute;
+   subtype Min_Max_Operation is Int32
+     range Min_Max_Operation_Min .. Min_Max_Operation_Max;
+   --  The codes that the tools take.
 
    type Ks_IP_Two_Image_Add is record
       Overflow_Mode : Int32 := Add_Overflow_Mode_Bounded;
@@ -101,38 +112,23 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    --  The default run parameters. Cannot fail.
 
    ---------------------------------------------------------------------
-   --  The formulas (Gold)
+   --  The checks
    ---------------------------------------------------------------------
 
-   function Add_Pixel (Mode : Int32; A, B : KI.Grey_8) return KI.Grey_8 is
-     (case Mode is
-         when Add_Overflow_Mode_Wrap =>
-            KI.Grey_8 ((Natural (A) + Natural (B)) mod 256),
-         when Add_Overflow_Mode_Shift =>
-            KI.Grey_8 ((Natural (A) + Natural (B)) / 2),
-         when others =>
-            KI.Grey_8 (Natural'Min (Natural (A) + Natural (B), 255)));
-   --  The output pixel of the add tool (Bounded for any other code).
-
-   function Subtract_Pixel (Mode : Int32; A, B : KI.Grey_8) return KI.Grey_8
+   function Input_Failure
+     (Image_A, Image_B : access constant KI.Ks_Image_8_Grey_Data)
+      return Failure_Code
    is
-     (case Mode is
-         when Subtract_Overflow_Mode_Wrap =>
-            KI.Grey_8 ((Integer (A) - Integer (B)) mod 256),
-         when Subtract_Overflow_Mode_Shift =>
-            KI.Grey_8 ((Integer (A) - Integer (B) + 256) / 2),
-         when Subtract_Overflow_Mode_Absolute =>
-            KI.Grey_8 (abs (Integer (A) - Integer (B))),
-         when others =>
-            KI.Grey_8 (Integer'Max (Integer (A) - Integer (B), 0)));
-   --  The output pixel of the subtract tool, A - B.
-
-   function Min_Max_Pixel (Operation : Int32; A, B : KI.Grey_8)
-      return KI.Grey_8
-   is
-     (if Operation = Min_Max_Operation_Max then KI.Grey_8'Max (A, B)
-      else KI.Grey_8'Min (A, B));
-   --  The output pixel of the min/max tool.
+     (if KI.Input_Image_Failure (Image_A) /= Failure_None
+      then KI.Input_Image_Failure (Image_A)
+      elsif KI.Input_Image_Failure (Image_B) /= Failure_None
+      then KI.Input_Image_Failure (Image_B)
+      elsif Image_A.Width /= Image_B.Width
+        or else Image_A.Height /= Image_B.Height
+      then Failure_Bad_Parameter
+      else Failure_None);
+   --  The failure of the checks of the two images, in the order of the
+   --  documentation below: InputImageA, InputImageB, their sizes.
 
    function Same_Size
      (Image_A, Image_B : access constant KI.Ks_Image_8_Grey_Data)
@@ -163,24 +159,29 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    with
      Export, Convention => C,
      External_Name => "ks_ip_two_image_add_execute",
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Out_Of_Memory
-             and then
-               (if Succeeded (Status)
-                then Same_Size (Image_A, Image_B)
-                     and then KI.Valid_Image (Output)
-                     and then Output.Width = Image_A.Width
-                     and then Output.Height = Image_A.Height
-                     and then
-                       (for all Y in Output.Pixels'Range (1)
-                        => (for all X in Output.Pixels'Range (2)
-                            => Output.Pixels (Y, X)
-                                 = Add_Pixel (Params.Overflow_Mode,
-                                              Image_A.Pixels (Y, X),
-                                              Image_B.Pixels (Y, X))))
-                else Output = null);
+     Post =>
+       Valid (Status)
+       and then
+         (if Input_Failure (Image_A, Image_B) /= Failure_None
+          then Status.Failure = Input_Failure (Image_A, Image_B)
+          elsif Params.Overflow_Mode not in Add_Overflow_Mode
+          then Status.Failure = Failure_Bad_Parameter
+          else Status.Failure in Failure_None | Failure_Out_Of_Memory)
+       and then
+         (if Succeeded (Status)
+          then Same_Size (Image_A, Image_B)
+               and then Params.Overflow_Mode in Add_Overflow_Mode
+               and then KI.Valid_Image (Output)
+               and then Output.Width = Image_A.Width
+               and then Output.Height = Image_A.Height
+               and then
+                 (for all Y in Output.Pixels'Range (1)
+                  => (for all X in Output.Pixels'Range (2)
+                      => Output.Pixels (Y, X)
+                           = Spec.Add (Integer (Params.Overflow_Mode),
+                                        Image_A.Pixels (Y, X),
+                                        Image_B.Pixels (Y, X))))
+          else Output = null);
 
    procedure Subtract_Execute
      (Image_A, Image_B : access constant KI.Ks_Image_8_Grey_Data;
@@ -190,24 +191,29 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    with
      Export, Convention => C,
      External_Name => "ks_ip_two_image_subtract_execute",
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Out_Of_Memory
-             and then
-               (if Succeeded (Status)
-                then Same_Size (Image_A, Image_B)
-                     and then KI.Valid_Image (Output)
-                     and then Output.Width = Image_A.Width
-                     and then Output.Height = Image_A.Height
-                     and then
-                       (for all Y in Output.Pixels'Range (1)
-                        => (for all X in Output.Pixels'Range (2)
-                            => Output.Pixels (Y, X)
-                                 = Subtract_Pixel (Params.Overflow_Mode,
-                                                   Image_A.Pixels (Y, X),
-                                                   Image_B.Pixels (Y, X))))
-                else Output = null);
+     Post =>
+       Valid (Status)
+       and then
+         (if Input_Failure (Image_A, Image_B) /= Failure_None
+          then Status.Failure = Input_Failure (Image_A, Image_B)
+          elsif Params.Overflow_Mode not in Subtract_Overflow_Mode
+          then Status.Failure = Failure_Bad_Parameter
+          else Status.Failure in Failure_None | Failure_Out_Of_Memory)
+       and then
+         (if Succeeded (Status)
+          then Same_Size (Image_A, Image_B)
+               and then Params.Overflow_Mode in Subtract_Overflow_Mode
+               and then KI.Valid_Image (Output)
+               and then Output.Width = Image_A.Width
+               and then Output.Height = Image_A.Height
+               and then
+                 (for all Y in Output.Pixels'Range (1)
+                  => (for all X in Output.Pixels'Range (2)
+                      => Output.Pixels (Y, X)
+                           = Spec.Subtract (Integer (Params.Overflow_Mode),
+                                        Image_A.Pixels (Y, X),
+                                        Image_B.Pixels (Y, X))))
+          else Output = null);
 
    procedure Min_Max_Execute
      (Image_A, Image_B : access constant KI.Ks_Image_8_Grey_Data;
@@ -217,23 +223,28 @@ package AMV.Kernels.IP_Two_Image with SPARK_Mode, Preelaborate is
    with
      Export, Convention => C,
      External_Name => "ks_ip_two_image_min_max_execute",
-     Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Out_Of_Memory
-             and then
-               (if Succeeded (Status)
-                then Same_Size (Image_A, Image_B)
-                     and then KI.Valid_Image (Output)
-                     and then Output.Width = Image_A.Width
-                     and then Output.Height = Image_A.Height
-                     and then
-                       (for all Y in Output.Pixels'Range (1)
-                        => (for all X in Output.Pixels'Range (2)
-                            => Output.Pixels (Y, X)
-                                 = Min_Max_Pixel (Params.Operation,
-                                                  Image_A.Pixels (Y, X),
-                                                  Image_B.Pixels (Y, X))))
-                else Output = null);
+     Post =>
+       Valid (Status)
+       and then
+         (if Input_Failure (Image_A, Image_B) /= Failure_None
+          then Status.Failure = Input_Failure (Image_A, Image_B)
+          elsif Params.Operation not in Min_Max_Operation
+          then Status.Failure = Failure_Bad_Parameter
+          else Status.Failure in Failure_None | Failure_Out_Of_Memory)
+       and then
+         (if Succeeded (Status)
+          then Same_Size (Image_A, Image_B)
+               and then Params.Operation in Min_Max_Operation
+               and then KI.Valid_Image (Output)
+               and then Output.Width = Image_A.Width
+               and then Output.Height = Image_A.Height
+               and then
+                 (for all Y in Output.Pixels'Range (1)
+                  => (for all X in Output.Pixels'Range (2)
+                      => Output.Pixels (Y, X)
+                           = Spec.Min_Max (Integer (Params.Operation),
+                                        Image_A.Pixels (Y, X),
+                                        Image_B.Pixels (Y, X))))
+          else Output = null);
 
 end AMV.Kernels.IP_Two_Image;

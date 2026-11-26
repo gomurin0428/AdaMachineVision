@@ -31,18 +31,23 @@
 --
 --  Proved (docs/PROOF.md): absence of run-time errors for any image
 --  handles that are null or came from the image kernel and any parameter
---  values, non-finite ones included; no memory leaks; Gold: the output
---  has the size of the input and every output pixel is exactly the
---  formula of the mode (the copy, the high byte, the integer intensity
---  formula, the plane, or the weighted formula), all within 0 .. 255.
+--  values, non-finite ones included; no memory leaks; Platinum: the
+--  output has the size of the input and every output pixel is the one
+--  that the specification AMV.Spec.Image_Convert gives (the copy, the high
+--  byte, the intensity, the plane), but in the mode IntensityFromWeightedRGB,
+--  where it is the result of Weighted_Intensity; the failure is the one
+--  that Convert_Failure gives (Out_Of_Memory, which the allocation
+--  decides, is the only one left open).
 
 pragma Validity_Checks ("F");
 
 with AMV.Kernels.Images;
+with AMV.Spec.Image_Convert;
 
 package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
 
    package KI renames AMV.Kernels.Images;
+   package Spec renames AMV.Spec.Image_Convert;
 
    use type KI.Grey_8;
    use type KI.Grey_16;
@@ -125,18 +130,27 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
       and then Bounded_Weight (Params.Intensity_From_Weighted_RGB_Green_Weight)
       and then Bounded_Weight (Params.Intensity_From_Weighted_RGB_Blue_Weight));
 
+   function Valid_Params (Params : Ks_Image_Convert_Run_Params)
+      return Boolean
+   is
+     (Params.Run_Mode
+        in Run_Mode_Intensity | Run_Mode_Plane_0 | Run_Mode_Plane_1
+         | Run_Mode_Plane_2 | Run_Mode_Intensity_From_Weighted_RGB
+      and then Params.Bayer_Type in Bayer_Type_GR .. Bayer_Type_GB
+      and then Params.Share_Pels_If_Possible in 0 .. 1
+      and then Valid_Weights (Params)
+      and then Bounded_Weight (Params.Intensity_From_Bayer_Red_Weight)
+      and then Bounded_Weight (Params.Intensity_From_Bayer_Green_Weight)
+      and then Bounded_Weight (Params.Intensity_From_Bayer_Blue_Weight)
+      and then Bounded_Weight (Params.Color_From_Bayer_Red_Scale)
+      and then Bounded_Weight (Params.Color_From_Bayer_Green_Scale)
+      and then Bounded_Weight (Params.Color_From_Bayer_Blue_Scale));
+   --  Run parameters that Execute takes: an implemented mode, the codes
+   --  in their ranges, every weight and scale finite and within
+   --  Max_Weight.
    ---------------------------------------------------------------------
    --  The conversions (Gold)
    ---------------------------------------------------------------------
-
-   function Intensity_Of (R, G, B : KI.Grey_8) return KI.Grey_8 is
-     (KI.Grey_8 ((299 * Natural (R) + 587 * Natural (G) + 114 * Natural (B)
-                  + 500) / 1000));
-   --  round (0.299 R + 0.587 G + 0.114 B), halves up, exactly.
-
-   function High_Byte (V : KI.Grey_16) return KI.Grey_8 is
-     (KI.Grey_8 (V / 256));
-   --  The intensity of a 16-bit pixel.
 
    function Weighted_Intensity
      (Params  : Ks_Image_Convert_Run_Params;
@@ -144,20 +158,6 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
    with Pre => Valid_Weights (Params);
    --  round (Wr R + Wg G + Wb B) with the IntensityFromWeightedRGB weights,
    --  limited to 0 .. 255.
-
-   function Colour_Pixel
-     (Params  : Ks_Image_Convert_Run_Params;
-      R, G, B : KI.Grey_8) return KI.Grey_8
-   is
-     (case Params.Run_Mode is
-         when Run_Mode_Plane_0 => R,
-         when Run_Mode_Plane_1 => G,
-         when Run_Mode_Plane_2 => B,
-         when Run_Mode_Intensity_From_Weighted_RGB =>
-            Weighted_Intensity (Params, R, G, B),
-         when others => Intensity_Of (R, G, B))
-   with Pre => Valid_Weights (Params);
-   --  The output pixel for a colour input (Intensity for any other mode).
 
    function Same_Planes
      (Red, Green, Blue : access constant KI.Ks_Image_8_Grey_Data)
@@ -168,6 +168,44 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
       and then Green.Width = Red.Width and then Green.Height = Red.Height
       and then Blue.Width = Red.Width and then Blue.Height = Red.Height);
    --  Three valid planes of one size.
+
+   function Input_Failure
+     (Grey_8           : access constant KI.Ks_Image_8_Grey_Data;
+      Grey_16          : access constant KI.Ks_Image_16_Grey_Data;
+      Red, Green, Blue : access constant KI.Ks_Image_8_Grey_Data)
+      return Failure_Code
+   is
+     (if Grey_8 = null and then Grey_16 = null and then Red = null
+        and then Green = null and then Blue = null
+      then Failure_Image_No_Pixels
+      elsif (if Grey_8 /= null
+             then Grey_16 = null and then Red = null and then Green = null
+                  and then Blue = null and then KI.Usable_Image (Grey_8)
+             elsif Grey_16 /= null
+             then Red = null and then Green = null and then Blue = null
+                  and then KI.Usable_Image (Grey_16)
+             else Same_Planes (Red, Green, Blue)
+                  and then KI.Usable_Image (Red))
+      then Failure_None
+      else Failure_Bad_Parameter);
+   --  The failure of the check of the input: none given, or not exactly
+   --  one kind of image, usable.
+
+   function Convert_Failure
+     (Grey_8           : access constant KI.Ks_Image_8_Grey_Data;
+      Grey_16          : access constant KI.Ks_Image_16_Grey_Data;
+      Red, Green, Blue : access constant KI.Ks_Image_8_Grey_Data;
+      Params           : Ks_Image_Convert_Run_Params) return Failure_Code
+   is
+     (if Input_Failure (Grey_8, Grey_16, Red, Green, Blue) /= Failure_None
+      then Input_Failure (Grey_8, Grey_16, Red, Green, Blue)
+      elsif not Valid_Params (Params) then Failure_Bad_Parameter
+      elsif (Grey_8 /= null or else Grey_16 /= null)
+        and then Params.Run_Mode /= Run_Mode_Intensity
+      then Failure_Bad_Parameter
+      else Failure_None);
+   --  The failure of the checks of Execute, in their order: the input,
+   --  the run parameters, the mode against the input.
 
    ---------------------------------------------------------------------
    --  Entry point
@@ -183,9 +221,13 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
    with
      Export, Convention => C, External_Name => "ks_image_convert_execute",
      Post => Valid (Status)
-             and then Status.Failure
-                        in Failure_None | Failure_Image_No_Pixels
-                         | Failure_Bad_Parameter | Failure_Out_Of_Memory
+             and then
+               (if Convert_Failure (Grey_8, Grey_16, Red, Green, Blue, Params)
+                     /= Failure_None
+                then Status.Failure
+                       = Convert_Failure (Grey_8, Grey_16, Red, Green, Blue,
+                                          Params)
+                else Status.Failure in Failure_None | Failure_Out_Of_Memory)
              and then
                (if not Succeeded (Status) then Output = null
                 elsif Grey_8 /= null
@@ -205,7 +247,7 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
                        (for all Y in Output.Pixels'Range (1)
                         => (for all X in Output.Pixels'Range (2)
                             => Output.Pixels (Y, X)
-                                 = High_Byte (Grey_16.Pixels (Y, X))))
+                                 = Spec.High_Byte (Grey_16.Pixels (Y, X))))
                 else Same_Planes (Red, Green, Blue)
                      and then Valid_Weights (Params)
                      and then Params.Run_Mode
@@ -219,10 +261,17 @@ package AMV.Kernels.Image_Convert with SPARK_Mode, Preelaborate is
                        (for all Y in Output.Pixels'Range (1)
                         => (for all X in Output.Pixels'Range (2)
                             => Output.Pixels (Y, X)
-                                 = Colour_Pixel (Params,
-                                                 Red.Pixels (Y, X),
-                                                 Green.Pixels (Y, X),
-                                                 Blue.Pixels (Y, X)))));
+                                 = (if Params.Run_Mode
+                                         = Run_Mode_Intensity_From_Weighted_RGB
+                                    then Weighted_Intensity
+                                           (Params, Red.Pixels (Y, X),
+                                            Green.Pixels (Y, X),
+                                            Blue.Pixels (Y, X))
+                                    else Spec.Colour
+                                           (Integer (Params.Run_Mode),
+                                            Red.Pixels (Y, X),
+                                            Green.Pixels (Y, X),
+                                            Blue.Pixels (Y, X))))));
    --  The converted image (see above). The checks, in order: the input
    --  (Image_No_Pixels "InputImage has no pixels" when every handle is
    --  null; Bad_Parameter "InputImage must be one image: an 8-bit, a 16-bit
