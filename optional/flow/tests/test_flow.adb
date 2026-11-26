@@ -13,6 +13,7 @@ with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with GNAT.OS_Lib;
 
 with AMV;
 with AMV.Flow;
@@ -597,6 +598,154 @@ procedure Test_Flow is
       Flow.Run;
       Check (Real_Output (Again, "Slot") = Real_Output (Flow, "Slot"),
              "align: the loaded copy measures the same");
+
+      --  A saved pattern: written when trained, read instead of training
+      --  while the train image and the settings stay the same, used alone
+      --  in a flow shipped without its train image.
+      declare
+         use type GNAT.OS_Lib.OS_Time;
+         Pattern      : constant String := Test_Dir & "/align.pattern";
+         Shipped_Path : constant String := Test_Dir & "/align_shipped.amvflow";
+         Not_Pattern  : constant String := Test_Dir & "/not_a_pattern.txt";
+         Shipped      : AMV.Flow.Graphs.Ks_Flow;
+         Long_Ago     : constant GNAT.OS_Lib.OS_Time :=
+           GNAT.OS_Lib.GM_Time_Of (2001, 1, 1, 0, 0, 0);
+
+         function First_Line (Name : String) return String is
+            File : Ada.Text_IO.File_Type;
+         begin
+            Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Name);
+            return Line : constant String := Ada.Text_IO.Get_Line (File) do
+               Ada.Text_IO.Close (File);
+            end return;
+         end First_Line;
+
+         function Pattern_Time return GNAT.OS_Lib.OS_Time is
+           (GNAT.OS_Lib.File_Time_Stamp (Pattern));
+      begin
+         if Ada.Directories.Exists (Pattern) then
+            Ada.Directories.Delete_File (Pattern);
+         end if;
+         Again.Set_Param (1, "PatternPath", From_String ("align.pattern"));
+         Check (Ada.Directories.Exists (Pattern)
+                and then First_Line (Pattern) = "AMV Flow ShapeMatch pattern 2",
+                "pattern: saved when trained");
+
+         --  Prepared again with the same image and settings: read, so the
+         --  file is not written again.
+         GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Pattern, Long_Ago);
+         Again.Set_Param (1, "ContrastThreshold", From_Real (10.0));
+         Check (Pattern_Time = Long_Ago,
+                "pattern: the same image and settings, read from the file");
+
+         --  A flow with the pattern only (TrainImage ""), loaded afresh.
+         Again.Set_Param (1, "TrainImage", From_String (""));
+         Check (Again.Problems.Is_Empty,
+                "pattern: no train image, the saved pattern is used");
+         Again.Save (Shipped_Path);
+         Again.Set_Param (1, "TrainImage", From_String ("align_model.bmp"));
+         Shipped.Load (Shipped_Path);
+         Check (Shipped.Problems.Is_Empty,
+                "pattern: a flow with its pattern only loads");
+         Shipped.Set_Input ("Image", From_Image (Scene (180.0, 160.0, -15.0)));
+         Shipped.Run;
+         Check (Shipped.Result = AMV.Tools.Accept_Result,
+                "pattern: a flow with its pattern only runs ("
+                & Shipped.Message & ")");
+         Check_Near (Real_Output (Shipped, "Slot"), 14.0, 0.1,
+                     "pattern: the saved pattern finds the part");
+         Shipped.Set_Param (1, "TrainImage", From_String ("no_such_model.bmp"));
+         Check (Shipped.Problems.Is_Empty,
+                "pattern: a missing train image, the saved pattern is used");
+
+         --  Without the train image other settings cannot be trained.
+         begin
+            Shipped.Set_Param (1, "OriginX", From_Real (101.0));
+            Check (False, "pattern: a new origin without the train image fails");
+         exception
+            when E : AMV.Flow.Ks_Flow_Exception =>
+               Check (Contains (Ada.Exceptions.Exception_Message (E),
+                                "another TrainRegion or origin")
+                      and then Shipped.Problems.Is_Empty,
+                      "pattern: a new origin without the train image fails ("
+                      & Ada.Exceptions.Exception_Message (E) & ")");
+         end;
+
+         --  With the train image, a new origin trains and saves again
+         --  (beside a file named as its temporary one, which is kept).
+         GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Pattern, Long_Ago);
+         Write_Text (Pattern & ".tmp", "keep me too");
+         Again.Set_Param (1, "OriginX", From_Real (101.0));
+         Check (Pattern_Time /= Long_Ago,
+                "pattern: a new origin trains and saves again");
+         Check (First_Line (Pattern & ".tmp") = "keep me too"
+                and then not Ada.Directories.Exists (Pattern & ".tmp1"),
+                "pattern: a file named as the temporary one is kept");
+         Ada.Directories.Delete_File (Pattern & ".tmp");
+         Again.Set_Param (1, "OriginX", From_Real (100.0));
+
+         --  A pattern that cannot be saved: the node works, and warns.
+         Again.Set_Param
+           (1, "PatternPath", From_String ("no_such_folder/align.pattern"));
+         Check (Again.Problems.Is_Empty,
+                "pattern: not saved, the node still works");
+         Again.Run;
+         Check (Again.Node (1).Result = AMV.Tools.Warning
+                and then Contains (Again.Node (1).Message, "not saved"),
+                "pattern: not saved, the run warns ("
+                & Again.Node (1).Message & ")");
+
+         --  A file that is not a saved pattern is not written over.
+         Write_Text (Not_Pattern, "keep me");
+         Again.Set_Param (1, "PatternPath", From_String ("not_a_pattern.txt"));
+         Again.Run;
+         Check (First_Line (Not_Pattern) = "keep me"
+                and then Again.Node (1).Result = AMV.Tools.Warning,
+                "pattern: another file is not written over ("
+                & Again.Node (1).Message & ")");
+         Again.Set_Param (1, "PatternPath", From_String (""));
+
+         --  A recipe that is refused leaves the saved pattern as it was
+         --  (the copy it was tried on trained, but did not save).
+         declare
+            Two_Path    : constant String := Test_Dir & "/two_patterns.amvflow";
+            Two_Pattern : constant String := Test_Dir & "/two.pattern";
+            Two         : AMV.Flow.Graphs.Ks_Flow;
+         begin
+            if Ada.Directories.Exists (Two_Pattern) then
+               Ada.Directories.Delete_File (Two_Pattern);
+            end if;
+            Write_Text
+              (Two_Path,
+               "{""format"": 1, ""name"": ""two"", ""inputs"": [], "
+               & """outputs"": [], ""links"": [], ""nodes"": ["
+               & "{""id"": 1, ""kind"": ""ShapeMatch"", ""params"": "
+               & "{""TrainImage"": ""align_model.bmp"", ""OriginX"": 100.0, "
+               & """OriginY"": 80.0, ""PatternPath"": ""two.pattern""}}, "
+               & "{""id"": 2, ""kind"": ""ShapeMatch"", ""params"": "
+               & "{""TrainImage"": ""align_model.bmp""}}]}");
+            Two.Load (Two_Path);
+            Check (Ada.Directories.Exists (Two_Pattern),
+                   "pattern: saved when the flow loads");
+            GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Two_Pattern, Long_Ago);
+            begin
+               Two.Apply_Recipe
+                 ("{""format"": 1, ""params"": {""1.OriginX"": 120.0, "
+                  & """2.TrainImage"": ""not_a_pattern.txt""}}");
+               Check (False, "pattern: the recipe is refused");
+            exception
+               when AMV.Flow.Ks_Flow_Exception =>
+                  Check (GNAT.OS_Lib.File_Time_Stamp (Two_Pattern) = Long_Ago
+                         and then Two.Node (1).Get_Param ("OriginX").As_Real
+                                  = 100.0,
+                         "pattern: a refused recipe leaves the saved pattern");
+            end;
+            Two.Apply_Recipe
+              ("{""format"": 1, ""params"": {""1.OriginX"": 120.0}}");
+            Check (GNAT.OS_Lib.File_Time_Stamp (Two_Pattern) /= Long_Ago,
+                   "pattern: an applied recipe saves the pattern");
+         end;
+      end;
 
       --  No part: Shape Match rejects, everything after it is skipped.
       Flow.Set_Input

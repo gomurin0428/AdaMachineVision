@@ -216,7 +216,7 @@ public final class EditorApp extends Application {
             @Override
             public void chooseFile(long id, String param) {
                 // A path parameter names a file to write (CsvLog's), an image one a file to read.
-                File file = param.endsWith("Path") ? csvChooser().showSaveDialog(stage)
+                File file = param.endsWith("Path") ? outputChooser(param).showSaveDialog(stage)
                         : imageChooser("Train image").showOpenDialog(stage);
                 if (file != null) {
                     String path = relativeToFlow(file.toPath());
@@ -523,10 +523,14 @@ public final class EditorApp extends Application {
         return result;
     }
 
-    private FileChooser csvChooser() {
+    /** A save dialog for a file a node writes: a trained pattern, or else a CSV log. */
+    private FileChooser outputChooser(String param) {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Log file");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv"));
+        boolean pattern = param.equals("PatternPath");
+        chooser.setTitle(pattern ? "Trained pattern" : "Log file");
+        chooser.getExtensionFilters().add(pattern
+                ? new FileChooser.ExtensionFilter("Trained patterns (*.amvpattern)", "*.amvpattern")
+                : new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv"));
         chooser.setInitialDirectory(flowFile != null ? flowFile.getParent().toFile()
                 : new File(System.getProperty("user.dir")));
         return chooser;
@@ -641,36 +645,45 @@ public final class EditorApp extends Application {
     /** Engine thread: saves the flow at path, its relative file parameters made relative to newDir. */
     private static void saveInto(Flow f, Path path, Path oldDir, Path newDir) {
         if (!newDir.equals(oldDir)) {
-            // Relative file parameters are taken from the flow file's folder:
-            // rewrite them so that they name the same files from the new one.
-            Map<Long, Map<String, String>> moved = new java.util.LinkedHashMap<>();
+            // Relative file parameters are taken from the flow file's folder.
+            // They are made absolute, the folder is changed, and they are
+            // made relative to the new one: at each step they name the same
+            // files (a ShapeMatch never sees one of its files moved and the
+            // other not, and so never trains from the wrong image).
+            Map<Long, Map<String, Path>> files = new java.util.LinkedHashMap<>();
             for (NodeInfo node : FlowInfo.parse(f.toJson()).nodes().values()) {
                 node.params().forEach((name, value) -> {
                     if ((name.endsWith("Image") || name.endsWith("Path")) && value instanceof String v
                             && !v.isEmpty() && !Path.of(v).isAbsolute()) {
-                        Path target = oldDir.resolve(v).normalize();
-                        String rewritten;
-                        try {
-                            rewritten = newDir.relativize(target).toString().replace('\\', '/');
-                        } catch (IllegalArgumentException e) {
-                            rewritten = target.toString();  // another drive
-                        }
-                        moved.computeIfAbsent(node.id(), k -> new java.util.LinkedHashMap<>())
-                                .put(name, rewritten);
+                        files.computeIfAbsent(node.id(), k -> new java.util.LinkedHashMap<>())
+                                .put(name, oldDir.resolve(v).normalize());
                     }
                 });
             }
+            setFiles(f, files, Path::toString);
             f.setBaseDirectory(newDir);
-            moved.forEach((id, params) -> params.forEach((name, value) -> {
+            setFiles(f, files, target -> {
                 try {
-                    f.setParamJson(id, name, Json.quote(value));
-                } catch (AmvFlowException e) {
-                    // A file that is not there from either folder: the engine
-                    // keeps the old value; the node shows the problem.
+                    return newDir.relativize(target).toString().replace('\\', '/');
+                } catch (IllegalArgumentException e) {
+                    return target.toString();  // another drive
                 }
-            }));
+            });
         }
         f.save(path);
+    }
+
+    /** Engine thread: sets each node's file parameters to their files, in the given form. */
+    private static void setFiles(Flow f, Map<Long, Map<String, Path>> files,
+            java.util.function.Function<Path, String> form) {
+        files.forEach((id, params) -> params.forEach((name, target) -> {
+            try {
+                f.setParamJson(id, name, Json.quote(form.apply(target)));
+            } catch (AmvFlowException e) {
+                // A file that is not there from either folder: the engine
+                // keeps the old value; the node shows the problem.
+            }
+        }));
     }
 
     private void openImage() {

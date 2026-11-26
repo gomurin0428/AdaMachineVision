@@ -125,6 +125,12 @@ package AMV.Flow.Nodes is
    --  that trains (ShapeMatch) trains here. Relative paths in parameters
    --  are taken from Base_Directory. May raise Ks_Flow_Exception.
 
+   procedure Commit (Node : in out Ks_Flow_Node) is null;
+   --  Called once what Prepare did is kept (the flow loaded, the parameter
+   --  set, the recipe applied): a node that keeps files of its own
+   --  (ShapeMatch's saved pattern) writes them here, so that a recipe that
+   --  is refused leaves them as they were. Does not raise.
+
    function Problem (Node : Ks_Flow_Node) return String is ("");
    --  What keeps the node from running ("the pattern is not trained"), or
    --  "".
