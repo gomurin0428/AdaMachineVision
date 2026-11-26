@@ -140,6 +140,11 @@ int main(void) {
         amvf_flow_recipe_json(flow, "A", recipe, need, &need, &st);
         check_ok(&st, "recipe");
         check(strstr(recipe, "\"recipe\": \"A\"") != NULL, "recipe: named");
+        amvf_flow_set_name(flow, "spots", &st);
+        check_ok(&st, "name the flow");
+        amvf_flow_apply_recipe(flow, "{\"format\": 1, \"flow\": \"another\", \"params\": {}}", &st);
+        check(st.failure == AMVF_FAILURE_FLOW, "a recipe of another flow (by name) is refused");
+        amvf_flow_set_name(flow, "", &st);
         amvf_flow_apply_recipe(flow, "{\"format\": 1, \"params\": {\"1.Threshold\": 77}}", &st);
         check_ok(&st, "apply a recipe");
         amvf_flow_apply_recipe(flow, "{\"format\": 1, \"params\": {\"8.Low\": 1}}", &st);

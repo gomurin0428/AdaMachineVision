@@ -1014,7 +1014,8 @@ package body AMV.Flow.Graphs is
    --  when Text is not a valid flow.
    procedure Read_JSON (Flow           : in out Ks_Flow;
                         Text           : String;
-                        Base_Directory : String)
+                        Base_Directory : String;
+                        Prepare_Nodes  : Boolean := True)
    is
       use AMV.Flow.JSON;
       Doc : Document;
@@ -1229,7 +1230,9 @@ package body AMV.Flow.Graphs is
       end;
 
       Set_Base_Directory (Flow, Base_Directory);
-      Prepare (Flow);
+      if Prepare_Nodes then
+         Prepare (Flow);
+      end if;
    exception
       when Ks_Flow_Exception =>
          Clear (Flow);
@@ -1271,6 +1274,12 @@ package body AMV.Flow.Graphs is
    --  Recipes
    ---------------------------------------------------------------------
 
+   function Is_Absolute (Path : String) return Boolean is
+     (Path'Length > 0
+      and then (Path (Path'First) in '/' | Character'Val (92)  --  backslash
+                or else (Path'Length >= 2
+                         and then Path (Path'First + 1) = ':')));
+
    function Recipe_JSON (Flow : Ks_Flow; Name : String) return String is
       use AMV.Flow.JSON;
       W : Writer;
@@ -1296,7 +1305,15 @@ package body AMV.Flow.Graphs is
                     N.Get_Param (Param_Name);
                begin
                   W.Key (Id_Image (Id) & "." & Param_Name);
-                  if Value.Has_Value then
+                  if Value.Has_Value and then P.Path
+                    and then Value.As_String /= ""
+                    and then Base_Directory (Flow) /= ""
+                    and then not Is_Absolute (Value.As_String)
+                  then
+                     --  A file: absolute, so that the recipe names the same
+                     --  file after the flow is saved in another folder.
+                     W.Value (Base_Directory (Flow) & "/" & Value.As_String);
+                  elsif Value.Has_Value then
                      Write_Param (W, P, Value);
                   else
                      W.Null_Value;  --  none (a region: the whole image)
@@ -1421,7 +1438,8 @@ package body AMV.Flow.Graphs is
       --  Then on a copy of the flow: every value set, and every node it
       --  touches prepared once, with all its new values. The flow is
       --  replaced only when all of that worked.
-      Read_JSON (Fresh, To_JSON (Flow), Base_Directory (Flow));
+      Read_JSON (Fresh, To_JSON (Flow), Base_Directory (Flow),
+                 Prepare_Nodes => False);
       for C of Changes loop
          begin
             Set_Param_Checked
@@ -1434,21 +1452,25 @@ package body AMV.Flow.Graphs is
                  & Ada.Exceptions.Exception_Message (E);
          end;
       end loop;
-      for C in Fresh.Nodes.Iterate loop
+      --  Every node prepared once, the touched ones with all their new
+      --  values. A touched node that cannot be prepared refuses the recipe;
+      --  so does an untouched one that was prepared in the flow (its train
+      --  image gone since): the recipe must not leave a flow that worked
+      --  unable to run.
+      Prepare (Fresh);
+      for C in Fresh.Unprepared.Iterate loop
          declare
-            Id : constant Positive := Node_Maps.Key (C);
+            Id  : constant Positive := Message_Maps.Key (C);
+            Why : constant String := To_String (Message_Maps.Element (C));
          begin
             if (for some Ch of Changes => Ch.Id = Id) then
-               Node_Maps.Element (C).Prepare (Base_Directory (Fresh));
-               Fresh.Unprepared.Exclude (Id);
-            end if;
-         exception
-            when E : Ks_Flow_Exception | AMV.Ks_Exception
-                   | AMV.Ks_Bad_Parameter_Exception
-                   | AMV.Ks_Image_File_Exception =>
                raise Ks_Flow_Exception with
-                 "recipe: " & Describe (Fresh, Id) & ": "
-                 & Ada.Exceptions.Exception_Message (E);
+                 "recipe: " & Describe (Fresh, Id) & ": " & Why;
+            elsif not Flow.Unprepared.Contains (Id) then
+               raise Ks_Flow_Exception with
+                 "recipe: " & Describe (Fresh, Id)
+                 & " could not be prepared again: " & Why;
+            end if;
          end;
       end loop;
       --  The flow's inputs keep their values (an image already set).

@@ -293,6 +293,15 @@ jobs:
         working-directory: optional/flow_editor
         run: gradle --no-daemon :amv-flow-editor:jpackage
 
+      # The packaged launcher, with its own runtime, finds and loads the
+      # library it carries (--check: no window, exit status 0).
+      - name: Check that the package starts
+        shell: pwsh
+        working-directory: optional/flow_editor/amv-flow-editor/build/package/AMV Flow Editor
+        run: |
+          $p = Start-Process -FilePath ".\AMV Flow Editor.exe" -ArgumentList "--check" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the packaged editor failed its check (exit $($p.ExitCode))" }
+
       - uses: actions/upload-artifact@v4
         with:
           name: amv-flow-editor-windows

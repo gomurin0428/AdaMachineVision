@@ -274,6 +274,8 @@ begin
             if CL.Argument (I) = "--images" then
                Images := Ada.Strings.Unbounded.To_Unbounded_String
                  (CL.Argument (I + 1));
+            elsif CL.Argument (I + 1) = "" then
+               Bad := True;  --  --recipe "" (an empty variable): not none
             else
                Recipe := Ada.Strings.Unbounded.To_Unbounded_String
                  (CL.Argument (I + 1));
@@ -282,7 +284,7 @@ begin
          end loop;
          --  The options come before the flow: an option after it would be
          --  taken for an image.
-         Bad := I + 1 > CL.Argument_Count;
+         Bad := Bad or else I + 1 > CL.Argument_Count;
          for J in I .. CL.Argument_Count loop
             declare
                A : constant String := CL.Argument (J);

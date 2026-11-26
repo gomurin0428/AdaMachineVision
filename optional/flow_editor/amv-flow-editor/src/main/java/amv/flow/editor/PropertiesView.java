@@ -231,7 +231,7 @@ final class PropertiesView extends VBox {
             case "String" -> {
                 TextField field = new TextField(Json.string(value));
                 commitOn(field, () -> listener.setParam(node.id(), p.name(), Json.quote(field.getText())));
-                if (p.name().endsWith("Image") || p.name().endsWith("Path")) {
+                if (p.path()) {
                     Button choose = new Button("…");
                     choose.setOnAction(e -> listener.chooseFile(node.id(), p.name()));
                     HBox both = new HBox(4, field, choose);

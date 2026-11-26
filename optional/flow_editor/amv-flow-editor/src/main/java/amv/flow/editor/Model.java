@@ -15,8 +15,9 @@ final class Model {
     record PortInfo(String name, boolean input, String type, boolean required, String help) {
     }
 
+    /** A parameter; path: a file, relative to the flow file's folder unless absolute. */
     record ParamInfo(String name, String kind, Double low, Double high, List<String> choices, String unit,
-            String help) {
+            String help, boolean path) {
     }
 
     record KindInfo(String kind, List<PortInfo> ports, List<ParamInfo> params) {
@@ -125,7 +126,8 @@ final class Model {
                 params.add(new ParamInfo(Json.string(m.get("name")), Json.string(m.get("kind")),
                         m.containsKey("low") ? Json.number(m.get("low")) : null,
                         m.containsKey("high") ? Json.number(m.get("high")) : null,
-                        choices, Json.string(m.get("unit")), Json.string(m.get("help"))));
+                        choices, Json.string(m.get("unit")), Json.string(m.get("help")),
+                        Boolean.TRUE.equals(m.get("path"))));
             }
             kinds.put(Json.string(k.get("kind")), new KindInfo(Json.string(k.get("kind")), ports, params));
         }

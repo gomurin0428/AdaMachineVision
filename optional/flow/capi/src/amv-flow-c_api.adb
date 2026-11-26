@@ -467,6 +467,16 @@ package body AMV.Flow.C_API is
          Fail_From (Status, E);
    end Flow_Reset_Counts;
 
+   procedure Flow_Set_Name
+     (Flow : System.Address; Name : chars_ptr; Status : out Amvf_Status) is
+   begin
+      OK (Status);
+      Get (Flow).Set_Name (Text (Name, "the name"));
+   exception
+      when E : others =>
+         Fail_From (Status, E);
+   end Flow_Set_Name;
+
    procedure Flow_Recipe_JSON
      (Flow   : System.Address; Name : chars_ptr; Buffer : System.Address;
       Capacity : Integer_64; Needed : out Integer_64;

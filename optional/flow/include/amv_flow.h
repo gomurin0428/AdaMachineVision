@@ -91,6 +91,9 @@ void amvf_flow_run(amvf_flow *flow, amvf_status *status);
 /* The pass / fail tally ("counts" in the results JSON) back to zero. */
 void amvf_flow_reset_counts(amvf_flow *flow, amvf_status *status);
 
+/* The flow's name (in its file; a recipe made from it carries it). */
+void amvf_flow_set_name(amvf_flow *flow, const char *name, amvf_status *status);
+
 /* Recipes: every parameter of every node as JSON, and such a JSON applied
  * (all or nothing). */
 void amvf_flow_recipe_json(amvf_flow *flow, const char *name, char *buffer,

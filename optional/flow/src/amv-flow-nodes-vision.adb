@@ -122,7 +122,7 @@ package body AMV.Flow.Nodes.Vision is
    overriding function Params (Node : Shape_Match_Node) return Param_Array is
      [String_Param_Of ("TrainImage",
                        "the image the pattern is trained on, relative to "
-                       & "the flow file"),
+                       & "the flow file", Path => True),
       Shape_Param_Of ("TrainRegion",
                       "the region of the train image to train on; none: "
                       & "all of it"),

@@ -100,6 +100,8 @@ final class AmvFlowNative {
     static final MethodHandle FLOW_RUN = find("amvf_flow_run", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
     static final MethodHandle FLOW_RESET_COUNTS =
             find("amvf_flow_reset_counts", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+    static final MethodHandle FLOW_SET_NAME =
+            find("amvf_flow_set_name", FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS));
     static final MethodHandle FLOW_RECIPE_JSON = find("amvf_flow_recipe_json",
             FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS));
     static final MethodHandle FLOW_APPLY_RECIPE =

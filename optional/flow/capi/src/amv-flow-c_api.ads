@@ -140,6 +140,10 @@ package AMV.Flow.C_API is
      (Flow : System.Address; Status : out Amvf_Status)
      with Export, Convention => C, External_Name => "amvf_flow_reset_counts";
 
+   procedure Flow_Set_Name
+     (Flow : System.Address; Name : chars_ptr; Status : out Amvf_Status)
+     with Export, Convention => C, External_Name => "amvf_flow_set_name";
+
    procedure Flow_Recipe_JSON
      (Flow   : System.Address; Name : chars_ptr; Buffer : System.Address;
       Capacity : Integer_64; Needed : out Integer_64;

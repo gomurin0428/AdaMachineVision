@@ -45,10 +45,11 @@ package body AMV.Flow.Nodes is
      ((Name => U (Name), Kind => Choice_Param, Choices => U (Choices),
        Help => U (Help), others => <>));
 
-   function String_Param_Of (Name : String; Help : String := "")
+   function String_Param_Of (Name : String; Help : String := "";
+                             Path : Boolean := False)
                              return Param_Descriptor is
      ((Name => U (Name), Kind => String_Param, Help => U (Help),
-       others => <>));
+       Path => Path, others => <>));
 
    function Shape_Param_Of (Name : String; Help : String := "")
                             return Param_Descriptor is

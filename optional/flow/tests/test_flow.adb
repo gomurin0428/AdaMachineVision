@@ -1490,6 +1490,33 @@ procedure Test_Flow is
                             Missing_Train_Image'Access, "train image");
          Check (Threshold = 120,
                 "recipe: all or nothing (a node that cannot be prepared)");
+
+      --  File parameters are absolute in a recipe; an untouched node that
+      --  worked and cannot be prepared again refuses the recipe.
+      declare
+         Train : constant String := Test_Dir & "/recipe_train.bmp";
+         procedure Touch_Only_Blob is
+         begin
+            Apply ("{""format"": 1, ""params"": {""1.Threshold"": 7}}");
+         end Touch_Only_Blob;
+      begin
+         Flow.Set_Base_Directory (Test_Dir);
+         Check (Flow.Add_Node ("CsvLog") = 4, "recipe: node 4");
+         Flow.Set_Param (4, "Path", From_String ("recipe_log.csv"));
+         Check (Contains (Flow.Recipe_JSON ("x"),
+                          """4.Path"": """ & Test_Dir & "/recipe_log.csv"""),
+                "recipe: a file parameter is absolute");
+         AMV.Image_File.Write_Image
+           (Train, Picture (200, 150, AMV.Transforms.Create_Rigid
+                                        (0.0, 100.0, 75.0)));
+         Flow.Set_Param (3, "TrainImage", From_String ("recipe_train.bmp"));
+         Ada.Directories.Delete_File (Train);
+         Expect_Flow_Error ("recipe: an untouched node that cannot be "
+                            & "prepared again", Touch_Only_Blob'Access,
+                            "could not be prepared again");
+         Check (Threshold = 120,
+                "recipe: all or nothing (an untouched node broken)");
+      end;
          Flow.Set_Name ("this one");
          Expect_Flow_Error ("recipe: for another flow", Other_Flow'Access,
                             "another");

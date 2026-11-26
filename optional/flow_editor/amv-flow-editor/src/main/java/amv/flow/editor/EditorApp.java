@@ -459,16 +459,68 @@ public final class EditorApp extends Application {
             return;
         }
         Path path = file.toPath().toAbsolutePath();
-        act(f -> {
-            String text;
-            try {
-                text = Files.readString(path);
-            } catch (java.io.IOException e) {
-                throw new AmvFlowException(0, "cannot read " + path + ": " + e.getMessage());
+        String text;
+        try {
+            text = Files.readString(path);
+        } catch (java.io.IOException e) {
+            showStatus("cannot read " + path + ": " + e.getMessage(), true);
+            return;
+        }
+        // A recipe from elsewhere may point a train image or a log at other
+        // files: say which before applying it.
+        List<String> moved = pathChanges(text);
+        if (!moved.isEmpty()) {
+            Alert ask = new Alert(Alert.AlertType.CONFIRMATION,
+                    "The recipe changes these files:\n\n" + String.join("\n", moved) + "\n\nApply it?",
+                    ButtonType.OK, ButtonType.CANCEL);
+            ask.setHeaderText("Load recipe " + path.getFileName());
+            if (ask.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                return;
             }
+        }
+        act(f -> {
             f.applyRecipe(text);
             return null;
         }, true);
+    }
+
+    /** The file parameters a recipe would change: "node 10 Path: old → new". */
+    private List<String> pathChanges(String recipeJson) {
+        List<String> result = new java.util.ArrayList<>();
+        if (model == null) {
+            return result;
+        }
+        try {
+            Map<String, Object> params = Json.object(Json.object(Json.parse(recipeJson)).get("params"));
+            Path base = flowFile != null ? flowFile.getParent() : Path.of(System.getProperty("user.dir"));
+            params.forEach((key, value) -> {
+                int dot = key.indexOf('.');
+                if (dot <= 0 || !(value instanceof String text)) {
+                    return;
+                }
+                NodeInfo node;
+                try {
+                    node = model.nodes().get(Long.parseLong(key.substring(0, dot)));
+                } catch (NumberFormatException e) {
+                    return;
+                }
+                String name = key.substring(dot + 1);
+                KindInfo kind = node == null ? null : kinds.get(node.kind());
+                boolean isPath = kind != null
+                        && kind.params().stream().anyMatch(p -> p.name().equals(name) && p.path());
+                if (!isPath) {
+                    return;
+                }
+                String old = node.params().get(name) instanceof String s ? s : "";
+                if (!base.resolve(old).normalize().equals(base.resolve(text).normalize())) {
+                    result.add("node " + node.id() + " " + name + ": " + (old.isEmpty() ? "(none)" : old)
+                            + " → " + text);
+                }
+            });
+        } catch (RuntimeException e) {
+            // Not a recipe: the engine says what is wrong when it is applied.
+        }
+        return result;
     }
 
     private FileChooser csvChooser() {
@@ -540,6 +592,7 @@ public final class EditorApp extends Application {
         }
         Path path = flowFile;
         act(f -> {
+            nameAfter(f, path);
             f.save(path);
             Platform.runLater(() -> showStatus("Saved " + path, false));
             return null;
@@ -557,6 +610,7 @@ public final class EditorApp extends Application {
             Path newDir = path.getParent();
             String before = f.toJson();
             try {
+                nameAfter(f, path);
                 saveInto(f, path, oldDir, newDir);
             } catch (RuntimeException e) {
                 f.fromJson(before, oldDir);  // as it was, paths and folder
@@ -571,6 +625,17 @@ public final class EditorApp extends Application {
             flowFile = path;
             return null;
         }, false, false);
+    }
+
+    /**
+     * Engine thread: an untitled flow takes its file's name, so that the
+     * recipes made from it are told apart from other flows'.
+     */
+    private static void nameAfter(Flow f, Path file) {
+        String name = FlowInfo.parse(f.toJson()).name();
+        if (name == null || name.isBlank() || name.equals("untitled")) {
+            f.setName(file.getFileName().toString().replaceFirst("\\.amvflow$", ""));
+        }
     }
 
     /** Engine thread: saves the flow at path, its relative file parameters made relative to newDir. */
