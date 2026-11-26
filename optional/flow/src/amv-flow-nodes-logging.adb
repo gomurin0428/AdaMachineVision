@@ -107,7 +107,8 @@ package body AMV.Flow.Nodes.Logging is
 
    overriding function Params (Node : Csv_Log_Node) return Param_Array is
      [String_Param_Of ("Path",
-                       "the CSV file, relative to the flow file's folder"),
+                       "the CSV file, relative to the flow file's folder",
+                       Path => True),
       String_Param_Of ("Columns",
                        "names for Value1, Value2, ... separated by commas "
                        & "(at most 8); none: Value1 .. Value8"),

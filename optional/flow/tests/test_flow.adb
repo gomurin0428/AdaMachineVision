@@ -1401,6 +1401,144 @@ procedure Test_Flow is
    end Test_Measure;
 
    ---------------------------------------------------------------------
+   --  Recipes
+   ---------------------------------------------------------------------
+
+   procedure Test_Recipe is
+      Flow   : AMV.Flow.Graphs.Ks_Flow;
+      Region : AMV.Shapes.Ks_Circle;
+
+      function Threshold return Long_Long_Integer is
+        (Flow.Node (1).Get_Param ("Threshold").As_Integer);
+
+      procedure Apply (Text : String) is
+      begin
+         Flow.Apply_Recipe (Text);
+      end Apply;
+
+      procedure Unknown_Node is
+      begin
+         Apply ("{""format"": 1, ""params"": {""1.Threshold"": 77, "
+                & """9.Low"": 1}}");
+      end Unknown_Node;
+
+      procedure Bad_Value is
+      begin
+         Apply ("{""format"": 1, ""params"": {""1.Threshold"": 77, "
+                & """2.Low"": ""high""}}");
+      end Bad_Value;
+
+      procedure Not_A_Recipe is
+      begin
+         Apply ("{""params"": {}}");
+      end Not_A_Recipe;
+   begin
+      Check (Flow.Add_Node ("Blob") = 1, "recipe: node 1");
+      Check (Flow.Add_Node ("RangeCheck") = 2, "recipe: node 2");
+      Flow.Set_Param (1, "Threshold", From_Integer (40));
+      Region.Set_Center_Radius (10.0, 20.0, 5.5);
+      Flow.Set_Param (1, "Region", From_Shape (Region));
+      Flow.Set_Param (2, "High", From_Real (3.5));
+      declare
+         A : constant String := Flow.Recipe_JSON ("product A");
+      begin
+         Check (Contains (A, """recipe"": ""product A""")
+                and then Contains (A, """1.Threshold"": 40")
+                and then Contains (A, """2.High"": 3.5")
+                and then Contains (A, """1.Region"": {""shape"": ""Circle"""),
+                "recipe: every parameter, by node id (" & A & ")");
+         Flow.Set_Param (1, "Threshold", From_Integer (90));
+         Flow.Set_Param (2, "High", From_Real (9.0));
+         Apply (A);
+         Check (Threshold = 40
+                and then Flow.Node (2).Get_Param ("High").As_Real = 3.5,
+                "recipe: applied, the values come back");
+      end;
+      Apply ("{""format"": 1, ""params"": {""1.Threshold"": 120}}");
+      Check (Threshold = 120
+             and then Flow.Node (2).Get_Param ("High").As_Real = 3.5,
+             "recipe: only the parameters it names change");
+
+      Expect_Flow_Error ("recipe: a node the flow does not have",
+                         Unknown_Node'Access, "no node 9");
+      Check (Threshold = 120, "recipe: all or nothing (a missing node)");
+      Expect_Flow_Error ("recipe: a value of the wrong type",
+                         Bad_Value'Access, "Low");
+      Check (Threshold = 120, "recipe: all or nothing (a bad value)");
+      Expect_Flow_Error ("recipe: not a recipe", Not_A_Recipe'Access,
+                         "format");
+      --  A parameter without a value is null in a recipe; null clears it.
+      declare
+         procedure Missing_Train_Image is
+         begin
+            Apply ("{""format"": 1, ""params"": {""1.Threshold"": 5, "
+                   & """3.TrainImage"": ""no_such.bmp""}}");
+         end Missing_Train_Image;
+         procedure Other_Flow is
+         begin
+            Apply ("{""format"": 1, ""flow"": ""another"", ""params"": "
+                   & "{""1.Threshold"": 5}}");
+         end Other_Flow;
+      begin
+         Check (Flow.Add_Node ("ShapeMatch") = 3, "recipe: node 3");
+         Check (Contains (Flow.Recipe_JSON ("x"), """3.TrainRegion"": null"),
+                "recipe: a parameter without a value is null");
+         Apply ("{""format"": 1, ""params"": {""1.Region"": null}}");
+         Check (not Flow.Node (1).Get_Param ("Region").Has_Value,
+                "recipe: null clears a region");
+         Expect_Flow_Error ("recipe: a node that cannot be prepared",
+                            Missing_Train_Image'Access, "train image");
+         Check (Threshold = 120,
+                "recipe: all or nothing (a node that cannot be prepared)");
+
+      --  File parameters are absolute in a recipe; an untouched node that
+      --  worked and cannot be prepared again refuses the recipe.
+      declare
+         Train : constant String := Test_Dir & "/recipe_train.bmp";
+         procedure Touch_Only_Blob is
+         begin
+            Apply ("{""format"": 1, ""params"": {""1.Threshold"": 7}}");
+         end Touch_Only_Blob;
+      begin
+         Flow.Set_Base_Directory (Test_Dir);
+         Check (Flow.Add_Node ("CsvLog") = 4, "recipe: node 4");
+         Flow.Set_Param (4, "Path", From_String ("recipe_log.csv"));
+         Check (Contains (Flow.Recipe_JSON ("x"),
+                          Ada.Directories.Simple_Name
+                            (Ada.Directories.Full_Name
+                               (Test_Dir & "/recipe_log.csv")))
+                and then not Contains (Flow.Recipe_JSON ("x"),
+                                       """4.Path"": """ & Test_Dir),
+                "recipe: a file parameter is absolute (" & Flow.Recipe_JSON ("x")
+                & ")");
+         --  The recipe applied to the same flow names the same file.
+         declare
+            Saved : constant String := Flow.Recipe_JSON ("x");
+         begin
+            Apply (Saved);
+            Check (Ada.Directories.Full_Name
+                     (Flow.Node (4).Get_Param ("Path").As_String)
+                   = Ada.Directories.Full_Name (Test_Dir & "/recipe_log.csv"),
+                   "recipe: a round trip keeps the file");
+         end;
+         AMV.Image_File.Write_Image
+           (Train, Picture (200, 150, AMV.Transforms.Create_Rigid
+                                        (0.0, 100.0, 75.0)));
+         Flow.Set_Param (3, "TrainImage", From_String ("recipe_train.bmp"));
+         Ada.Directories.Delete_File (Train);
+         Expect_Flow_Error ("recipe: an untouched node that cannot be "
+                            & "prepared again", Touch_Only_Blob'Access,
+                            "could not be prepared again");
+         Check (Threshold = 120,
+                "recipe: all or nothing (an untouched node broken)");
+      end;
+         Flow.Set_Name ("this one");
+         Expect_Flow_Error ("recipe: for another flow", Other_Flow'Access,
+                            "another");
+      end;
+   end Test_Recipe;
+
+   ---------------------------------------------------------------------
    --  Malformed flow files
    ---------------------------------------------------------------------
 
@@ -1463,6 +1601,7 @@ begin
    Test_Kept;
    Test_Logic;
    Test_Measure;
+   Test_Recipe;
    Test_Malformed;
    if Failures = 0 then
       Put_Line ("PASS: AMV Flow," & Checks'Image & " checks");

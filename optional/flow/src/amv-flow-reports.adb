@@ -109,6 +109,10 @@ package body AMV.Flow.Reports is
                   end;
                   W.End_Array;
                end if;
+               if P.Path then
+                  W.Key ("path");
+                  W.Value (True);
+               end if;
                W.Key ("unit");
                W.Value (To_String (P.Unit));
                W.Key ("help");

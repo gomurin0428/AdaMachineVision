@@ -41,6 +41,8 @@ package AMV.Flow.Nodes is
       Choices : Unbounded_String;    --  Choice: "A|B|C"
       Unit    : Unbounded_String;    --  "px", "rad", "grey levels", ...
       Help    : Unbounded_String;
+      Path    : Boolean := False;    --  String: a file, relative to the
+                                     --  flow file's folder unless absolute
    end record;
 
    type Param_Array is array (Positive range <>) of Param_Descriptor;
@@ -59,7 +61,8 @@ package AMV.Flow.Nodes is
                               return Param_Descriptor;
    function Choice_Param_Of (Name, Choices : String; Help : String := "")
                              return Param_Descriptor;
-   function String_Param_Of (Name : String; Help : String := "")
+   function String_Param_Of (Name : String; Help : String := "";
+                             Path : Boolean := False)
                              return Param_Descriptor;
    function Shape_Param_Of (Name : String; Help : String := "")
                             return Param_Descriptor;

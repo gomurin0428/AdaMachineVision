@@ -172,6 +172,25 @@ public final class Flow implements AutoCloseable {
         call((arena, status) -> AmvFlowNative.FLOW_RESET_COUNTS.invoke(handle(), status));
     }
 
+    /** Names the flow (its name in the flow file, and in the recipes made from it). */
+    public void setName(String name) {
+        call((arena, status) -> AmvFlowNative.FLOW_SET_NAME.invoke(handle(), str(arena, name), status));
+    }
+
+    /** A recipe: every parameter of every node, as JSON (AMV.Flow.Graphs.Recipe_JSON). */
+    public String recipeJson(String name) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment n = str(arena, name);
+            return text((buffer, capacity, needed, status) ->
+                    AmvFlowNative.FLOW_RECIPE_JSON.invoke(handle(), n, buffer, capacity, needed, status));
+        }
+    }
+
+    /** Sets the parameters a recipe names; all or nothing. */
+    public void applyRecipe(String recipeJson) {
+        call((arena, status) -> AmvFlowNative.FLOW_APPLY_RECIPE.invoke(handle(), str(arena, recipeJson), status));
+    }
+
     /** The results of the last run (AMV.Flow.Reports.Results_JSON). */
     public String resultsJson() {
         return text((buffer, capacity, needed, status) ->

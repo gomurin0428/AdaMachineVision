@@ -6,6 +6,9 @@
 --     amv_flow check FLOW            the flow's problems (none: exit 0)
 --     amv_flow run FLOW IMAGE...     runs the flow on each image and
 --                                    prints one CSV line per image
+--     amv_flow run --recipe FILE FLOW IMAGE...
+--                                    sets the parameters of a recipe
+--                                    (AMV.Flow.Graphs.Apply_Recipe) first
 --     amv_flow run --images DIR FLOW IMAGE...
 --                                    also writes the image each node
 --                                    made into DIR, as
@@ -48,7 +51,8 @@ procedure AMV_Flow is
    begin
       Put_Line (Standard_Error, "usage: amv_flow kinds");
       Put_Line (Standard_Error, "       amv_flow check FLOW");
-      Put_Line (Standard_Error, "       amv_flow run [--images DIR] FLOW IMAGE...");
+      Put_Line (Standard_Error,
+                "       amv_flow run [--images DIR] [--recipe FILE] FLOW IMAGE...");
       CL.Set_Exit_Status (Usage_Status);
    end Usage;
 
@@ -166,13 +170,34 @@ procedure AMV_Flow is
       end loop;
    end Write_Node_Images;
 
+   --  The text of a file, for a recipe.
+   function File_Text (Path : String) return String is
+      File   : File_Type;
+      Result : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      Open (File, In_File, Path);
+      while not End_Of_File (File) loop
+         Ada.Strings.Unbounded.Append (Result, Get_Line (File) & ASCII.LF);
+      end loop;
+      Close (File);
+      return Ada.Strings.Unbounded.To_String (Result);
+   exception
+      when E : Name_Error | Use_Error =>
+         raise AMV.Flow.Ks_Flow_Exception with
+           "cannot read the recipe " & Path & ": "
+           & Ada.Exceptions.Exception_Message (E);
+   end File_Text;
+
    procedure Run (Path : String; First_Image : Positive;
-                  Image_Dir : String := "") is
+                  Image_Dir : String := ""; Recipe : String := "") is
       Flow       : AMV.Flow.Graphs.Ks_Flow;
       Image_Port : Natural := 0;
       All_Good   : Boolean := True;
    begin
       Flow.Load (Path);
+      if Recipe /= "" then
+         Flow.Apply_Recipe (File_Text (Recipe));
+      end if;
       for I in 1 .. Flow.Input_Count loop
          if Flow.Input_Type (I) = AMV.Flow.Image_8_Grey_Type then
             if Image_Port /= 0 then
@@ -235,12 +260,48 @@ begin
       List_Kinds;
    elsif CL.Argument_Count = 2 and then CL.Argument (1) = "check" then
       Check (CL.Argument (2));
-   elsif CL.Argument_Count >= 5 and then CL.Argument (1) = "run"
-     and then CL.Argument (2) = "--images"
-   then
-      Run (CL.Argument (4), First_Image => 5, Image_Dir => CL.Argument (3));
    elsif CL.Argument_Count >= 3 and then CL.Argument (1) = "run" then
-      Run (CL.Argument (2), First_Image => 3);
+      declare
+         I      : Positive := 2;
+         Images : Ada.Strings.Unbounded.Unbounded_String;
+         Recipe : Ada.Strings.Unbounded.Unbounded_String;
+         Bad    : Boolean := False;
+      begin
+         --  Options before the flow: --images DIR, --recipe FILE.
+         while I + 1 <= CL.Argument_Count
+           and then CL.Argument (I) in "--images" | "--recipe"
+         loop
+            if CL.Argument (I) = "--images" then
+               Images := Ada.Strings.Unbounded.To_Unbounded_String
+                 (CL.Argument (I + 1));
+            elsif CL.Argument (I + 1) = "" then
+               Bad := True;  --  --recipe "" (an empty variable): not none
+            else
+               Recipe := Ada.Strings.Unbounded.To_Unbounded_String
+                 (CL.Argument (I + 1));
+            end if;
+            I := I + 2;
+         end loop;
+         --  The options come before the flow: an option after it would be
+         --  taken for an image.
+         Bad := Bad or else I + 1 > CL.Argument_Count;
+         for J in I .. CL.Argument_Count loop
+            declare
+               A : constant String := CL.Argument (J);
+            begin
+               if A'Length >= 2 and then A (A'First .. A'First + 1) = "--" then
+                  Bad := True;
+               end if;
+            end;
+         end loop;
+         if Bad then
+            Usage;
+         else
+            Run (CL.Argument (I), First_Image => I + 1,
+                 Image_Dir => Ada.Strings.Unbounded.To_String (Images),
+                 Recipe => Ada.Strings.Unbounded.To_String (Recipe));
+         end if;
+      end;
    else
       Usage;
    end if;
