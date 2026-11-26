@@ -60,10 +60,15 @@ jobs:
       # The real-image tests download images (pinned, checked by SHA-256)
       # and convert them to BMP with ImageMagick (python3, preinstalled,
       # unpacks the BBBC006 TIFFs and converts the barcode photographs).
+      # A stalled package mirror once held this step until the job's two
+      # hour limit. apt now gives up on a silent connection after 30 s and
+      # tries again, and the step fails after 10 minutes, so that a re-run
+      # can come at once.
       - name: Install ImageMagick (for the real-image tests)
+        timeout-minutes: 10
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q imagemagick
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update -q
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y -q imagemagick
 
       # The downloads (more than a thousand files) are kept from run to
       # run, so that a run fetches only what a changed manifest adds. The
@@ -99,10 +104,12 @@ jobs:
 
       - uses: ./.github/actions/toolchain
 
+      # As for ImageMagick in build-test: no waiting on a stalled mirror.
       - name: Install Aravis development files
+        timeout-minutes: 10
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q libaravis-dev libusb-1.0-0-dev iproute2
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update -q
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y -q libaravis-dev libusb-1.0-0-dev iproute2
 
       - name: Test the optional adapter with its loopback fake camera
         run: make test-aravis
