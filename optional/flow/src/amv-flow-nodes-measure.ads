@@ -15,7 +15,8 @@ pragma SPARK_Mode (Off);
 --             Polarity (DarkToLight | LightToDark | DontCare: the edge
 --             going along the search direction), ContrastThreshold,
 --             NumToIgnore (outliers left out of the fit)
---     Too few edges for a fit: Found is False, the result is Reject. The
+--     Too few edges for a fit, or edges in a line: Found is False, the
+--     result is Reject (bad settings: Error). The
 --     editor draws the circle found and its centre.
 --
 --  Distance (AMV.Dimensioning.Ks_Distance_Point_Point_Tool)
@@ -27,9 +28,9 @@ pragma SPARK_Mode (Off);
 --     in   Image : Image_8_Grey
 --     out  Mean, StdDev : Real; Minimum, Maximum, Median, Samples,
 --          Threshold : Integer (Threshold: Otsu's, between the dark and
---          the light samples)
---     params  Region (a region in the image's selected space; none: the
---             whole image)
+--          the light samples; samples of one grey level give that level)
+--     params  Region (a region in the image's selected space; none, or
+--             null to clear it: the whole image)
 --     A region that covers no pixel: Reject, no outputs.
 
 package AMV.Flow.Nodes.Measure is

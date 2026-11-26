@@ -44,9 +44,12 @@ package body AMV.Flow.Nodes.Vision is
              (AMV.Shapes.Ks_Region'Class (Value.As_Shape))
       else AMV.Shapes.Region_Holders.Empty_Holder);
 
+   --  A region, or none (cleared: the whole image).
    procedure Require_Region (Kind, Name : String; Value : Ks_Flow_Value) is
    begin
-      if Value.As_Shape not in AMV.Shapes.Ks_Region'Class then
+      if Value.Has_Value
+        and then Value.As_Shape not in AMV.Shapes.Ks_Region'Class
+      then
          raise Ks_Flow_Exception with
            Kind & " parameter " & Name & ": a region is needed";
       end if;
@@ -490,7 +493,9 @@ package body AMV.Flow.Nodes.Vision is
       P : AMV.Caliper.Ks_Caliper renames Node.Tool.Run_Params;
    begin
       if Name = "Region" then
-         if Value.As_Shape not in AMV.Shapes.Ks_Rectangle_Affine'Class then
+         if not Value.Has_Value
+           or else Value.As_Shape not in AMV.Shapes.Ks_Rectangle_Affine'Class
+         then
             raise Ks_Flow_Exception with
               "Caliper parameter Region: a RectangleAffine is needed";
          end if;

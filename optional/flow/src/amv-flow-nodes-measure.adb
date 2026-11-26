@@ -2,6 +2,7 @@ pragma SPARK_Mode (Off);
 
 with Ada.Numerics;
 with Ada.Numerics.Long_Elementary_Functions;
+with Ada.Strings.Fixed;
 
 with AMV.Caliper;
 with AMV.Caliper.Find_Circle;
@@ -118,7 +119,9 @@ package body AMV.Flow.Nodes.Measure is
       P : FC.Ks_Find_Circle renames Node.Tool.Run_Params;
    begin
       if Name = "Expected" then
-         if Value.As_Shape not in AMV.Shapes.Ks_Circle'Class then
+         if not Value.Has_Value
+           or else Value.As_Shape not in AMV.Shapes.Ks_Circle'Class
+         then
             raise Ks_Flow_Exception with
               "FindCircle parameter Expected: a Circle is needed";
          end if;
@@ -209,16 +212,23 @@ package body AMV.Flow.Nodes.Measure is
       Node.Tool.Input_Image := Node.Image_In.As_Image;
       Node.Tool.Run;
       if Node.Tool.Run_Status.Result = AMV.Tools.Error
-        and then AMV.Tools.Exception_Name (Node.Tool.Run_Status)
-                 = "AMV.KS_EXCEPTION"
+        and then
+          (AMV.Tools.Exception_Name (Node.Tool.Run_Status) = "AMV.KS_EXCEPTION"
+           or else Ada.Strings.Fixed.Index
+                     (AMV.Tools.Message (Node.Tool.Run_Status), "collinear")
+                   > 0)
       then
-         --  Too few edges for a fit: nothing found, not a broken flow (bad
-         --  parameters, a space the image lacks stay an Error).
+         --  Too few edges for a fit, or edges in a line: no circle found,
+         --  not a broken flow (bad parameters, a space the image lacks stay
+         --  an Error).
          Set_Result (Node, AMV.Tools.Reject,
                      AMV.Tools.Message (Node.Tool.Run_Status));
          return;
       end if;
       Take_Status (Node, Node.Tool.Run_Status);
+      if Result (Node) = AMV.Tools.Error then
+         return;  --  the tool's own message, not one about its results
+      end if;
       declare
          Found : constant AMV.Shapes.Ks_Circle :=
            Node.Tool.Results.Get_Circle;
@@ -412,7 +422,8 @@ package body AMV.Flow.Nodes.Measure is
       Out_Port ("Median", Integer_Type),
       Out_Port ("Samples", Integer_Type, "the pixels counted"),
       Out_Port ("Threshold", Integer_Type,
-                "Otsu's, between the dark and the light samples")];
+                "Otsu's, between the dark and the light samples (samples "
+                & "of one grey level: that level)")];
    overriding function Params (Node : Histogram_Node) return Param_Array is
      [1 => Shape_Param_Of ("Region", "a region; none: the whole image")];
    overriding procedure Set_Param

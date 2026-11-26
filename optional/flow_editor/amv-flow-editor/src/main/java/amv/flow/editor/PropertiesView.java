@@ -206,7 +206,9 @@ final class PropertiesView extends VBox {
                         + "Circle: centerX, centerY, radius\n"
                         + "CircularAnnulusSection: centerX, centerY, radius, radialScale, angleStart, angleSpan\n"
                         + "\"space\": \".\" or \"@\\\\Part\"; angles in radians"));
-                commitOn(field, () -> listener.setParam(node.id(), p.name(), field.getText()));
+                // An empty field clears the shape (a region: the whole image).
+                commitOn(field, () -> listener.setParam(node.id(), p.name(),
+                        field.getText().isBlank() ? "null" : field.getText()));
                 if (p.name().equals("TrainRegion")) {
                     // In the train image's coordinates, not the image shown here.
                     return row(label, field, help);

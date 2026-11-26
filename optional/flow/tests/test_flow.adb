@@ -1319,8 +1319,10 @@ procedure Test_Flow is
          Flow.Set_Param (1, "NumToIgnore", From_Integer (10));
          Flow.Set_Input ("Image", From_Image (Disc));
          Flow.Run;
-         Check (Flow.Result = AMV.Tools.Error,
-                "measure: bad settings are an error (" & Flow.Message & ")");
+         Check (Flow.Result = AMV.Tools.Error
+                and then Contains (Flow.Message, "NumToIgnore"),
+                "measure: bad settings are an error that says which ("
+                & Flow.Message & ")");
       end;
 
       --  Distance: a 3-4-5 triangle.
@@ -1390,6 +1392,11 @@ procedure Test_Flow is
                 and then not Flow.Get_Output ("Mean").Has_Value,
                 "measure: a region off the image is a reject ("
                 & Flow.Node (1).Message & ")");
+         --  null clears the region: the whole image again.
+         Flow.Set_Param_JSON (1, "Region", "null");
+         Flow.Run;
+         Check (Flow.Get_Output ("Samples").As_Integer = 30_000,
+                "measure: the region cleared, the whole image");
       end;
    end Test_Measure;
 
