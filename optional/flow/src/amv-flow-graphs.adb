@@ -283,7 +283,6 @@ package body AMV.Flow.Graphs is
       begin
          N.Prepare (Base_Directory (Flow));
          Flow.Unprepared.Exclude (Id);
-         N.Commit;
       exception
          when E : others =>
             --  A value the node cannot work with (a train image that
@@ -305,6 +304,9 @@ package body AMV.Flow.Graphs is
             end if;
             raise;
       end;
+      --  Kept: outside the block above, so that the value is never put
+      --  back after the node wrote its files.
+      N.Commit;
    end Set_Param;
 
    --  Prepare without Commit: for a copy that may yet be thrown away.

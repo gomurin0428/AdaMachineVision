@@ -671,11 +671,17 @@ procedure Test_Flow is
                       & Ada.Exceptions.Exception_Message (E) & ")");
          end;
 
-         --  With the train image, a new origin trains and saves again.
+         --  With the train image, a new origin trains and saves again
+         --  (beside a file named as its temporary one, which is kept).
          GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Pattern, Long_Ago);
+         Write_Text (Pattern & ".tmp", "keep me too");
          Again.Set_Param (1, "OriginX", From_Real (101.0));
          Check (Pattern_Time /= Long_Ago,
                 "pattern: a new origin trains and saves again");
+         Check (First_Line (Pattern & ".tmp") = "keep me too"
+                and then not Ada.Directories.Exists (Pattern & ".tmp1"),
+                "pattern: a file named as the temporary one is kept");
+         Ada.Directories.Delete_File (Pattern & ".tmp");
          Again.Set_Param (1, "OriginX", From_Real (100.0));
 
          --  A pattern that cannot be saved: the node works, and warns.

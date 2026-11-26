@@ -4,6 +4,8 @@ with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Numerics;
 with Ada.Streams.Stream_IO;
+with Ada.Strings.Fixed;
+with GNAT.OS_Lib;
 with GNAT.SHA256;
 
 with AMV.Blob;
@@ -387,11 +389,39 @@ package body AMV.Flow.Nodes.Vision is
 
    --  Saves the node's pattern; a failure is kept in Save_Error (the run
    --  then warns) rather than stopping a node that trained.
+   --  A new, empty file beside File_Name (File_Name.tmp, .tmp1, ...),
+   --  made by this call alone: a file already there is never touched.
+   function Create_Temporary (File_Name : String) return String is
+      use type GNAT.OS_Lib.File_Descriptor;
+   begin
+      for I in 0 .. 99 loop
+         declare
+            Name : constant String :=
+              File_Name & ".tmp"
+              & (if I = 0 then ""
+                 else Ada.Strings.Fixed.Trim (I'Image, Ada.Strings.Left));
+            FD   : constant GNAT.OS_Lib.File_Descriptor :=
+              GNAT.OS_Lib.Create_New_File (Name, GNAT.OS_Lib.Binary);
+         begin
+            if FD /= GNAT.OS_Lib.Invalid_FD then
+               GNAT.OS_Lib.Close (FD);
+               return Name;
+            elsif not Ada.Directories.Exists (Name) then
+               exit;  --  not there and not made: the folder, say
+            end if;
+         end;
+      end loop;
+      raise Ks_Flow_Exception with
+        "cannot make a temporary file beside " & File_Name;
+   end Create_Temporary;
+
+   --  Saves the node's pattern; a failure is kept in Save_Error (the run
+   --  then warns) rather than stopping a node that trained.
    procedure Save_Pattern (Node : in out Shape_Match_Node'Class;
                            File_Name, Digest, Settings : String)
    is
       use Ada.Streams.Stream_IO;
-      Temporary : constant String := File_Name & ".tmp";
+      Temporary : Unbounded_String;  --  the file this save made
       File      : File_Type;
    begin
       if Ada.Directories.Exists (File_Name) and then not Has_Magic (File_Name)
@@ -402,7 +432,8 @@ package body AMV.Flow.Nodes.Vision is
          return;
       end if;
       --  Written beside it first: a failed write leaves the old file whole.
-      Create (File, Out_File, Temporary);
+      Temporary := To_Unbounded_String (Create_Temporary (File_Name));
+      Open (File, Out_File, To_String (Temporary));
       String'Write (Stream (File), Pattern_Magic);
       Write_Text (Stream (File), Digest);
       Write_Text (Stream (File), Settings);
@@ -412,15 +443,17 @@ package body AMV.Flow.Nodes.Vision is
       if Ada.Directories.Exists (File_Name) then
          Ada.Directories.Delete_File (File_Name);
       end if;
-      Ada.Directories.Rename (Temporary, File_Name);
+      Ada.Directories.Rename (To_String (Temporary), File_Name);
    exception
       when E : others =>
          if Is_Open (File) then
             Close (File);
          end if;
          begin
-            if Ada.Directories.Exists (Temporary) then
-               Ada.Directories.Delete_File (Temporary);
+            if Length (Temporary) > 0
+              and then Ada.Directories.Exists (To_String (Temporary))
+            then
+               Ada.Directories.Delete_File (To_String (Temporary));
             end if;
          exception
             when others =>
