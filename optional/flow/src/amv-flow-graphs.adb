@@ -1280,6 +1280,16 @@ package body AMV.Flow.Graphs is
                 or else (Path'Length >= 2
                          and then Path (Path'First + 1) = ':')));
 
+   --  Path as an absolute file name; Path itself when it is not a valid
+   --  name.
+   function Absolute_Path (Path : String) return String is
+   begin
+      return Ada.Directories.Full_Name (Path);
+   exception
+      when Ada.Directories.Name_Error =>
+         return Path;
+   end Absolute_Path;
+
    function Recipe_JSON (Flow : Ks_Flow; Name : String) return String is
       use AMV.Flow.JSON;
       W : Writer;
@@ -1307,12 +1317,16 @@ package body AMV.Flow.Graphs is
                   W.Key (Id_Image (Id) & "." & Param_Name);
                   if Value.Has_Value and then P.Path
                     and then Value.As_String /= ""
-                    and then Base_Directory (Flow) /= ""
                     and then not Is_Absolute (Value.As_String)
                   then
-                     --  A file: absolute, so that the recipe names the same
-                     --  file after the flow is saved in another folder.
-                     W.Value (Base_Directory (Flow) & "/" & Value.As_String);
+                     --  A file: absolute (a relative base, or none, taken
+                     --  from the current directory), so that the recipe
+                     --  names the same file after the flow is saved in
+                     --  another folder.
+                     W.Value (Absolute_Path
+                                ((if Base_Directory (Flow) = "" then ""
+                                  else Base_Directory (Flow) & "/")
+                                 & Value.As_String));
                   elsif Value.Has_Value then
                      Write_Param (W, P, Value);
                   else

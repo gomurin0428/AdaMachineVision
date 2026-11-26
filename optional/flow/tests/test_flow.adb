@@ -1504,8 +1504,23 @@ procedure Test_Flow is
          Check (Flow.Add_Node ("CsvLog") = 4, "recipe: node 4");
          Flow.Set_Param (4, "Path", From_String ("recipe_log.csv"));
          Check (Contains (Flow.Recipe_JSON ("x"),
-                          """4.Path"": """ & Test_Dir & "/recipe_log.csv"""),
-                "recipe: a file parameter is absolute");
+                          Ada.Directories.Simple_Name
+                            (Ada.Directories.Full_Name
+                               (Test_Dir & "/recipe_log.csv")))
+                and then not Contains (Flow.Recipe_JSON ("x"),
+                                       """4.Path"": """ & Test_Dir),
+                "recipe: a file parameter is absolute (" & Flow.Recipe_JSON ("x")
+                & ")");
+         --  The recipe applied to the same flow names the same file.
+         declare
+            Saved : constant String := Flow.Recipe_JSON ("x");
+         begin
+            Apply (Saved);
+            Check (Ada.Directories.Full_Name
+                     (Flow.Node (4).Get_Param ("Path").As_String)
+                   = Ada.Directories.Full_Name (Test_Dir & "/recipe_log.csv"),
+                   "recipe: a round trip keeps the file");
+         end;
          AMV.Image_File.Write_Image
            (Train, Picture (200, 150, AMV.Transforms.Create_Rigid
                                         (0.0, 100.0, 75.0)));
