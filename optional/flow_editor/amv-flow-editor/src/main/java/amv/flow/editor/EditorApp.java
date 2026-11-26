@@ -70,8 +70,13 @@ public final class EditorApp extends Application {
         Long run(Flow flow);
     }
 
-    private record Snapshot(String flowJson, String problemsJson, String resultsJson, Long selected,
-            Flow.NodeImage image, String graphicsJson, String error) {
+    /**
+     * What the screen shows after an engine round trip: for the operator
+     * screen (operator) or the editor; image and graphics are those of the
+     * node imageOf (the selected node in the editor).
+     */
+    private record Snapshot(boolean operator, String flowJson, String problemsJson, String resultsJson,
+            Long selected, Long imageOf, Flow.NodeImage image, String graphicsJson, String error) {
     }
 
     private final ExecutorService engine = Executors.newSingleThreadExecutor(r -> {
@@ -92,6 +97,8 @@ public final class EditorApp extends Application {
     private volatile Path imageFile;
     private volatile boolean ranOnce;
     private volatile boolean liveOn;
+    // Each start of live mode is numbered: a step of an earlier one stops.
+    private final java.util.concurrent.atomic.AtomicInteger liveRun = new java.util.concurrent.atomic.AtomicInteger();
     private final java.util.concurrent.atomic.AtomicBoolean uiBusy =
             new java.util.concurrent.atomic.AtomicBoolean(false);
     private final javafx.scene.control.ToggleButton liveButton = new javafx.scene.control.ToggleButton("Live (F6)");
@@ -114,19 +121,64 @@ public final class EditorApp extends Application {
     private final Label result = new Label();
     private final Label tally = new Label();
 
+    // The operator screen: shown instead of the editor (operatorShowing), or
+    // alone when the program was started with --operator (operatorOnly).
+    private OperatorView operatorView;
+    private BorderPane editorRoot;
+    private Scene scene;
+    private volatile boolean operatorShowing;
+    private boolean operatorOnly;
+    private volatile Long displayNode;      // the node whose image it shows; null: the default one
+    private volatile Recipe recipe;         // the recipe last loaded, or null
+
+    /** A recipe loaded, and the flow just after it was. */
+    private record Recipe(String name, String flowJson) {
+    }
+
     @Override
     public void start(Stage primary) {
         stage = primary;
         String startError = null;
+        // Arguments: [--operator] [--live] [--display NODE] [flow file [image file or folder]]
+        List<String> args = new java.util.ArrayList<>();
+        String display = null;
+        boolean startLive = false;
+        List<String> raw = getParameters().getRaw();
+        for (int i = 0; i < raw.size() && startError == null; i++) {
+            switch (raw.get(i)) {
+                case "--operator" -> operatorOnly = true;
+                case "--live" -> startLive = true;
+                case "--display" -> {
+                    if (i + 1 < raw.size()) {
+                        display = raw.get(++i);
+                    } else {
+                        startError = "--display needs a node id or name";
+                    }
+                }
+                default -> {
+                    if (raw.get(i).startsWith("--")) {
+                        startError = "unknown option " + raw.get(i)
+                                + " (the options are --operator, --live and --display NODE)";
+                    } else {
+                        args.add(raw.get(i));
+                    }
+                }
+            }
+        }
+        if (startError == null && operatorOnly && args.isEmpty()) {
+            startError = "the operator screen needs a flow: --operator FLOW [IMAGE | FOLDER]";
+        }
+        if (startError == null && args.size() > 2) {
+            startError = "too many files: [FLOW [IMAGE | FOLDER]]";
+        }
+        String displayArg = display;
         try {
-            startError = engine.submit(() -> {
+            startError = startError != null ? startError : engine.submit(() -> {
                 if (!Flow.abiMatches()) {
                     return "the AMV Flow library has ABI version " + Flow.abiVersion() + "; this editor needs " + amv.flow.nativeapi.Flow.ABI_VERSION;
                 }
                 flow = new Flow();
                 kinds = Model.parseKinds(Flow.kindsJson());
-                // Arguments: [flow file [image file or folder]]
-                List<String> args = getParameters().getRaw();
                 if (!args.isEmpty()) {
                     Path first = Path.of(args.get(0)).toAbsolutePath();
                     flow.load(first);
@@ -147,14 +199,22 @@ public final class EditorApp extends Application {
                     }
                     setImageInput(flow);
                 }
+                if (displayArg != null) {
+                    displayNode = FlowInfo.parse(flow.toJson()).nodes().values().stream()
+                            .filter(n -> displayArg.equals(String.valueOf(n.id())) || displayArg.equals(n.name()))
+                            .map(NodeInfo::id).findFirst()
+                            .orElseThrow(() -> new AmvFlowException(0, "--display: no node " + displayArg));
+                }
                 return null;
             }).get(30, TimeUnit.SECONDS);
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             startError = cause.getMessage() != null ? cause.getMessage() : cause.toString();
         }
-        if (startError != null && flow == null) {
-            new Alert(Alert.AlertType.ERROR, "Cannot start the editor: " + startError).showAndWait();
+        // The operator screen does not start with anything its operator cannot put right.
+        if (startError != null && (flow == null || operatorOnly)) {
+            new Alert(Alert.AlertType.ERROR, (operatorOnly ? "Cannot start the operator screen: "
+                    : "Cannot start the editor: ") + startError).showAndWait();
             Platform.exit();
             return;
         }
@@ -243,7 +303,55 @@ public final class EditorApp extends Application {
             }
         });
 
+        operatorView = new OperatorView(new OperatorView.Listener() {
+            @Override
+            public void live(boolean on) {
+                setLive(on);
+            }
+
+            @Override
+            public void runOnce() {
+                act(null, true);
+            }
+
+            @Override
+            public void changeRecipe() {
+                loadRecipe();
+            }
+
+            @Override
+            public void resetCounts() {
+                Alert ask = new Alert(Alert.AlertType.CONFIRMATION, "Count the inspections from zero again?",
+                        ButtonType.OK, ButtonType.CANCEL);
+                ask.setHeaderText("Reset counts");
+                ask.initOwner(stage);
+                if (ask.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                    act(f -> {
+                        f.resetCounts();
+                        return null;
+                    }, false, false);
+                }
+            }
+
+            @Override
+            public void display(long nodeId) {
+                displayNode = nodeId;
+                act(null, false);
+            }
+
+            @Override
+            public void fullScreen() {
+                stage.setFullScreen(!stage.isFullScreen());
+            }
+
+            @Override
+            public void backToEditor() {
+                showEditor();
+            }
+        }, !operatorOnly);
+
         BorderPane root = new BorderPane();
+        editorRoot = root;
         root.setTop(toolBar());
         root.setLeft(palette());
         SplitPane centre = new SplitPane(graph, imagePane);
@@ -260,34 +368,84 @@ public final class EditorApp extends Application {
         status.setPadding(new Insets(3, 8, 3, 8));
         root.setBottom(bottom);
 
-        Scene scene = new Scene(root, 1600, 920);
+        operatorShowing = operatorOnly;
+        scene = new Scene(operatorOnly ? operatorView : root, 1600, 920);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-            if ((e.getCode() == KeyCode.DELETE || e.getCode() == KeyCode.BACK_SPACE)
+            if (!operatorShowing && (e.getCode() == KeyCode.DELETE || e.getCode() == KeyCode.BACK_SPACE)
                     && !(scene.getFocusOwner() instanceof TextInputControl)) {
                 deleteSelection();
                 e.consume();
             }
         });
-        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN), this::save);
-        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN), this::open);
+        // The editor's keys; the operator screen has F5, F6, F11 and the folder's Page Up / Page Down.
+        editorKey(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN), this::save);
+        editorKey(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN), this::open);
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F5), () -> act(null, true));
-        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F6), liveButton::fire);
-        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN), () -> undo(false));
-        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN), () -> undo(true));
-        scene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN),
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F6), () -> setLive(!liveOn));
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.F11),
+                () -> stage.setFullScreen(!stage.isFullScreen()));
+        editorKey(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN), () -> undo(false));
+        editorKey(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN), () -> undo(true));
+        editorKey(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN),
                 () -> undo(true));
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.PAGE_DOWN), () -> stepFolder(1));
         scene.getAccelerators().put(new KeyCodeCombination(KeyCode.PAGE_UP), () -> stepFolder(-1));
-        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHORTCUT_DOWN),
-                graph::resetZoom);
+        editorKey(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHORTCUT_DOWN), graph::resetZoom);
         stage.setScene(scene);
         stage.show();
         act(null, imageFile != null);
         if (startError != null) {
             showStatus(startError, true);
         }
+        if (startLive) {
+            setLive(true);
+        }
     }
+
+    /** A key of the editor: does nothing while the operator screen is shown. */
+    private void editorKey(KeyCombination key, Runnable action) {
+        scene.getAccelerators().put(key, () -> {
+            if (!operatorShowing) {
+                action.run();
+            }
+        });
+    }
+
+    /** Shows the operator screen, with the selected node's image when it has one. */
+    private void showOperator() {
+        Long id = selected;
+        if (id != null && model != null && Model.imageNodes(model, kinds).stream().anyMatch(n -> n.id() == id)) {
+            displayNode = id;
+        }
+        operatorShowing = true;
+        scene.setRoot(operatorView);
+        act(null, false);
+    }
+
+    private void showEditor() {
+        operatorShowing = false;
+        scene.setRoot(editorRoot);
+        act(null, false);
+    }
+
+    /** Switches live mode on or off, from either screen's button or F6. */
+    private void setLive(boolean on) {
+        showLive(on);
+        if (on == liveOn) {
+            return;
+        }
+        liveOn = on;
+        if (on) {
+            int run = liveRun.incrementAndGet();
+            engine.execute(() -> liveStep(run));
+        }
+    }
+
+    private void showLive(boolean on) {
+        liveButton.setSelected(on);
+        operatorView.setLive(on);
+    }
+
 
     @Override
     public void stop() {
@@ -312,6 +470,8 @@ public final class EditorApp extends Application {
                 f.fromJson(EMPTY_FLOW, null);
                 f.resetCounts();
                 ranOnce = false;
+                recipe = null;
+                displayNode = null;
                 undoStack.clear();
                 redoStack.clear();
                 return NONE;
@@ -329,12 +489,12 @@ public final class EditorApp extends Application {
         run.setOnAction(e -> act(null, true));
         liveButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Run the flow again and again (a Camera node takes a new frame each time)"));
-        liveButton.setOnAction(e -> {
-            liveOn = liveButton.isSelected();
-            if (liveOn) {
-                engine.execute(this::liveStep);
-            }
-        });
+        liveButton.setOnAction(e -> setLive(liveButton.isSelected()));
+        Button operator = new Button("Operator screen");
+        operator.setTooltip(new javafx.scene.control.Tooltip(
+                "The screen for the line: the verdict, the image and the counts, with nothing to edit"
+                        + " (shows the selected node's image if it has one)"));
+        operator.setOnAction(e -> showOperator());
         Button undo = new Button("Undo");
         undo.setTooltip(new javafx.scene.control.Tooltip("Ctrl+Z"));
         undo.setOnAction(e -> undo(false));
@@ -374,7 +534,7 @@ public final class EditorApp extends Application {
         result.setPadding(new Insets(0, 0, 0, 16));
         return new ToolBar(newFlow, open, save, saveAs, new Separator(), undo, redo, new Separator(), image,
                 openFolder, previous, next, run, liveButton, new Separator(), addInput, addOutput,
-                new Separator(), saveRecipe, loadRecipe, new Separator(), tally, resetCounts, result);
+                new Separator(), saveRecipe, loadRecipe, new Separator(), tally, resetCounts, operator, result);
     }
 
     private VBox palette() {
@@ -478,10 +638,21 @@ public final class EditorApp extends Application {
                 return;
             }
         }
+        String name = path.getFileName().toString().replaceFirst("\\.amvrecipe$", "");
         act(f -> {
             f.applyRecipe(text);
+            recipe = new Recipe(name, f.toJson());
             return null;
         }, true);
+    }
+
+    /** The recipe the operator screen names: the one last loaded, marked when the flow has changed since. */
+    private String recipeText(String flowJson) {
+        Recipe r = recipe;
+        if (r == null) {
+            return null;
+        }
+        return flowJson.equals(r.flowJson()) ? r.name() : r.name() + " (changed since)";
     }
 
     /** The file parameters a recipe would change: "node 10 Path: old → new". */
@@ -582,6 +753,8 @@ public final class EditorApp extends Application {
             f.load(path);
             flowFile = path;
             ranOnce = false;
+            recipe = null;
+            displayNode = null;
             undoStack.clear();
             redoStack.clear();
             setImageInput(f);
@@ -906,21 +1079,23 @@ public final class EditorApp extends Application {
 
     /** Engine thread: what the editor shows. */
     private Snapshot snapshot(Long select, String problemsJson, String error) {
+        boolean operator = operatorShowing;
         String flowJson = flow.toJson();
+        FlowInfo info = FlowInfo.parse(flowJson);
+        Long shown = select != null && info.nodes().containsKey(select) ? select : null;
+        Long imageOf = operator ? Model.displayed(info, kinds, displayNode) : shown;
         Flow.NodeImage image = null;
         String graphics = null;
-        Long shown = select;
-        if (shown != null && FlowInfo.parse(flowJson).nodes().containsKey(shown)) {
+        if (imageOf != null) {
             try {
-                image = flow.nodeImage(shown);
-                graphics = flow.graphicsJson(shown);
+                image = flow.nodeImage(imageOf);
+                graphics = flow.graphicsJson(imageOf);
             } catch (RuntimeException e) {
                 error = error == null ? message(e) : error;
             }
-        } else {
-            shown = null;
         }
-        return new Snapshot(flowJson, problemsJson, flow.resultsJson(), shown, image, graphics, error);
+        return new Snapshot(operator, flowJson, problemsJson, flow.resultsJson(), shown, imageOf, image, graphics,
+                error);
     }
 
     /**
@@ -928,8 +1103,8 @@ public final class EditorApp extends Application {
      * frame), show the result unless the screen is still showing the last
      * one, and queue the next step behind any edit waiting.
      */
-    private void liveStep() {
-        if (!liveOn) {
+    private void liveStep(int run) {
+        if (!liveOn || run != liveRun.get()) {
             return;
         }
         long started = System.nanoTime();
@@ -937,7 +1112,7 @@ public final class EditorApp extends Application {
             nextFolderImage();
         } catch (RuntimeException e) {
             liveOn = false;
-            Platform.runLater(() -> liveButton.setSelected(false));
+            Platform.runLater(() -> showLive(false));
         }
         String problemsJson = flow.problemsJson();
         String error;
@@ -948,7 +1123,7 @@ public final class EditorApp extends Application {
         }
         if (error != null) {
             liveOn = false;
-            Platform.runLater(() -> liveButton.setSelected(false));
+            Platform.runLater(() -> showLive(false));
         }
         if (uiBusy.compareAndSet(false, true) || error != null) {
             Snapshot snapshot = snapshot(selected, problemsJson, error);
@@ -967,7 +1142,7 @@ public final class EditorApp extends Application {
                     return;
                 }
             }
-            engine.execute(this::liveStep);
+            engine.execute(() -> liveStep(run));
         }
     }
 
@@ -977,6 +1152,17 @@ public final class EditorApp extends Application {
         selected = s.selected();
         if (selectedLink != null && model.links().stream().noneMatch(l -> l.to().equals(selectedLink))) {
             selectedLink = null;
+        }
+        List<String> problemList = Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList();
+        if (s.operator()) {
+            List<OperatorView.Choice> choices = Model.imageNodes(model, kinds).stream()
+                    .map(n -> new OperatorView.Choice(n.id(), n.id() + "  "
+                            + (n.name().isEmpty() ? n.kind() : n.name() + " (" + n.kind() + ")")))
+                    .toList();
+            operatorView.show(new OperatorView.State(model.name(), recipeText(s.flowJson()), choices,
+                    s.imageOf(), s.image(), s.graphicsJson(), results, problemList));
+            showRunStatus(s.error());
+            return;
         }
         graph.show(model, kinds, results, selected, selectedLink);
         if (selected != null) {
@@ -989,7 +1175,7 @@ public final class EditorApp extends Application {
             properties.showFlow(model, results);
             imagePane.show(null, null, Map.of(), "Select a node to see its image");
         }
-        problems.getItems().setAll(Json.array(Json.parse(s.problemsJson())).stream().map(Json::string).toList());
+        problems.getItems().setAll(problemList);
         if (results.result().isEmpty()) {
             tally.setText("");
             result.setText("not run");
@@ -1008,21 +1194,34 @@ public final class EditorApp extends Application {
                 default -> Color.web("#c62828");
             });
         }
-        if (s.error() != null) {
-            showStatus(s.error(), true);
+        showRunStatus(s.error());
+    }
+
+    /** The status line after a round trip: the error, or where the image comes from; and the title. */
+    private void showRunStatus(String error) {
+        if (error != null) {
+            showStatus(error, true);
         } else {
             List<Path> images = folder;
             String place = images.isEmpty() || imageFile == null || !images.contains(imageFile) ? ""
                     : "  (" + (images.indexOf(imageFile) + 1) + " of " + images.size() + ")";
-            showStatus((imageFile == null ? "No image file (Open image\u2026, or a Camera node)"
-                    : "Image: " + imageFile + place) + (liveOn ? "   \u2014 live" : ""), false);
+            boolean camera = model != null
+                    && model.links().stream().noneMatch(l -> l.from().startsWith("input."))
+                    && model.nodes().values().stream().anyMatch(n -> n.kind().equals("Camera"));
+            String source = imageFile != null ? "Image: " + imageFile + place
+                    : camera ? "Images from the flow's camera"
+                    : "No image file (Open image…, or a Camera node)";
+            showStatus(source + (liveOn ? "   — live" : ""), false);
         }
-        stage.setTitle("AMV Flow Editor — " + (flowFile == null ? "untitled"
-                : flowFile.getFileName() + (Files.exists(flowFile) ? "" : " (not saved)")));
+        String file = flowFile == null ? "untitled"
+                : flowFile.getFileName() + (Files.exists(flowFile) ? "" : " (not saved)");
+        stage.setTitle((operatorShowing ? "AMV Flow — " : "AMV Flow Editor — ") + file);
     }
 
+    /** A message on both screens' status lines. */
     private void showStatus(String text, boolean error) {
         status.setText(text);
         status.setTextFill(error ? Color.web("#c62828") : Color.web("#444"));
+        operatorView.setStatus(text, error);
     }
 }

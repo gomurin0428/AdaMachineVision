@@ -134,6 +134,34 @@ final class Model {
         return kinds;
     }
 
+    /**
+     * The nodes that can have an image to show: an image source (a camera),
+     * or a node whose input Image is linked.
+     */
+    static List<NodeInfo> imageNodes(FlowInfo info, Map<String, KindInfo> kinds) {
+        return info.nodes().values().stream().filter(n -> {
+            KindInfo kind = kinds.get(n.kind());
+            if (kind == null) {
+                return false;
+            }
+            boolean imageIn = kind.inputs().stream().anyMatch(p -> p.name().equals("Image"));
+            boolean imageOut = kind.outputs().stream().anyMatch(p -> p.name().equals("Image"));
+            return imageIn ? info.links().stream().anyMatch(l -> l.to().equals(n.id() + ".Image")) : imageOut;
+        }).toList();
+    }
+
+    /**
+     * The node the operator screen shows: the one chosen if it can have an
+     * image, else the last such node (the one with the highest id).
+     */
+    static Long displayed(FlowInfo info, Map<String, KindInfo> kinds, Long chosen) {
+        List<NodeInfo> nodes = imageNodes(info, kinds);
+        if (chosen != null && nodes.stream().anyMatch(n -> n.id() == chosen)) {
+            return chosen;
+        }
+        return nodes.stream().map(NodeInfo::id).max(Long::compare).orElse(null);
+    }
+
     /** A value of the results JSON as short text. */
     static String text(Object value) {
         if (value == null) {

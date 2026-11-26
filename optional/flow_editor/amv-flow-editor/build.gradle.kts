@@ -28,6 +28,14 @@ dependencies {
     listOf("base", "graphics", "controls").forEach {
         implementation("org.openjfx:javafx-$it:$fxVersion:$fxPlatform")
     }
+    testImplementation(platform("org.junit:junit-bom:5.13.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// The editor's model, without the engine or a window.
+tasks.test {
+    useJUnitPlatform()
 }
 
 application {

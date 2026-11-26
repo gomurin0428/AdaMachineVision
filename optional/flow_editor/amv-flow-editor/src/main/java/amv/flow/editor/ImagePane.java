@@ -25,7 +25,8 @@ import javafx.scene.text.Font;
  * drag inside one to move it, a corner to size it, the round handle to
  * turn a rectangle, the handle on a circle's edge for its radius; an
  * annulus has square handles for its two radii and round ones for where it
- * starts and ends. On release the new shape goes to the listener.
+ * starts and ends. On release the new shape goes to the listener. Without
+ * a listener (the operator screen) the regions are drawn but not edited.
  */
 final class ImagePane extends Pane {
 
@@ -149,7 +150,8 @@ final class ImagePane extends Pane {
                     }
                     newItems.add(new Item(true, "found".equals(item.get("role")), xs, ys));
                     Object param = item.get("param");
-                    if (param != null && item.get("toPixel") != null && params.get(param) instanceof Map<?, ?>) {
+                    if (listener != null && param != null && item.get("toPixel") != null
+                            && params.get(param) instanceof Map<?, ?>) {
                         List<Object> t = Json.array(item.get("toPixel"));
                         double[] toPixel = new double[6];
                         for (int i = 0; i < 6; i++) {
