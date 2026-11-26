@@ -1,18 +1,19 @@
-# 引き継ぎメモ(2026-11-20)
+# 引き継ぎメモ(2026-11-20、#14 のマージで 2026-11-26 に更新)
 
-作業を止めた時点の状態と、残っている作業です。計画そのものは
+Platinum の作業を止めた時点の状態と、残っている作業です。計画そのものは
 `docs/PLATINUM.md`、ミューテーションテストの生存の一覧は
 `docs/MUTATION.md` にあります。
 
 ## 状態
 
-- `main` = 1339c76。最近マージしたもの:
-  - #8 Code Reader の QR コード
+- Platinum でマージしたもの:
   - #10 `docs/PLATINUM.md`(Platinum の計画)
   - #11 ミュータントの実行中は、時間を上限と比べるチェックをしない(`AMV_Test_Support.Check_Timing`)
   - #12 Platinum フェーズ 3(テストがすべての契約を検査する)
   - #13 ミュータントの証明の前に、why3 のセッションを消す
-- 開いている PR: #14 Platinum フェーズ 4 の最初の 3 つ(`IP_Two_Image`、`Pixel_Map`、`Image_Convert` を `AMV.Spec` で仕様化)。CI はすべて通っています。3 つの本体の生存は `docs/MUTATION.md` に書きました。残りは下の「#14 の残り」です。
+  - #14 Platinum フェーズ 4 の最初の 3 つ(`IP_Two_Image`、`Pixel_Map`、`Image_Convert` を `AMV.Spec` で仕様化)。3 つの本体の生存は `docs/MUTATION.md` に書きました。残りは下の「#14 の残り」です
+- #13 と #14 のあいだに、Platinum とは別の作業(GigE Vision のカメラ、AMV Flow とそのエディター、CI など)が main に入りました。#14 は、それを取り込んでからマージしています
+- `AMV.Spec` の子ユニットは、CI では仕様にするカーネルと同じ証明グループで、それ自体も `-u` で証明します(`tools/prove_groups.sh`)。カーネルを証明しても、仕様の関数の中のチェックは証明されないためです
 
 ## #14 の残り
 
@@ -23,7 +24,7 @@
   - `Convert_16` と `Convert_Colour` の、出力の確保に失敗したときの分岐: `if not Succeeded (Status)` を `False` にするものと、`return` を消すもの。計 4 件
 - `Pixel_Map`(2 件): `Execute` の同じ分岐の 2 件
 
-`IP_Two_Image` の 7 件は済んでおり、どれも証明が失敗しました(検出)。この 10 件はマージの条件ではありません。結果が出たら `docs/MUTATION.md` の該当行を直してください。
+`IP_Two_Image` の 7 件は済んでおり、どれも証明が失敗しました(検出)。#14 は、この 10 件を残したままマージしました。結果が出たら `docs/MUTATION.md` の該当行を直してください。
 
 ## サブプログラムに絞った証明の手順
 
@@ -48,4 +49,3 @@
 - ミュータントの証明はステップ数だけで打ち切ります(200000、`tools/mutant_prove.sh`)。上限の近いチェックは、関係のない変更で通ったり通らなかったりします。`Sobel_Edge.Execute` の事後条件は、main でもユニット全体の証明でこの上限を越えていました(#12 でアサーションを足しました)
 - Alt-Ergo は、一部のゴールで「High failure」を返します
 - ワークフロー Mutation は、PR に docs だけを push しても走ります(paths の条件は、PR 全体の差分で判断されるため)。本体が同じなら、取り消してかまいません
-- CI の build-test が、ImageMagick のインストールで止まって 2 時間で打ち切られたことが 1 回あります。再実行で通りました

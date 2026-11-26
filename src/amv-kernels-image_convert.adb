@@ -50,13 +50,19 @@ package body AMV.Kernels.Image_Convert with SPARK_Mode is
          when Run_Mode_Intensity_From_Weighted_RGB =>
             Weighted_Intensity (Params, R, G, B),
          when others => Intensity_Of (R, G, B))
-   with Pre  => Valid_Params (Params),
+   with Pre  => Params.Run_Mode
+                  in Run_Mode_Intensity | Run_Mode_Plane_0 | Run_Mode_Plane_1
+                   | Run_Mode_Plane_2 | Run_Mode_Intensity_From_Weighted_RGB
+                and then Valid_Weights (Params),
         Post => Colour_Pixel'Result
                   = (if Params.Run_Mode
                           = Run_Mode_Intensity_From_Weighted_RGB
                      then Weighted_Intensity (Params, R, G, B)
                      else Spec.Colour (Integer (Params.Run_Mode), R, G, B));
-   --  The output pixel for a colour input.
+   --  The output pixel for a colour input. Its precondition is only what
+   --  it needs (a colour mode, and the weights of the weighted mode), not
+   --  all of Valid_Params: the library checks preconditions, and this one
+   --  runs for every pixel.
 
    ---------------------------------------------------------------------
    --  Checks

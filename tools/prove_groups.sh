@@ -1,14 +1,17 @@
 #!/bin/sh
 # The proof groups of the CI: every kernel source file (src/amv-kernels*)
-# belongs to exactly one group, and each group is proved by its own CI job
-# (gnatprove -u on its files), so that a cold proof is split over several
-# runners instead of exceeding the time limit of one.
+# and every specification (src/amv-spec*, in the group of the kernel it
+# specifies) belongs to exactly one group, and each group is proved by its
+# own CI job (gnatprove -u on its files), so that a cold proof is split
+# over several runners instead of exceeding the time limit of one. A
+# specification needs its own -u: proving the kernels that call it does
+# not prove the checks inside its functions.
 #
 #   tools/prove_groups.sh GROUP   the group's files, for make PROVE_UNITS
-#   tools/prove_groups.sh list    every kernel file with its group
+#   tools/prove_groups.sh list    every file with its group
 #
 # A kernel that matches no pattern below falls into "core", so a new
-# kernel is never left unproved. Run from the repository root or anywhere.
+# kernel (or specification) is never left unproved. Run from the repository root or anywhere.
 
 set -eu
 
@@ -16,6 +19,7 @@ cd "$(dirname "$0")/.."
 
 group_of() {
     case "$1" in
+        amv-spec-*) group_of "amv-kernels-${1#amv-spec-}" ;;
         amv-kernels-shape_match*) echo shape-match ;;
         amv-kernels-code_reader*) echo code-reader ;;
         amv-kernels-calib_fix* | amv-kernels-ncc_search*) echo calib-ncc ;;
@@ -41,7 +45,7 @@ if [ $# -ne 1 ]; then
 fi
 
 found=0
-for path in src/amv-kernels*.ads src/amv-kernels*.adb; do
+for path in src/amv-kernels*.ads src/amv-kernels*.adb src/amv-spec*.ads; do
     file=$(basename "$path")
     group=$(group_of "$file")
     if [ "$1" = list ]; then

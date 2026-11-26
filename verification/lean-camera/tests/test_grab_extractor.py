@@ -484,8 +484,10 @@ class GrabExtractorTests(unittest.TestCase):
             ),
             (
                 "amv-kernels-images.ads",
-                "(Image : access constant Ks_Image_8_Grey_Data) return Boolean\n   is",
-                "(Image : access constant Ks_Image_8_Grey_Data) return Boolean\n"
+                "function Valid_Image\n"
+                "     (Image : access constant Ks_Image_8_Grey_Data) return Boolean\n   is",
+                "function Valid_Image\n"
+                "     (Image : access constant Ks_Image_8_Grey_Data) return Boolean\n"
                 "     with Pre => True\n   is",
                 "Valid_Image aspect drift",
             ),
