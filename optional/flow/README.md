@@ -50,6 +50,13 @@ the parameters a recipe names, all or nothing, so that one flow serves
 several products (`amvf_flow_recipe_json`, `amvf_flow_apply_recipe`;
 `--recipe` for `amv_flow run`; Save / Load recipe in the editor).
 
+ShapeMatch trains its pattern when the flow loads. With `PatternPath`
+(an `.amvpattern` file next to the flow), the trained pattern is saved
+with what it was trained from (the train image file's name, size and
+time, the region, the origin) and loaded again instead of training while
+those stay the same; without the train image, the saved pattern is used
+as it is, so a flow can be shipped with its pattern only.
+
 A flow counts its runs by result (`Counts`, `Reset_Counts`; `"counts"` in
 the results JSON, `amvf_flow_reset_counts` in the C API): a pass / fail
 tally, which the editor shows.
@@ -123,7 +130,5 @@ the cup left out could hide the seam, and one cut would pass for it).
 
 ## Not done yet
 
-From the first phase of the design: the place of a cut on the camera image (Blob gives it
-in PolarUnwrap's strip), `Ks_Flow_Tool` (a saved flow as an AMV tool), saving
-trained patterns (ShapeMatch trains from its `TrainImage` when the flow
-loads), and a camera build of `amv_flow`.
+From the first phase of the design: `Ks_Flow_Tool` (a saved flow as an
+AMV tool) and a camera build of `amv_flow`.

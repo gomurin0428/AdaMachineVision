@@ -10,6 +10,7 @@ with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Numerics;
 with Ada.Numerics.Long_Elementary_Functions;
+with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -597,6 +598,46 @@ procedure Test_Flow is
       Flow.Run;
       Check (Real_Output (Again, "Slot") = Real_Output (Flow, "Slot"),
              "align: the loaded copy measures the same");
+
+      --  A saved pattern: written when trained, used without the train
+      --  image, trained again when what it was trained from changes.
+      declare
+         Pattern : constant String := Test_Dir & "/align.pattern";
+
+         function Saved_Key return String is
+            package SIO renames Ada.Streams.Stream_IO;
+            File : SIO.File_Type;
+         begin
+            SIO.Open (File, SIO.In_File, Pattern);
+            declare
+               Key : constant String := String'Input (SIO.Stream (File));
+            begin
+               SIO.Close (File);
+               return Key;
+            end;
+         end Saved_Key;
+      begin
+         if Ada.Directories.Exists (Pattern) then
+            Ada.Directories.Delete_File (Pattern);
+         end if;
+         Again.Set_Param (1, "PatternPath", From_String ("align.pattern"));
+         Check (Ada.Directories.Exists (Pattern)
+                and then Contains (Saved_Key, "align_model.bmp"),
+                "pattern: saved with what it was trained from");
+         Again.Set_Param (1, "TrainImage", From_String ("no_such_model.bmp"));
+         Check (Again.Problems.Is_Empty,
+                "pattern: no train image, the saved pattern is used");
+         Again.Set_Input ("Image", From_Image (Scene (180.0, 160.0, -15.0)));
+         Again.Run;
+         Check_Near (Real_Output (Again, "Slot"), 14.0, 0.1,
+                     "pattern: the saved pattern finds the part");
+         Again.Set_Param (1, "TrainImage", From_String ("align_model.bmp"));
+         Again.Set_Param (1, "OriginX", From_Real (101.0));
+         Check (Contains (Saved_Key, "101.0"),
+                "pattern: a new origin trains and saves again ("
+                & Saved_Key & ")");
+         Again.Set_Param (1, "OriginX", From_Real (100.0));
+      end;
 
       --  No part: Shape Match rejects, everything after it is skipped.
       Flow.Set_Input

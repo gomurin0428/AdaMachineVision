@@ -216,7 +216,7 @@ public final class EditorApp extends Application {
             @Override
             public void chooseFile(long id, String param) {
                 // A path parameter names a file to write (CsvLog's), an image one a file to read.
-                File file = param.endsWith("Path") ? csvChooser().showSaveDialog(stage)
+                File file = param.endsWith("Path") ? outputChooser(param).showSaveDialog(stage)
                         : imageChooser("Train image").showOpenDialog(stage);
                 if (file != null) {
                     String path = relativeToFlow(file.toPath());
@@ -523,10 +523,14 @@ public final class EditorApp extends Application {
         return result;
     }
 
-    private FileChooser csvChooser() {
+    /** A save dialog for a file a node writes: a trained pattern, or else a CSV log. */
+    private FileChooser outputChooser(String param) {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Log file");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv"));
+        boolean pattern = param.equals("PatternPath");
+        chooser.setTitle(pattern ? "Trained pattern" : "Log file");
+        chooser.getExtensionFilters().add(pattern
+                ? new FileChooser.ExtensionFilter("Trained patterns (*.amvpattern)", "*.amvpattern")
+                : new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv"));
         chooser.setInitialDirectory(flowFile != null ? flowFile.getParent().toFile()
                 : new File(System.getProperty("user.dir")));
         return chooser;

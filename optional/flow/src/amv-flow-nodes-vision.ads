@@ -13,8 +13,15 @@ pragma SPARK_Mode (Off);
 --             the train image), AngleLow, AngleHigh (the angle range
 --             searched; equal: no rotation), AcceptThreshold,
 --             ContrastThreshold
---     Trains when the flow is loaded (Prepare). Not found: Found is
---     False, the other outputs have no value, the result is Reject.
+--             PatternPath (where the trained pattern is kept)
+--     Trains when the flow is loaded (Prepare). With PatternPath, the
+--     trained pattern is saved there with what it was trained from (the
+--     train image file's name, size and time, the region, the origin) and
+--     loaded instead of training again while those stay the same; without
+--     a train image (or with one that is missing), the saved pattern is
+--     used as it is, so a flow can be shipped with its pattern only. Not
+--     found: Found is False, the other outputs have no value, the result
+--     is Reject.
 --
 --  Fixture (AMV.Calib_Fix.Ks_Fixture_Tool)
 --     in   Image : Image_8_Grey; Transform : Transform

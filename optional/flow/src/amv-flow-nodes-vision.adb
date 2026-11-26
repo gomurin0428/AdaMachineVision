@@ -1,7 +1,10 @@
 pragma SPARK_Mode (Off);
 
+with Ada.Calendar.Formatting;
+with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Numerics;
+with Ada.Streams.Stream_IO;
 
 with AMV.Blob;
 with AMV.Calib_Fix;
@@ -13,6 +16,7 @@ with AMV.Shape_Match;
 with AMV.Shapes;
 with AMV.Shapes.Region_Holders;
 with AMV.Transforms;
+with AMV.Flow.JSON;
 with AMV.Flow.Values;
 
 package body AMV.Flow.Nodes.Vision is
@@ -74,6 +78,7 @@ package body AMV.Flow.Nodes.Vision is
       Image_In          : Ks_Flow_Value;
       Train_Image       : Unbounded_String;
       Train_Region      : Ks_Flow_Value;
+      Pattern_Path      : Unbounded_String;
       Origin_X          : Real := 0.0;
       Origin_Y          : Real := 0.0;
       Origin_Rotation   : Real := 0.0;
@@ -135,7 +140,12 @@ package body AMV.Flow.Nodes.Vision is
                      & "angle only"),
       Real_Param_Of ("AngleHigh", -Two_Pi, Two_Pi, "rad"),
       Real_Param_Of ("AcceptThreshold", 0.0, 1.0),
-      Real_Param_Of ("ContrastThreshold", 0.0, Large, "grey levels/px")];
+      Real_Param_Of ("ContrastThreshold", 0.0, Large, "grey levels/px"),
+      String_Param_Of ("PatternPath",
+                       "the trained pattern, saved there and loaded again "
+                       & "while the train image, region and origin stay "
+                       & "the same (relative to the flow file; none: train "
+                       & "on every load)", Path => True)];
 
    overriding procedure Set_Param (Node  : in out Shape_Match_Node;
                                    Name  : String;
@@ -160,6 +170,8 @@ package body AMV.Flow.Nodes.Vision is
          Node.Accept_Threshold := Value.As_Real;
       elsif Name = "ContrastThreshold" then
          Node.Contrast := Value.As_Real;
+      elsif Name = "PatternPath" then
+         Node.Pattern_Path := U (Value.As_String);
       else
          Unknown ("ShapeMatch", "parameter", Name);
       end if;
@@ -187,6 +199,9 @@ package body AMV.Flow.Nodes.Vision is
       elsif Name = "ContrastThreshold" then
          return From_Real (Node.Contrast);
       end if;
+      if Name = "PatternPath" then
+         return From_String (To_String (Node.Pattern_Path));
+      end if;
       Unknown ("ShapeMatch", "parameter", Name);
    end Get_Param;
 
@@ -208,38 +223,143 @@ package body AMV.Flow.Nodes.Vision is
       Node.Pose := No_Value;
    end Clear_Inputs;
 
+   --  What the training depends on: the train image file (its full name,
+   --  size and time), the region and the origin. A saved pattern with the
+   --  same key was trained from the same inputs.
+   function Training_Key (Node : Shape_Match_Node'Class; Image_File : String)
+                          return String
+   is
+      W : AMV.Flow.JSON.Writer;
+   begin
+      W.Begin_Array;
+      W.Value (Ada.Directories.Full_Name (Image_File));
+      W.Value (Long_Long_Integer (Ada.Directories.Size (Image_File)));
+      W.Value (Ada.Calendar.Formatting.Image
+                 (Ada.Directories.Modification_Time (Image_File),
+                  Include_Time_Fraction => True));
+      if Node.Train_Region.Has_Value then
+         Write_Shape (W, Node.Train_Region.As_Shape);
+      else
+         W.Null_Value;
+      end if;
+      W.Value (Node.Origin_X);
+      W.Value (Node.Origin_Y);
+      W.Value (Node.Origin_Rotation);
+      W.End_Array;
+      return "AMV Flow ShapeMatch pattern 1 " & W.Text;
+   end Training_Key;
+
+   --  Reads the pattern saved in File into the node when its key is Key
+   --  (any key when Key is ""); False when there is no such pattern (a
+   --  file that cannot be read counts as none: the node trains again).
+   function Load_Pattern (Node : in out Shape_Match_Node'Class;
+                          File_Name, Key : String) return Boolean
+   is
+      use Ada.Streams.Stream_IO;
+      File    : File_Type;
+      Pattern : AMV.Shape_Match.Ks_Shape_Match_Pattern;
+   begin
+      if not Ada.Directories.Exists (File_Name) then
+         return False;
+      end if;
+      Open (File, In_File, File_Name);
+      declare
+         Saved_Key : constant String := String'Input (Stream (File));
+      begin
+         if Key /= "" and then Saved_Key /= Key then
+            Close (File);
+            return False;
+         end if;
+      end;
+      AMV.Shape_Match.Ks_Shape_Match_Pattern'Read (Stream (File), Pattern);
+      Close (File);
+      if not Pattern.Trained then
+         return False;
+      end if;
+      Node.Tool.Pattern := Pattern;
+      return True;
+   exception
+      when others =>
+         if Is_Open (File) then
+            Close (File);
+         end if;
+         return False;
+   end Load_Pattern;
+
+   procedure Save_Pattern (Node : Shape_Match_Node'Class; File_Name, Key : String)
+   is
+      use Ada.Streams.Stream_IO;
+      File : File_Type;
+   begin
+      Create (File, Out_File, File_Name);
+      String'Output (Stream (File), Key);
+      AMV.Shape_Match.Ks_Shape_Match_Pattern'Write
+        (Stream (File), Node.Tool.Pattern);
+      Close (File);
+   exception
+      when E : others =>
+         if Is_Open (File) then
+            Close (File);
+         end if;
+         raise Ks_Flow_Exception with
+           "ShapeMatch: cannot save the pattern to " & File_Name & ": "
+           & Ada.Exceptions.Exception_Message (E);
+   end Save_Pattern;
+
    overriding procedure Prepare (Node           : in out Shape_Match_Node;
                                  Base_Directory : String)
    is
       Path  : constant String := To_String (Node.Train_Image);
+      Saved : constant String :=
+        (if Length (Node.Pattern_Path) = 0 then ""
+         else Resolve (Base_Directory, To_String (Node.Pattern_Path)));
       Image : AMV.Images.Ks_Image_8_Grey;
    begin
-      if Path = "" then
-         return;
+      if Path = "" or else not Ada.Directories.Exists
+                                 (Resolve (Base_Directory, Path))
+      then
+         --  No train image (a flow shipped with its saved pattern only):
+         --  the saved pattern, whatever it was trained from.
+         if Saved /= "" and then Load_Pattern (Node, Saved, Key => "") then
+            return;
+         elsif Path = "" then
+            return;
+         end if;
       end if;
       declare
          Full : constant String := Resolve (Base_Directory, Path);
+         Key  : constant String :=
+           (if Saved /= "" and then Ada.Directories.Exists (Full)
+            then Training_Key (Node, Full) else "");
       begin
-         Image := AMV.Image_File.Read_Image_8_Grey (Full);
-      exception
-         when E : others =>
-            raise Ks_Flow_Exception with
-              "ShapeMatch: cannot read the train image " & Full & ": "
-              & Ada.Exceptions.Exception_Message (E);
-      end;
-      begin
-         Node.Tool.Pattern.Set_Train_Image (Image);
-         Node.Tool.Pattern.Set_Train_Region
-           (Region_Holder (Node.Train_Region));
-         Node.Tool.Pattern.Set_Origin
-           (AMV.Transforms.Create_Rigid
-              (Node.Origin_Rotation, Node.Origin_X, Node.Origin_Y));
-         Node.Tool.Pattern.Train;
-      exception
-         when E : others =>
-            raise Ks_Flow_Exception with
-              "ShapeMatch: cannot train the pattern: "
-              & Ada.Exceptions.Exception_Message (E);
+         if Key /= "" and then Load_Pattern (Node, Saved, Key) then
+            return;  --  trained from the same inputs before
+         end if;
+         begin
+            Image := AMV.Image_File.Read_Image_8_Grey (Full);
+         exception
+            when E : others =>
+               raise Ks_Flow_Exception with
+                 "ShapeMatch: cannot read the train image " & Full & ": "
+                 & Ada.Exceptions.Exception_Message (E);
+         end;
+         begin
+            Node.Tool.Pattern.Set_Train_Image (Image);
+            Node.Tool.Pattern.Set_Train_Region
+              (Region_Holder (Node.Train_Region));
+            Node.Tool.Pattern.Set_Origin
+              (AMV.Transforms.Create_Rigid
+                 (Node.Origin_Rotation, Node.Origin_X, Node.Origin_Y));
+            Node.Tool.Pattern.Train;
+         exception
+            when E : others =>
+               raise Ks_Flow_Exception with
+                 "ShapeMatch: cannot train the pattern: "
+                 & Ada.Exceptions.Exception_Message (E);
+         end;
+         if Key /= "" then
+            Save_Pattern (Node, Saved, Key);
+         end if;
       end;
    end Prepare;
 
