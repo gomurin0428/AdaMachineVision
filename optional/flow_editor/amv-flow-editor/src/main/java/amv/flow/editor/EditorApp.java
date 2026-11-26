@@ -186,16 +186,19 @@ public final class EditorApp extends Application {
                 } else {
                     flow.fromJson(EMPTY_FLOW, null);
                 }
+                String displayError = null;
                 if (displayArg != null) {
                     FlowInfo info = FlowInfo.parse(flow.toJson());
-                    long id = info.nodes().values().stream()
+                    Optional<NodeInfo> node = info.nodes().values().stream()
                             .filter(n -> displayArg.equals(String.valueOf(n.id())) || displayArg.equals(n.name()))
-                            .map(NodeInfo::id).findFirst()
-                            .orElseThrow(() -> new AmvFlowException(0, "--display: no node " + displayArg));
-                    if (Model.imageNodes(info, kinds).stream().noneMatch(n -> n.id() == id)) {
-                        throw new AmvFlowException(0, "--display: node " + displayArg + " has no image to show");
+                            .findFirst();
+                    if (node.isEmpty()) {
+                        displayError = "--display: no node " + displayArg;
+                    } else if (Model.imageNodes(info, kinds).stream().noneMatch(n -> n.id() == node.get().id())) {
+                        displayError = "--display: node " + displayArg + " has no image to show";
+                    } else {
+                        displayNode = node.get().id();
                     }
-                    displayNode = id;
                 }
                 if (args.size() >= 2) {
                     // An image file, or a folder of images to play through.
@@ -209,6 +212,9 @@ public final class EditorApp extends Application {
                         imageFile = second;
                     }
                     setImageInput(flow);
+                }
+                if (displayError != null) {
+                    throw new AmvFlowException(0, displayError);
                 }
                 if (operatorOnly && imageFile == null
                         && FlowInfo.parse(flow.toJson()).links().stream().anyMatch(l -> l.from().startsWith("input."))) {
@@ -1139,7 +1145,7 @@ public final class EditorApp extends Application {
                 }
             });
         }
-        if (uiBusy.compareAndSet(false, true) || error != null) {
+        if (uiBusy.compareAndSet(false, true) || (error != null && run == liveRun.get())) {
             Snapshot snapshot = snapshot(selected, problemsJson, error);
             Platform.runLater(() -> {
                 apply(snapshot);
