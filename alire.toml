@@ -1,6 +1,6 @@
 name = "amv"
 description = "Machine vision library in Ada with proved SPARK kernels and a C API"
-version = "0.1.0"
+version = "0.2.0"
 long-description = """
 AdaMachineVision (AMV) is a machine vision library written in Ada. It has
 images with coordinate space trees, shapes and regions, and vision tools: blob
@@ -19,7 +19,7 @@ tags = ["vision", "image", "imageprocessing", "machinevision", "blob", "caliper"
 project-files = ["amv.gpr"]
 
 [[depends-on]]
-gnat = ">=14"
+gnat = ">=16"
 
 [configuration]
 disabled = true

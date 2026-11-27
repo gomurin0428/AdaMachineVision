@@ -276,6 +276,12 @@ entry point returns exactly that function's result once its arguments
 pass; the `ks_*_boundary_slack` postconditions say that the region is
 valid when they succeed.
 
+Total (2026-11-26, release 0.2.0): 39444 checks, the sum of the seven
+proof groups of CI (`tools/prove_groups.sh`) on the merge of #14: core
+10149, geometry-measure 6978, calib-ncc 5847, filters 5617,
+dimensioning-tools 4670, code-reader 3964 and shape-match 2219, all
+proved.
+
 Total (2026-11-16): 38478 checks, the 34514 of `main` at 2026-11-12 and
 the 3964 of the code reader kernel (2991 before its QR Code pass, 1281
 before its Data Matrix pass), which was proved as its own group

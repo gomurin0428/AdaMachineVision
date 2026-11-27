@@ -41,7 +41,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 
 ## 現状
 
-版 0.1.0 で、最初のリリースです(C の ABI の版は 2)。内容とその後の変更は `CHANGELOG.md`(英語)に記録しています。
+版 0.2.0 です(C の ABI の版は 3)。各リリースの内容とその後の変更は `CHANGELOG.md`(英語)に記録しています。
 
 - **コア:** 実装とテストが済んでいるのは次のとおりです。
   - 変換、座標空間ツリー
@@ -59,8 +59,8 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
   - ToolGroup / ToolBlock
 
   各ツールの内容、既定値、対応していない機能は、それぞれのパッケージの仕様(`src/amv-blob.ads` など)に書いています。Shape Match の探索は、公開文献に基づく AMV 独自の手法です(`src/amv-kernels-shape_match.ads` に説明があります)。
-- **証明:** ロジックはすべて SPARK のカーネルにあります。どのカーネルも、任意の入力で実行時エラーが起きないことを gnatprove で証明しています。`docs/PROOF.md` に挙げた性質については、機能的な正しさも証明しています。チェックは 38478 項目で、すべて証明済みです。`pragma Assume` も、正当化で済ませたチェックもありません。証明していない部分(薄い Ada API、画素の共有の参照カウント、確保・C のメモリとのコピー・ストリームの変換を行う小さな補助)は、同じファイルに列挙しています。
-- **未対応:** OCR。1 次元バーコード、Data Matrix、QR コードは、v0.1.0 の後に追加した Code Reader で読めます。
+- **証明:** ロジックはすべて SPARK のカーネルにあります。どのカーネルも、任意の入力で実行時エラーが起きないことを gnatprove で証明しています。`docs/PROOF.md` に挙げた性質については、機能的な正しさも証明しています。チェックは 39444 項目で、すべて証明済みです。`pragma Assume` も、正当化で済ませたチェックもありません。証明していない部分(薄い Ada API、画素の共有の参照カウント、確保・C のメモリとのコピー・ストリームの変換を行う小さな補助)は、同じファイルに列挙しています。
+- **未対応:** OCR。1 次元バーコード、Data Matrix、QR コードは、0.2.0 で追加した Code Reader で読めます。
 
 ## 設計の要点
 
@@ -110,7 +110,7 @@ end Quick_Look;
 
 - GNAT 16.1 と gprbuild 26(GNAT FSF builds や Alire など)
 - 証明には gnatprove 16.1
-- GNAT 14 でも Ada のビルドとテストは通ります。
+- GNAT 16 より古い GNAT には対応していません。
 - コアにほかの依存はありません。任意の GigE Vision アダプタには Aravis 0.8 の開発ファイルと pkg-config が必要です。
 - Windows では MSYS2 MINGW64 を使います。Aravis、GNAT、gprbuild の依存関係とテスト手順は [`optional/aravis/README.md`](optional/aravis/README.md) を参照してください。
 

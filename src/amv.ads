@@ -8,7 +8,7 @@
 package AMV with SPARK_Mode is
    pragma Pure;
 
-   Version : constant String := "0.1.0";
+   Version : constant String := "0.2.0";
 
    subtype Real is Long_Float;
    --  Coordinates, lengths, angles (always radians), scores and times.

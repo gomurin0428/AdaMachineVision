@@ -50,8 +50,8 @@ the licence of each picture.
 
 ## Status
 
-Version 0.1.0, the first release (C ABI version 2). `CHANGELOG.md` lists
-what it contains and every change since.
+Version 0.2.0 (C ABI version 3). `CHANGELOG.md` lists what each release
+contains and every change since.
 
 * **Core:** transforms, coordinate space trees, 8/16-bit grey and planar
   colour images, image files (PNM, BMP), shapes and regions, floating
@@ -70,13 +70,13 @@ what it contains and every change since.
   the public literature (`src/amv-kernels-shape_match.ads` describes it).
 * **Proofs:** all logic lives in SPARK kernels, and every kernel is
   proved free of run-time errors for any input (and, for the facts listed
-  in `docs/PROOF.md`, functionally correct): 38478 checks, all proved,
+  in `docs/PROOF.md`, functionally correct): 39444 checks, all proved,
   with no `pragma Assume` and no justified checks. What is trusted
   without proof (the thin Ada API, the reference counting of shared
   pixels, and small helpers for allocation, copies to and from C memory
   and stream conversions) is listed there.
 * **Not yet:** OCR. Linear barcodes, Data Matrix and QR Code symbols
-  are read by the Code Reader, added after v0.1.0.
+  are read by the Code Reader, added in 0.2.0.
 
 ## Design in one paragraph
 
@@ -128,8 +128,8 @@ are available as `ks_transform_2d_linear_*` functions (`include/amv.h`).
 ## Building
 
 Requirements: GNAT 16.1 and gprbuild 26 (for example the GNAT FSF builds or
-Alire), and gnatprove 16.1 for the proofs. GNAT 14 builds and tests the
-Ada code too. The core has no other dependencies. The optional GigE Vision
+Alire), and gnatprove 16.1 for the proofs; older GNAT versions are not
+supported. The core has no other dependencies. The optional GigE Vision
 adapter requires Aravis 0.8 and pkg-config; platform-specific dependencies
 and setup are documented in `optional/aravis/README.md`.
 

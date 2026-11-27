@@ -9,8 +9,17 @@ section 9.1.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-27
+
+The C ABI is version 3 (`ks_abi_version` returns 3). New since 0.1.0: the
+Code Reader (linear barcodes, Data Matrix, QR Code), the optional GigE
+Vision camera adapter, and the optional AMV Flow engine with its no-code
+editor and operator screen (`optional/`). AMV now needs GNAT 16 or later.
+
 ### Changed
 
+* The toolchain: GNAT 16 or later (`alire.toml`: `gnat >= 16`; GNAT 14
+  is no longer supported).
 * The tests check the contracts of the kernels: every precondition,
   postcondition, predicate and piece of ghost code runs in `test_suite`,
   so that each test also compares the code with its contracts. The
@@ -98,6 +107,12 @@ section 9.1.
 
 ### Added
 
+* Optional components in `optional/`, outside the library (`amv.gpr`),
+  each with its own README: a GigE Vision camera adapter on Aravis 0.8
+  (`optional/aravis`); the AMV Flow engine, which runs the tools as a
+  graph of nodes saved as a file, with a C API (`optional/flow`); and its
+  no-code editor and operator screen in Java (`optional/flow_editor`,
+  packaged with jpackage).
 * Blob: `Create_Blob_Image` (with filtered, viewable and background) and
   `Create_Segmented_Image` (with the stages FinalImage, BeforeMorphology
   and BeforeMasking and stretching), with the run parameters
@@ -304,6 +319,7 @@ section 9.1.
 ## [0.1.0] - 2026-11-12
 
 The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
+It predates the history of this repository, so it has no tag.
 
 ### Core
 
@@ -370,5 +386,5 @@ Barcodes (ID) and OCR are not part of this release.
 * Example programs (`examples/`) in Ada and C, run and checked by
   `make run-examples`.
 
-[Unreleased]: https://github.com/gomurin0428/AdaMachineVision/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/gomurin0428/AdaMachineVision/releases/tag/v0.1.0
+[Unreleased]: https://github.com/gomurin0428/AdaMachineVision/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/gomurin0428/AdaMachineVision/releases/tag/v0.2.0

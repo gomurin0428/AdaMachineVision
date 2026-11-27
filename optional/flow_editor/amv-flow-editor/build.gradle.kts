@@ -89,7 +89,7 @@ tasks.register<Exec>("jpackage") {
     commandLine(
         jpackage, "--type", type,
         "--name", "AMV Flow Editor",
-        "--app-version", "0.1.0",
+        "--app-version", "0.2.0",
         "--input", packageInput.get().asFile.path,
         "--main-jar", "amv-flow-editor.jar",
         "--main-class", "amv.flow.editor.Main",

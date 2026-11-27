@@ -38,8 +38,8 @@ extern "C" {
 #endif
 
 /* Version of this C ABI; ks_abi_version() returns the version of the
-   library actually linked. AMV 0.1.0 has ABI version 2; CHANGELOG.md
-   lists every change of version. */
+   library actually linked. AMV 0.1.0 has ABI version 2 and AMV 0.2.0
+   version 3; CHANGELOG.md lists every change of version. */
 #define KS_ABI_VERSION 3
 
 /* ------------------------------------------------------------------ */
