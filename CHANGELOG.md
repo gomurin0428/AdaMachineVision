@@ -27,7 +27,8 @@ changed (below). AMV is now dual-licensed, and it needs GNAT 16 or later.
 * The toolchain: GNAT 16 or later (`alire.toml`: `gnat >= 16`; GNAT 14
   is no longer supported).
 * Proofs: `ks_image_8_grey_create` states exactly when it fails with
-  Bad_Parameter (exactly when the size is not 1 .. `Max_Pixels` pixels).
+  Bad_Parameter: when the width or the height is less than 1, or the
+  image would have more than `Max_Pixels` pixels.
   The optional GigE Vision adapter has proofs of its own, outside the
   library's (`make prove-aravis`: `AMV.Spec.GigE_Vision` and the
   adapter's production engine, `docs/PROOF.md`).
@@ -332,7 +333,9 @@ changed (below). AMV is now dual-licensed, and it needs GNAT 16 or later.
 ## [0.1.0] - 2026-11-12
 
 The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
-It predates the history of this repository, so it has no tag.
+It predates the history of this repository, so it has no tag. This
+section calls its correlation search and pattern location tools by their
+names in 0.2.0, NCC Search and Shape Match; 0.1.0 named them otherwise.
 
 ### Core
 
