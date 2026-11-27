@@ -10,7 +10,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 
 ツール(たとえば `Ks_Blob_Tool`)は、入力画像と実行パラメータを持ちます。`Run` を呼ぶと、結果と実行状態がツールに残ります。
 
-ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux/Windows 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。
+ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux/Windows 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。同じく任意の AMV Flow は、ツールをノードのフローとしてコードなしで組んで実行するもので、エディターとオペレーター画面があります([`optional/flow/README.md`](optional/flow/README.md)、[`optional/flow_editor/README.md`](optional/flow_editor/README.md))。
 
 ## 検出例
 
@@ -143,6 +143,9 @@ tests/           Ada のテスト(test_suite が全部を全契約の検査つ�
 examples/        サンプルプログラム。examples/real_images は写真を使うもの
 tools/           開発用のツール(API の薄さの検査)
 optional/aravis/ 任意の Aravis GigE Vision アダプタとテスト
+optional/flow/   任意の AMV Flow のエンジン、amv_flow コマンド、C API
+optional/flow_editor/
+                 AMV Flow のエディターとオペレーター画面(Java)
 docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
                  images/(README に載せている結果画像)、
                  handoff/(計画とメモ。日本語)
@@ -157,6 +160,7 @@ docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
 - `tests/real_images/README.md`:実画像テストの画像とライセンス、調整用と評価用を分ける手順。
 - `docs/images/README.md`:結果画像の一覧と、元の写真の出典とライセンス(英語)。
 - `optional/aravis/README.md`:任意の Mono8/Bayer8 GigE Vision アダプタ、Aravis 依存、ライフサイクル、loopback 限定テスト(英語)。
+- `optional/flow/README.md`、`optional/flow_editor/README.md`:AMV Flow のフローのファイルと C API、エディター(英語)。
 
 ## ライセンス
 

@@ -13,7 +13,10 @@ the same kernels are the C API. The core uses no other library. The
 optional Linux and Windows GigE Vision adapter is outside the SPARK kernels
 and C API; it uses Aravis 0.8 (see
 [`optional/aravis/README.md`](optional/aravis/README.md) for platform-specific
-dependencies and setup).
+dependencies and setup). AMV Flow, also optional, runs the tools as a
+flow of nodes built without code, in an editor with an operator screen
+([`optional/flow/README.md`](optional/flow/README.md),
+[`optional/flow_editor/README.md`](optional/flow_editor/README.md)).
 
 ## What it finds
 
@@ -162,6 +165,9 @@ tests/           Ada tests (test_suite runs them all with every contract
 examples/        example programs; examples/real_images runs on photographs
 tools/           development tools (the thin-API check)
 optional/aravis/ the optional Aravis GigE Vision adapter and tests
+optional/flow/   the optional AMV Flow engine, its amv_flow runner and C API
+optional/flow_editor/
+                 the AMV Flow editor and operator screen (Java)
 docs/            DESIGN.md (binding rules), PROOF.md,
                  images/ (the result pictures the READMEs show),
                  handoff/ (plans and notes, in Japanese)
@@ -181,6 +187,8 @@ docs/            DESIGN.md (binding rules), PROOF.md,
   licence of the photograph under each.
 * `optional/aravis/README.md`: the optional Mono8/Bayer8 GigE Vision adapter,
   its Aravis dependency, lifecycle, and loopback-only tests.
+* `optional/flow/README.md` and `optional/flow_editor/README.md`: AMV
+  Flow, its flow files and C API, and the editor.
 
 ## License
 

@@ -14,12 +14,23 @@ section 9.1.
 The C ABI is version 3 (`ks_abi_version` returns 3). New since 0.1.0: the
 Code Reader (linear barcodes, Data Matrix, QR Code), the optional GigE
 Vision camera adapter, and the optional AMV Flow engine with its no-code
-editor and operator screen (`optional/`). AMV now needs GNAT 16 or later.
+editor and operator screen (`optional/`).
+
+Code written for 0.1.0 has to change: C callers must be rebuilt for ABI
+version 3 (`ks_blob_run_params` has grown), the pattern location and
+correlation search tools are now Shape Match and NCC Search in every
+public name (the earlier names are gone), and some stream formats have
+changed (below). AMV is now dual-licensed, and it needs GNAT 16 or later.
 
 ### Changed
 
 * The toolchain: GNAT 16 or later (`alire.toml`: `gnat >= 16`; GNAT 14
   is no longer supported).
+* Proofs: `ks_image_8_grey_create` states exactly when it fails with
+  Bad_Parameter (exactly when the size is not 1 .. `Max_Pixels` pixels).
+  The optional GigE Vision adapter has proofs of its own, outside the
+  library's (`make prove-aravis`: `AMV.Spec.GigE_Vision` and the
+  adapter's production engine, `docs/PROOF.md`).
 * The tests check the contracts of the kernels: every precondition,
   postcondition, predicate and piece of ghost code runs in `test_suite`,
   so that each test also compares the code with its contracts. The
@@ -110,9 +121,11 @@ editor and operator screen (`optional/`). AMV now needs GNAT 16 or later.
 * Optional components in `optional/`, outside the library (`amv.gpr`),
   each with its own README: a GigE Vision camera adapter on Aravis 0.8
   (`optional/aravis`); the AMV Flow engine, which runs the tools as a
-  graph of nodes saved as a file, with a C API (`optional/flow`); and its
-  no-code editor and operator screen in Java (`optional/flow_editor`,
-  packaged with jpackage).
+  graph of nodes saved as a file, with the `amv_flow` command-line
+  runner and a C API of its own (`optional/flow`, `amv_flow.h`, with its
+  own ABI version); and its no-code editor and operator screen in Java
+  (`optional/flow_editor`), packaged with jpackage on Windows only so
+  far.
 * Blob: `Create_Blob_Image` (with filtered, viewable and background) and
   `Create_Segmented_Image` (with the stages FinalImage, BeforeMorphology
   and BeforeMasking and stretching), with the run parameters

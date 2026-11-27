@@ -1,9 +1,9 @@
 # AMV Flow (engine)
 
 AMV tools as nodes whose ports are linked into a flow that can be checked,
-run, saved and loaded without writing code. The design, including the
-JavaFX editor still to come, is in [`docs/FLOW_EDITOR_DESIGN.md`](../../docs/FLOW_EDITOR_DESIGN.md)
-(in Japanese). This directory holds the engine (`AMV.Flow`, in Ada, over
+run, saved and loaded without writing code. The design is in
+[`docs/FLOW_EDITOR_DESIGN.md`](../../docs/FLOW_EDITOR_DESIGN.md) (in
+Japanese); the JavaFX editor is in [`optional/flow_editor`](../flow_editor/README.md). This directory holds the engine (`AMV.Flow`, in Ada, over
 the AMV Ada API), the `amv_flow` command-line runner and the tests. It is
 outside the proved library and needs AMV only.
 
