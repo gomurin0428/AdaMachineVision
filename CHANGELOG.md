@@ -9,8 +9,29 @@ section 9.1.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-27
+
+The C ABI is version 3 (`ks_abi_version` returns 3). New since 0.1.0: the
+Code Reader (linear barcodes, Data Matrix, QR Code), the optional GigE
+Vision camera adapter, and the optional AMV Flow engine with its no-code
+editor and operator screen (`optional/`).
+
+Code written for 0.1.0 has to change: C callers must be rebuilt for ABI
+version 3 (`ks_blob_run_params` has grown), the pattern location and
+correlation search tools are now Shape Match and NCC Search in every
+public name (the earlier names are gone), and some stream formats have
+changed (below). AMV is now dual-licensed, and it needs GNAT 16 or later.
+
 ### Changed
 
+* The toolchain: GNAT 16 or later (`alire.toml`: `gnat >= 16`; GNAT 14
+  is no longer supported).
+* Proofs: `ks_image_8_grey_create` states exactly when it fails with
+  Bad_Parameter: when the width or the height is less than 1, or the
+  image would have more than `Max_Pixels` pixels.
+  The optional GigE Vision adapter has proofs of its own, outside the
+  library's (`make prove-aravis`: `AMV.Spec.GigE_Vision` and the
+  adapter's production engine, `docs/PROOF.md`).
 * The tests check the contracts of the kernels: every precondition,
   postcondition, predicate and piece of ghost code runs in `test_suite`,
   so that each test also compares the code with its contracts. The
@@ -98,6 +119,14 @@ section 9.1.
 
 ### Added
 
+* Optional components in `optional/`, outside the library (`amv.gpr`),
+  each with its own README: a GigE Vision camera adapter on Aravis 0.8
+  (`optional/aravis`); the AMV Flow engine, which runs the tools as a
+  graph of nodes saved as a file, with the `amv_flow` command-line
+  runner and a C API of its own (`optional/flow`, `amv_flow.h`, with its
+  own ABI version); and its no-code editor and operator screen in Java
+  (`optional/flow_editor`), packaged with jpackage on Windows only so
+  far.
 * Blob: `Create_Blob_Image` (with filtered, viewable and background) and
   `Create_Segmented_Image` (with the stages FinalImage, BeforeMorphology
   and BeforeMasking and stretching), with the run parameters
@@ -304,6 +333,9 @@ section 9.1.
 ## [0.1.0] - 2026-11-12
 
 The first release. The C ABI is version 2 (`ks_abi_version` returns 2).
+It predates the history of this repository, so it has no tag. This
+section calls its correlation search and pattern location tools by their
+names in 0.2.0, NCC Search and Shape Match; 0.1.0 named them otherwise.
 
 ### Core
 
@@ -370,5 +402,5 @@ Barcodes (ID) and OCR are not part of this release.
 * Example programs (`examples/`) in Ada and C, run and checked by
   `make run-examples`.
 
-[Unreleased]: https://github.com/gomurin0428/AdaMachineVision/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/gomurin0428/AdaMachineVision/releases/tag/v0.1.0
+[Unreleased]: https://github.com/gomurin0428/AdaMachineVision/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/gomurin0428/AdaMachineVision/releases/tag/v0.2.0

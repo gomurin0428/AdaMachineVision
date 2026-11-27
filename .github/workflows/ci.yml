@@ -67,6 +67,9 @@ jobs:
       - name: Install ImageMagick (for the real-image tests)
         timeout-minutes: 10
         run: |
+          # Ubuntu's archive only: the runner image also lists Microsoft's
+          # repository, whose 403 once failed the whole update.
+          sudo grep -rl packages.microsoft.com /etc/apt/sources.list.d | xargs -r sudo rm -f
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update -q
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y -q imagemagick
 
@@ -108,6 +111,9 @@ jobs:
       - name: Install Aravis development files
         timeout-minutes: 10
         run: |
+          # Ubuntu's archive only: the runner image also lists Microsoft's
+          # repository, whose 403 once failed the whole update.
+          sudo grep -rl packages.microsoft.com /etc/apt/sources.list.d | xargs -r sudo rm -f
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update -q
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y -q libaravis-dev libusb-1.0-0-dev iproute2
 

@@ -10,7 +10,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 
 ツール(たとえば `Ks_Blob_Tool`)は、入力画像と実行パラメータを持ちます。`Run` を呼ぶと、結果と実行状態がツールに残ります。
 
-ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux/Windows 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。
+ロジックは SPARK で書き、実行時エラーが起きないことを証明しています。同じカーネルが、そのまま C API になります。コアはほかのライブラリに依存しません。任意の Linux/Windows 向け GigE Vision アダプタは SPARK カーネルと C API の外にあり、Aravis 0.8 を使います([`optional/aravis/README.md`](optional/aravis/README.md))。同じく任意の AMV Flow は、ツールをノードのフローとしてコードなしで組んで実行するもので、エディターとオペレーター画面があります([`optional/flow/README.md`](optional/flow/README.md)、[`optional/flow_editor/README.md`](optional/flow_editor/README.md))。
 
 ## 検出例
 
@@ -41,7 +41,7 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
 
 ## 現状
 
-版 0.1.0 で、最初のリリースです(C の ABI の版は 2)。内容とその後の変更は `CHANGELOG.md`(英語)に記録しています。
+版 0.2.0 です(C の ABI の版は 3)。各リリースの内容とその後の変更は `CHANGELOG.md`(英語)に記録しています。
 
 - **コア:** 実装とテストが済んでいるのは次のとおりです。
   - 変換、座標空間ツリー
@@ -59,8 +59,8 @@ AdaMachineVision(AMV)は、Ada 2022 で書いたマシンビジョンライブ�
   - ToolGroup / ToolBlock
 
   各ツールの内容、既定値、対応していない機能は、それぞれのパッケージの仕様(`src/amv-blob.ads` など)に書いています。Shape Match の探索は、公開文献に基づく AMV 独自の手法です(`src/amv-kernels-shape_match.ads` に説明があります)。
-- **証明:** ロジックはすべて SPARK のカーネルにあります。どのカーネルも、任意の入力で実行時エラーが起きないことを gnatprove で証明しています。`docs/PROOF.md` に挙げた性質については、機能的な正しさも証明しています。チェックは 38478 項目で、すべて証明済みです。`pragma Assume` も、正当化で済ませたチェックもありません。証明していない部分(薄い Ada API、画素の共有の参照カウント、確保・C のメモリとのコピー・ストリームの変換を行う小さな補助)は、同じファイルに列挙しています。
-- **未対応:** OCR。1 次元バーコード、Data Matrix、QR コードは、v0.1.0 の後に追加した Code Reader で読めます。
+- **証明:** ロジックはすべて SPARK のカーネルにあります。どのカーネルも、任意の入力で実行時エラーが起きないことを gnatprove で証明しています。`docs/PROOF.md` に挙げた性質については、機能的な正しさも証明しています。チェックは 39444 項目で、すべて証明済みです。`pragma Assume` も、正当化で済ませたチェックもありません。証明していない部分(薄い Ada API、画素の共有の参照カウント、確保・C のメモリとのコピー・ストリームの変換を行う小さな補助)は、同じファイルに列挙しています。
+- **未対応:** OCR。1 次元バーコード、Data Matrix、QR コードは、0.2.0 で追加した Code Reader で読めます。
 
 ## 設計の要点
 
@@ -110,7 +110,7 @@ end Quick_Look;
 
 - GNAT 16.1 と gprbuild 26(GNAT FSF builds や Alire など)
 - 証明には gnatprove 16.1
-- GNAT 14 でも Ada のビルドとテストは通ります。
+- GNAT 16 より古い GNAT には対応していません。
 - コアにほかの依存はありません。任意の GigE Vision アダプタには Aravis 0.8 の開発ファイルと pkg-config が必要です。
 - Windows では MSYS2 MINGW64 を使います。Aravis、GNAT、gprbuild の依存関係とテスト手順は [`optional/aravis/README.md`](optional/aravis/README.md) を参照してください。
 
@@ -143,6 +143,9 @@ tests/           Ada のテスト(test_suite が全部を全契約の検査つ�
 examples/        サンプルプログラム。examples/real_images は写真を使うもの
 tools/           開発用のツール(API の薄さの検査)
 optional/aravis/ 任意の Aravis GigE Vision アダプタとテスト
+optional/flow/   任意の AMV Flow のエンジン、amv_flow コマンド、C API
+optional/flow_editor/
+                 AMV Flow のエディターとオペレーター画面(Java)
 docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
                  images/(README に載せている結果画像)、
                  handoff/(計画とメモ。日本語)
@@ -157,6 +160,7 @@ docs/            DESIGN.md(拘束力のある規則)、PROOF.md、
 - `tests/real_images/README.md`:実画像テストの画像とライセンス、調整用と評価用を分ける手順。
 - `docs/images/README.md`:結果画像の一覧と、元の写真の出典とライセンス(英語)。
 - `optional/aravis/README.md`:任意の Mono8/Bayer8 GigE Vision アダプタ、Aravis 依存、ライフサイクル、loopback 限定テスト(英語)。
+- `optional/flow/README.md`、`optional/flow_editor/README.md`:AMV Flow のフローのファイルと C API、エディター(英語)。
 
 ## ライセンス
 

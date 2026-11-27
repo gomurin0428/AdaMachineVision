@@ -167,8 +167,8 @@ packages; their entry points form the C API (section 9).
 ## 7. Implementation rules
 
 * Ada 2022. The reference toolchain is GNAT 16.1, gprbuild 26 and
-  gnatprove 16.1 (GNAT FSF builds); GNAT 14 also builds and tests the
-  library's Ada code, but proofs need gnatprove 16. No external libraries: the
+  gnatprove 16.1 (GNAT FSF builds); older GNAT versions are not
+  supported (alire.toml: gnat >= 16). No external libraries: the
   runtime (`Ada.*`, `Interfaces`, `System.Atomic_Operations`) only. The
   library itself is written in Ada; C appears only in the C API header
   (`include/amv.h`), the C tests (`tests/c/`) and C examples.
@@ -328,10 +328,10 @@ SPARK kernels").
   is declared on the stack.
 * Records grow only at their end. `AMV.Kernels.ABI_Version`
   (`ks_abi_version`) changes on any incompatible change.
-* Compatibility since release 0.1.0 (ABI version 2). A pull request that
-  makes the C API incompatible (a record's layout or size, a parameter
-  list, the meaning of a code or a value) raises `ABI_Version` and
-  `KS_ABI_VERSION` together, unless an earlier change since the last
+* Compatibility since release 0.2.0 (ABI version 3; 0.1.0 had version
+  2). A pull request that makes the C API incompatible (a record's
+  layout or size, a parameter list, the meaning of a code or a value)
+  raises `ABI_Version` and `KS_ABI_VERSION` together, unless an earlier change since the last
   release already raised them, and says so under "Unreleased" in
   `CHANGELOG.md`. A type with its own stream format (a stream code: the
   images, trees, regions, patterns, calibrations, fit points) keeps the
